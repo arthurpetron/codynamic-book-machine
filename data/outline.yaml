@@ -1,0 +1,10 @@
+# Initial outline
+title: Codynamic Theory
+parts:
+  - id: part1
+    title: Foundations
+    sections:
+      - id: 01_intro
+        title: The Need for Codynamics
+      - id: 02_math_language
+        title: Mathematical Language of Change
