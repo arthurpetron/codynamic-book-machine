@@ -45,7 +45,7 @@ codynamic-book-machine/
 ├── main.js               # Electron main process script
 ├── package.json          # Project metadata and dependencies
 └── README.md             # Project overview and work plan
-
+```
 ## 📄 License
 
 This project is licensed under the MIT License.
