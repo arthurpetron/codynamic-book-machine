@@ -36,15 +36,15 @@ The Codynamic Book Machine is an Electron-based desktop application designed to 
 
 ## 📂 Project Structure
 
-codynamic-book-machine/
-├── src/                  # React components and frontend logic
-├── tex/                  # LaTeX source files
-├── public/               # Static assets and HTML templates
-├── scripts/              # Utility scripts (e.g., LaTeX compilation)
-├── data/                 # Application data and configuration files
-├── main.js               # Electron main process script
-├── package.json          # Project metadata and dependencies
-└── README.md             # Project overview and work plan
+codynamic-book-machine/\
+├── src/                  # React components and frontend logic\
+├── tex/                  # LaTeX source files\
+├── public/               # Static assets and HTML templates\
+├── scripts/              # Utility scripts (e.g., LaTeX compilation)\
+├── data/                 # Application data and configuration files\
+├── main.js               # Electron main process script\
+├── package.json          # Project metadata and dependencies\
+└── README.md             # Project overview and work plan\
 
 ## 📄 License
 
