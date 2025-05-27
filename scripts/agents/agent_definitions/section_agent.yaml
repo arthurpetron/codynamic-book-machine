@@ -1,0 +1,109 @@
+name: section_agent
+role: Composes and refines the LaTeX content of a specific document section based on outline intent, semantic feedback, and inter-agent coordination.
+
+tasks:
+  - Interpret and fulfill the intent of a specific outline section
+  - Draft or revise LaTeX code for that section
+  - Respond to gardener or design agent feedback
+  - Coordinate with other section agents to ensure consistency and continuity
+
+inputs:
+  - section intent from outline_agent
+  - semantic feedback from gardener_agent
+  - typesetting feedback from document_design_agent
+  - inter-section messages from sibling section_agents
+
+outputs:
+  - tex/sections/{section_id}.tex
+  - logs/section_agent_log.yaml
+  - diffs to tex content
+  - messages to coordinating agents
+
+actions:
+  - id: draft_initial_section
+    description: Generate the first draft of a section in LaTeX
+    prompt_template: |
+      Draft a LaTeX section for the document. Use the following intent:
+
+      Section ID: {section_id}
+      Title: {title}
+      Content Summary: {content_summary}
+
+      Output valid LaTeX code only.
+
+  - id: revise_section_from_feedback
+    description: Apply feedback to improve section content
+    prompt_template: |
+      You are revising section {section_id} based on the following feedback:
+
+      {feedback}
+
+      Return a new version of the LaTeX source with improvements.
+
+  - id: summarize_section_semantics
+    description: Provide a plain-language summary of the section's current meaning
+    prompt_template: |
+      Provide a plain-English summary of what the LaTeX section {section_id} currently expresses.
+
+  - id: validate_section_integrity
+    description: Ensure the section meets structural and semantic requirements
+    prompt_template: |
+      Validate the LaTeX section {section_id} against the outline intent and semantic feedback.
+      Report any issues or confirm validity.
+  
+  - id: coordinate_with_sibling_sections
+    description: Share updates and align with sibling section agents
+    prompt_template: |
+      You are the section agent for {section_id}. Share your current status and any changes made.
+      Coordinate with sibling sections to ensure consistency in style and content.
+
+  - id: propose_section_improvements
+    description: Suggest enhancements to the section based on overall manuscript coherence
+    prompt_template: |
+      Based on the current manuscript structure and intent, propose one or two improvements to the section {section_id}.
+      Consider flow, clarity, and alignment with the overall document goals.
+
+  - id: request_additional_feedback
+    description: Ask for more specific feedback from the gardener or design agents
+    prompt_template: |
+      You are the section agent for {section_id}. Request targeted feedback on the following aspects:
+      - Clarity of intent fulfillment
+      - LaTeX typesetting quality
+      - Semantic alignment with manuscript goals
+
+  - id: do_research_on_the_web
+    description: Conduct web research to enhance section content
+    prompt_template: |
+      Research the following topic to find relevant information for section {section_id}:
+      {research_topic}
+      Provide a summary of findings and how they can be integrated into the section including citations to all sources.
+    
+  - id: propose_section_visuals
+    description: Suggest visuals or diagrams to enhance the section
+    prompt_template: |
+      Based on the content of section {section_id}, propose one or two visuals that would enhance understanding.
+      Describe the visual and how it relates to the section content. You may send a message to the design agent to create these visuals.
+      The design agent will need to know the section ID, title, and content summary and will respond with a visual file path that you
+      can include in your LaTeX code.
+
+  - id: verify_mathematical_integrity
+    description: Check the mathematical content for correctness and clarity
+    prompt_template: |
+      Review the mathematical expressions in section {section_id} for correctness and clarity.
+      All mathematical expressions should be valid LaTeX and clearly convey the intended meaning.
+      They must be typeset correctly and should not contain any errors, including:
+      1) Ensure all symbols are defined or explained
+      2) Check that all equations are properly formatted
+      3) Verify that all mathematical statements are logically, intuitionistically, and semantically correct
+      4) Follow constructive mathematics principles where applicable
+      5) Ensure all mathematical content is coherent with the overall manuscript intent
+      6) Ensure all mathematical content is consice and necessary for the section's purpose
+  
+      Provide feedback on any issues or confirm that they are valid.
+
+permissions:
+  - write_section_tex
+  - receive_feedback
+  - send_messages
+  - receive_messages
+  - introspect_content
