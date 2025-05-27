@@ -1,10 +1,44 @@
-# Initial outline
-title: Codynamic Theory
-parts:
-  - id: part1
-    title: Foundations
-    sections:
-      - id: 01_intro
-        title: The Need for Codynamics
-      - id: 02_math_language
-        title: Mathematical Language of Change
+outline:
+  title: "Your Book Title Here"
+  summary: |
+    A paragraph-length abstract summarizing the book's purpose, scope, and intended impact.
+
+  intent:
+    audience: "Target reader archetypes or communities"
+    writing_style: "Narrative tone, e.g., academic, poetic, technical-expressive"
+    author_persona: "Persona or voice the author adopts (e.g. teacher, explorer)"
+    reader_takeaway: "What should readers understand/feel after reading?"
+    genre: "E.g., nonfiction, speculative theory, manifesto, etc."
+
+  chapters:
+    - id: "chapter_01"
+      title: "Chapter Title"
+      goal: "Intent or learning outcome for this chapter"
+      summary: |
+        A few sentences describing the scope of the chapter
+      sections:
+        - id: "chapter_01_section_01"
+          title: "Section Title"
+          content_summary: "High-level overview of what this section covers"
+        - id: "chapter_01_section_02"
+          ...
+    - id: "chapter_02"
+      ...
+
+  diagrams:
+    - id: "diagram_001"
+      title: "Diagram Title"
+      description: "Linguistic description of what it shows"
+      computational_definition: "Optional code block or reference to a script"
+
+  artwork:
+    - id: "image_001"
+      title: "Image Title"
+      description: "Linguistic description of the image's role"
+      file: "path/to/image.png"
+
+  metadata:
+    version: 1.0
+    created: 2025-05-19
+    updated: 2025-05-19
+    maintained_by: "author"  # or agent name

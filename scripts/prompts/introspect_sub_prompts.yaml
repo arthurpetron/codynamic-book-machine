@@ -1,0 +1,197 @@
+actions:
+  - id: summarize_self
+    prompt: |
+      Summarize your purpose, current state, and goals given the manuscript outline and your defined role.
+
+  - id: list_tasks
+    prompt: |
+      List the tasks you are currently responsible for and describe your readiness or any blockers.
+
+  - id: evaluate_recent_activity
+    prompt: |
+      Reflect on your recent actions. Were they effective? Is there anything you would do differently?
+
+  - id: report_dependencies
+    prompt: |
+      List which agents or files you depend on and describe any current unmet needs or issues.
+
+  - id: propose_self_improvement
+    prompt: |
+      Given your tasks and outputs, suggest improvements to your structure, logic, or interaction protocols.
+  - id: propose_new_sub_prompt
+    prompt: |
+      Propose a new sub-prompt that would enhance your capabilities or address a gap in your current functionality.
+      Include the purpose, expected inputs, and desired outputs of this new sub-prompt.
+  - id: introspect_sub_prompts
+    prompt: |
+      Review your existing sub-prompts. For each one, provide:
+      - Purpose: What is the intended outcome of this sub-prompt?
+      - Inputs: What inputs does it require?
+      - Outputs: What outputs does it produce?
+      - Effectiveness: How well does it achieve its purpose? Are there any limitations or areas for improvement?
+      - Dependencies: Does it rely on other agents or files? If so, which ones?
+      
+      Summarize your findings and suggest any modifications or new sub-prompts that could enhance your functionality.
+  - id: review_agent_interactions
+    prompt: |
+      Analyze your interactions with other agents. Are there any communication gaps or misunderstandings?
+      How can you improve collaboration and information sharing with other agents in the system?
+      
+      Provide specific examples of successful interactions and areas where communication could be improved.
+      
+      Suggest strategies for better alignment and coordination with other agents to achieve the manuscript's goals.
+  - id: propose_new_agent
+    prompt: |
+      Based on your current capabilities and the needs of the manuscript, propose a new agent that could enhance the system.
+      Include:
+      - Name: Suggested name for the new agent
+      - Role: Brief description of its purpose and responsibilities
+      - Inputs: What inputs would it require?
+      - Outputs: What outputs would it produce?
+      - Dependencies: Would it rely on any existing agents or files?
+      
+      Justify why this new agent is necessary and how it would improve the overall manuscript development process.
+  - id: propose_agent_improvement
+    prompt: |
+      Reflect on your current agent structure and propose improvements to enhance functionality or efficiency.
+      Consider:
+      - Are there redundant agents that could be consolidated?
+      - Are there gaps in capabilities that need to be addressed?
+      - How can existing agents be optimized for better performance?
+      
+      Provide specific recommendations for changes, including any new roles, tasks, or interactions that would improve the system.
+  - id: analyze_writing_style
+    prompt: |
+      Analyze the current writing style of the manuscript. Is it consistent with the intended audience and genre?
+      Consider:
+      - Tone: Is it appropriate for the target readers?
+      - Clarity: Is the language clear and accessible?
+      - Engagement: Does it maintain reader interest?
+      
+      Provide specific examples from the manuscript to support your analysis and suggest any necessary adjustments to align with the intended writing style.
+  - id: propose_writing_style_adjustments
+    prompt: |
+      Based on your analysis of the writing style, propose adjustments to enhance clarity, engagement, and alignment with the intended audience.
+      Consider:
+      - Are there sections that need simplification or rephrasing?
+      - Are there opportunities to enhance narrative flow or coherence?
+      - How can technical concepts be better explained for the target readers?
+      
+      Provide specific recommendations for changes, including examples of revised text where applicable.
+  - id: evaluate_manuscript_structure
+    prompt: |
+      Evaluate the overall structure of the manuscript. Does it follow a logical progression?
+      Consider:
+      - Are chapters and sections well-organized?
+      - Is there a clear flow of ideas from one section to the next?
+      - Are transitions between sections smooth and coherent?
+      
+      Provide specific examples of structural strengths and weaknesses, and suggest any necessary adjustments to improve the manuscript's organization.
+  - id: evaluate_manuscript_visual_design
+    prompt: |
+      Assess the visual design elements of the manuscript. Do they effectively support the content and enhance understanding?
+      Consider:
+      - Are diagrams and illustrations clear and relevant?
+      - Do they complement the text without overwhelming it?
+      - Is there a consistent visual style throughout the manuscript?
+      
+      Provide specific examples of visual strengths and weaknesses, and suggest any necessary adjustments to improve the overall design.
+  - id: propose_visual_design_improvements
+    prompt: |
+      Based on your evaluation of the visual design, propose improvements to enhance clarity, relevance, and consistency.
+      Consider:
+      - Are there diagrams that need simplification or reworking?
+      - Are there opportunities to add new visuals that would aid understanding?
+      - How can existing visuals be better integrated with the text?
+      
+      Provide specific recommendations for changes, including examples of revised visuals where applicable.
+  - id: check_manuscript_audience_alignment
+    prompt: |
+      Review the manuscript to ensure it aligns with the intended audience's knowledge level and interests.
+      Consider:
+      - Are technical concepts explained at an appropriate level?
+      - Is the content engaging for the target readers?
+      - Are there sections that may be too advanced or too simplistic?
+      
+      Provide specific examples of audience alignment strengths and weaknesses, and suggest any necessary adjustments to better cater to the intended readership.
+  - id: propose_audience_alignment_adjustments
+    prompt: |
+      Based on your review of audience alignment, propose adjustments to enhance engagement and understanding.
+      Consider:
+      - Are there sections that need rephrasing for clarity?
+      - Are there opportunities to add examples or analogies that would resonate with the target readers?
+      - How can the overall tone be adjusted to better suit the intended audience?
+      
+      Provide specific recommendations for changes, including examples of revised text where applicable.
+  - id: evaluate_manuscript_intent_alignment
+    prompt: |
+      Assess the manuscript's alignment with its stated intent and goals.
+      Consider:
+      - Does each chapter and section contribute to the overall purpose?
+      - Are the themes and messages consistent throughout?
+      - Is there a clear connection between the content and the intended impact on readers?
+      
+      Provide specific examples of intent alignment strengths and weaknesses, and suggest any necessary adjustments to ensure the manuscript fulfills its intended purpose.
+  - id: propose_intent_alignment_adjustments
+    prompt: |
+      Based on your evaluation of intent alignment, propose adjustments to enhance coherence and focus.
+      Consider:
+      - Are there sections that stray from the main themes or goals?
+      - Are there opportunities to strengthen connections between chapters?
+      - How can the overall narrative be tightened to better serve the manuscript's intent?
+      
+      Provide specific recommendations for changes, including examples of revised text where applicable.
+  - id: evaluate_manuscript_completeness
+    prompt: |
+      Review the manuscript to ensure it is complete and covers all necessary topics.
+      Consider:
+      - Are there gaps in content that need to be addressed?
+      - Are all key concepts and themes adequately explored?
+      - Is there a logical progression from one section to the next?
+      
+      Provide specific examples of completeness strengths and weaknesses, and suggest any necessary additions or revisions to ensure the manuscript is thorough and well-rounded.
+  - id: propose_completeness_adjustments
+    prompt: |
+      Based on your review of completeness, propose adjustments to fill any gaps and enhance the manuscript's depth.
+      Consider:
+      - Are there sections that need additional detail or examples?
+      - Are there opportunities to expand on key concepts or themes?
+      - How can the overall content be enriched to provide a more comprehensive understanding?
+      
+      Provide specific recommendations for changes, including examples of revised text where applicable.
+  - id: evaluate_manuscript_coherence
+    prompt: |
+      Assess the coherence of the manuscript. Does it present a unified and consistent narrative?
+      Consider:
+      - Are there conflicting ideas or themes?
+      - Is there a clear thread connecting all sections?
+      - Are transitions between sections smooth and logical?
+      
+      Provide specific examples of coherence strengths and weaknesses, and suggest any necessary adjustments to enhance the overall unity of the manuscript.
+  - id: propose_coherence_adjustments
+    prompt: |
+      Based on your evaluation of coherence, propose adjustments to strengthen the manuscript's narrative flow.
+      Consider:
+      - Are there sections that need reorganization for better clarity?
+      - Are there opportunities to clarify connections between ideas?
+      - How can the overall structure be improved to enhance coherence?
+      
+      Provide specific recommendations for changes, including examples of revised text where applicable.
+  - id: analyze_manuscript_for_duplicate_content
+    prompt: |
+      Review the manuscript for any duplicate content or redundant sections.
+      Consider:
+      - Are there ideas or concepts that are repeated unnecessarily?
+      - Is there overlap between sections that could be streamlined?
+      - How can the manuscript be made more concise without losing essential information?
+      
+      Provide specific examples of duplication issues and suggest ways to eliminate redundancy while maintaining clarity and depth.
+  - id: propose_duplicate_content_removal
+    prompt: |
+      Based on your analysis of duplicate content, propose adjustments to streamline the manuscript.
+      Consider:
+      - Are there sections that can be combined or condensed?
+      - Are there opportunities to clarify or rephrase repeated ideas?
+      - How can the overall content be made more efficient without sacrificing quality?
+      
+      Provide specific recommendations for changes, including examples of revised text where applicable.

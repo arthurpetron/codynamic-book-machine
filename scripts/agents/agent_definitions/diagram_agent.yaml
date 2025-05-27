@@ -1,0 +1,4 @@
+name: DiagramCompilerAgent
+input: {linguistic_description}
+output: {tikz_code}
+maintains: diagrams[]

@@ -1,0 +1,15 @@
+type: object
+required:
+  - subject
+  - to
+  - reply_to
+  - body
+properties:
+  subject:
+    type: string
+  to:
+    type: string
+  reply_to:
+    type: string
+  body:
+    type: string

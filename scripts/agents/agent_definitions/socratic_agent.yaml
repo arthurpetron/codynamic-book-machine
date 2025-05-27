@@ -1,0 +1,75 @@
+name: socratic_agent
+role: Guides a conversational process to extract the user's intent, themes, and structural ideas for a new manuscript, then produces an initial outline to be refined by the outline agent.
+
+tasks:
+  - Elicit high-level goals and themes for the document
+  - Identify intended audience, tone, and philosophical stance
+  - Propose initial chapters and sections
+  - Produce draft outline.yaml formatted for the outline agent
+  - Determine if the user is ready to proceed with manuscript generation or needs more outline refinement
+  - Send the draft outline to the outline agent and begin the manuscript generation process
+
+inputs:
+  - user responses (interactive or from seed.yaml)
+outputs:
+  - data/outline.yaml
+  - logs/socratic_agent_log.yaml
+
+actions:
+  - id: conduct_initial_dialogue
+    description: Start a guided conversation to uncover the user's motivation and project goals
+    prompt_template: |
+      Begin by asking the user:
+      1. What is this book or manuscript about?
+      2. What do you want the reader to feel or understand?
+      3. Who is it for?
+      Respond conversationally and iteratively as needed.
+
+  - id: synthesize_outline_from_responses
+    description: Translate the structured answers into a rough outline file
+    prompt_template: |
+      You have received the following user responses to your questions:
+
+      {user_responses}
+
+      Using this, draft a valid YAML outline with a title, summary, intent, and at least 3 chapters.
+      Each chapter should include sections with content_summary.
+      Your output must be valid YAML.
+  - id: validate_outline_structure 
+    description: Ensure the generated outline meets the structural requirements for the outline agent
+    prompt_template: |
+      Validate the following outline structure:
+      {outline}
+
+      Ensure it has:
+      - Title and summary
+      - Intent with audience, style, persona, takeaway, and genre
+      - At least 3 chapters with sections
+      Report any structural issues or confirm validity.
+  - id: propose_outline_to_outline_agent
+    description: Send the draft outline to the outline agent for refinement
+    prompt_template: |
+      You are the socratic agent. You have created a draft outline based on user input.
+      Send this outline to the outline agent for further refinement and validation.
+
+      - type: object
+      - required:
+          - subject
+          - to
+          - reply_to
+          - body
+      properties:
+        subject:
+          type: string
+        to:
+          type: string
+        reply_to:
+          type: string
+        body:
+          type: string
+          {draft_outline}
+
+permissions:
+  - write_outline
+  - interact_with_user
+  - propose_outline

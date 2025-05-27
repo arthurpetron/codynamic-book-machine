@@ -1,0 +1,64 @@
+name: outline_agent
+role: Maintains and validates the structural integrity and completeness of the manuscript outline.
+
+tasks:
+  - actively maintains the outline to ensure it is true to the intent and structure of the manuscript
+  - check presence of required keys
+  - verify chapter and section structure
+  - log errors and inconsistencies
+  - notify gardener_agent if outline changes or is incomplete
+
+inputs:
+  - outline/codynamic_theory.yaml
+outputs:
+  - logs/outline_agent_log.txt
+  - proposals/outline_proposal.yaml
+
+dependencies:
+  - gardener_agent (to act on structural problems)
+
+actions:
+  - id: propose_mid_document_insert
+    description: Suggest a chapter that bridges a gap in the manuscript structure.
+    prompt_template: |
+      You are the outline agent responsible for maintaining document coherence.
+      Based on the manuscript title, summary, intent, and the following chapter list:
+
+      {chapter_list}
+
+      Please propose a new chapter to insert after chapter ID `{insert_after_id}`.
+      Include: id, title, goal, summary, and 2–3 section entries with id, title, and content_summary.
+
+  - id: propose_conclusion
+    description: Propose a final synthesis chapter for the manuscript.
+    prompt_template: |
+      You are the outline agent. Propose a final chapter that concludes the book.
+      It should synthesize the themes and suggest forward-looking applications.
+
+  - id: validate_outline_structure
+    description: Ensure the outline meets structural requirements.
+    prompt_template: |
+      Validate the following outline structure:
+      {outline}
+
+      Ensure it has:
+      - Title and summary
+      - Intent with audience, style, persona, takeaway, and genre
+      - At least 3 chapters with sections
+      Report any structural issues or confirm validity.
+
+  - id: analyze_outline_context_flow
+    description: Analyze the logical flow and coherence of the outline.
+    prompt_template: |
+      You are the outline agent. Analyze the logical flow between chapters and sections in the outline.
+      Identify any gaps, redundancies, or unclear transitions.
+      Provide a summary of your findings.
+
+permissions:
+  - read_outline
+  - write_outline
+  - notify_gardener_agent
+  - propose_changes_to_self
+  - send_messages
+  - receive_messages
+  - logging

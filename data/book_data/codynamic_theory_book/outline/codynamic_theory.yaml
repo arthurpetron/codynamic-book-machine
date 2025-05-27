@@ -1,0 +1,49 @@
+outline:
+  title: "Codynamic Theory: Structure Is All You Need"
+  summary: |
+    This book introduces Codynamic Theory: a framework for understanding learning, structure, and computation through recursive, context-aware evolution. Rooted in category theory and informed by embodied cognition, it presents a system of tools and structures for expressing, simulating, and iterating on reality-aligned systems.
+
+  intent:
+    audience: "Researchers in AI, physics, robotics, and mathematics; systems designers; advanced generalists"
+    writing_style: "Technically expressive, rigorously grounded, intuitively scaffolded"
+    author_persona: "An experienced theorist inviting others into a collaborative journey"
+    reader_takeaway: "A deep, structural intuition for codynamic systems and the confidence to construct and evolve their own"
+    genre: "Scientific treatise with applied philosophy and technical instruction"
+
+  chapters:
+    - id: "ch01"
+      title: "Foundations of Structure"
+      goal: "Introduce the codynamic viewpoint and why static models fail"
+      summary: |
+        Explore how traditional static models fall short in describing learning systems. Introduce intuitionism, structural recursion, and codynamic intent.
+      sections:
+        - id: "ch01_sec01"
+          title: "From Static to Codynamic"
+          content_summary: "Historical failures of static structure; intuitionism as a constructive stance"
+        - id: "ch01_sec02"
+          title: "Recursive Energy Paths"
+          content_summary: "Why energy, learning, and motion must be locally reconfigurable"
+
+    - id: "ch02"
+      title: "Expressing Systems in Space and Time"
+      goal: "Present the formal tools for describing codynamic systems"
+      summary: |
+        Build up the mathematical and structural vocabulary needed to define systems that adapt with time, locality, and intent.
+
+  diagrams:
+    - id: "diag01"
+      title: "Codynamic Loop"
+      description: "Shows how an agent recursively alters structure through interaction with its environment"
+      computational_definition: "pending"
+
+  artwork:
+    - id: "img01"
+      title: "Cover Illustration"
+      description: "Abstract recursive form showing a structure folding into itself"
+      file: "artwork/cover.png"
+
+  metadata:
+    version: 0.1
+    created: 2025-05-26
+    updated: 2025-05-26
+    maintained_by: "author"
