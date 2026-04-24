@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Codynamic Book Machine: Operadic Architecture</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Computer Modern', 'Latin Modern', serif;
+            background: #fafafa;
+        }
+        svg {
+            background: white;
+            border: 1px solid #ddd;
+            display: block;
+            margin: 0 auto;
+        }
+        text {
+            font-family: 'Computer Modern', 'Latin Modern', serif;
+        }
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            fill: #222;
+        }
+        .subtitle {
+            font-size: 14px;
+            fill: #666;
+        }
+    </style>
+</head>
+<body>
+    <svg width="1600" height="2200" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <!-- Arrow marker -->
+            <marker id="arrowhead" markerWidth="10" markerHeight="10" 
+                    refX="9" refY="3" orient="auto">
+                <polygon points="0 0, 10 3, 0 6" fill="#333" />
+            </marker>
+            
+            <!-- Composition marker (hollow triangle) -->
+            <marker id="composition" markerWidth="12" markerHeight="12" 
+                    refX="10" refY="4" orient="auto">
+                <polygon points="0 0, 10 4, 0 8" fill="white" stroke="#333" stroke-width="1.5" />
+            </marker>
+            
+            <!-- Data flow marker (thick arrow) -->
+            <marker id="dataflow" markerWidth="12" markerHeight="10" 
+                    refX="11" refY="5" orient="auto">
+                <polygon points="0 0, 12 5, 0 10" fill="#0066cc" />
+            </marker>
+            
+            <!-- Feedback marker (curved arrow) -->
+            <marker id="feedback" markerWidth="10" markerHeight="10" 
+                    refX="9" refY="3" orient="auto">
+                <polygon points="0 0, 10 3, 0 6" fill="#cc6600" />
+            </marker>
+            
+            <!-- Gradients for layers -->
+            <linearGradient id="foundationGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#e8f4f8;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#d4e8ef;stop-opacity:1" />
+            </linearGradient>
+            
+            <linearGradient id="providerGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#fff8e8;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#ffe4b3;stop-opacity:1" />
+            </linearGradient>
+            
+            <linearGradient id="agentGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#f0e8f4;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#dfc8e8;stop-opacity:1" />
+            </linearGradient>
+            
+            <linearGradient id="messageGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#e8f8e8;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#d0efd0;stop-opacity:1" />
+            </linearGradient>
+            
+            <linearGradient id="orchGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#ffe8e8;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#ffd0d0;stop-opacity:1" />
+            </linearGradient>
+            
+            <linearGradient id="compileGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#f8e8ff;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#e8d0ff;stop-opacity:1" />
+            </linearGradient>
+        </defs>
+        
+        <!-- Title -->
+        <text x="800" y="40" text-anchor="middle" class="title">
+            Codynamic Book Machine: Operadic Composition Architecture
+        </text>
+        <text x="800" y="65" text-anchor="middle" class="subtitle">
+            A functional view of multi-agent document generation as typed morphisms
+        </text>
+        
+        <!-- Layer 1: Foundation (Data & Schema) -->
+        <g id="layer1">
+            <rect x="50" y="100" width="1500" height="200" 
+                  fill="url(#foundationGrad)" stroke="#0088aa" stroke-width="2" rx="10"/>
+            <text x="800" y="125" text-anchor="middle" font-size="18" font-weight="bold" fill="#0088aa">
+                Layer 1: Foundation (Data & Schema)
+            </text>
+            
+            <!-- Schema Box -->
+            <rect x="100" y="145" width="400" height="130" fill="white" stroke="#0088aa" stroke-width="1.5" rx="5"/>
+            <text x="300" y="170" text-anchor="middle" font-weight="bold" font-size="14">Work Outline Schema v2.1</text>
+            <text x="110" y="195" font-size="11" fill="#333">• Infinite recursive hierarchy</text>
+            <text x="110" y="213" font-size="11" fill="#333">• Dual dependency (structural + narrative)</text>
+            <text x="110" y="231" font-size="11" fill="#333">• Intent capture at every level</text>
+            <text x="110" y="249" font-size="11" fill="#333">• 8 metadata categories</text>
+            <text x="110" y="267" font-size="11" fill="#555" font-style="italic">Type: Outline → ValidatedOutline</text>
+            
+            <!-- Citation Database -->
+            <rect x="550" y="145" width="350" height="130" fill="white" stroke="#0088aa" stroke-width="1.5" rx="5"/>
+            <text x="725" y="170" text-anchor="middle" font-weight="bold" font-size="14">Citation Database</text>
+            <text x="560" y="195" font-size="11" fill="#333">• cites, cited_by, related_to</text>
+            <text x="560" y="213" font-size="11" fill="#333">• used_in tracking</text>
+            <text x="560" y="231" font-size="11" fill="#333">• Relationship graph</text>
+            <text x="560" y="267" font-size="11" fill="#555" font-style="italic">Type: RefId → Citation</text>
+            
+            <!-- Agent State -->
+            <rect x="950" y="145" width="550" height="130" fill="white" stroke="#0088aa" stroke-width="1.5" rx="5"/>
+            <text x="1225" y="170" text-anchor="middle" font-weight="bold" font-size="14">Agent State Storage</text>
+            <text x="960" y="195" font-size="11" fill="#333">• Persistent task queues (YAML)</text>
+            <text x="960" y="213" font-size="11" fill="#333">• Action logs & error logs</text>
+            <text x="960" y="231" font-size="11" fill="#333">• Message history</text>
+            <text x="960" y="267" font-size="11" fill="#555" font-style="italic">Type: AgentId → (TaskQueue × Logs)</text>
+        </g>
+        
+        <!-- Layer 2: Provider Abstraction -->
+        <g id="layer2">
+            <rect x="50" y="340" width="1500" height="180" 
+                  fill="url(#providerGrad)" stroke="#cc8800" stroke-width="2" rx="10"/>
+            <text x="800" y="365" text-anchor="middle" font-size="18" font-weight="bold" fill="#cc8800">
+                Layer 2: Provider Abstraction (LLM Interface)
+            </text>
+            
+            <!-- Abstract Base -->
+            <rect x="100" y="385" width="400" height="110" fill="white" stroke="#cc8800" stroke-width="1.5" rx="5"/>
+            <text x="300" y="410" text-anchor="middle" font-weight="bold" font-size="14">LLMProvider (Abstract)</text>
+            <text x="110" y="435" font-size="11" fill="#333">call :: [Message] → LLMResponse</text>
+            <text x="110" y="453" font-size="11" fill="#333">simple_prompt :: String → LLMResponse</text>
+            <text x="110" y="471" font-size="11" fill="#333">get_stats :: () → Stats</text>
+            <text x="110" y="489" font-size="11" fill="#555" font-style="italic">Polymorphic interface</text>
+            
+            <!-- Concrete Providers -->
+            <rect x="550" y="385" width="250" height="110" fill="white" stroke="#cc8800" stroke-width="1.5" rx="5"/>
+            <text x="675" y="410" text-anchor="middle" font-weight="bold" font-size="14">OpenAIProvider</text>
+            <text x="560" y="435" font-size="11" fill="#333">GPT-4, GPT-4-Turbo</text>
+            <text x="560" y="453" font-size="11" fill="#333">Async support</text>
+            <text x="560" y="471" font-size="11" fill="#333">Token tracking</text>
+            
+            <rect x="850" y="385" width="250" height="110" fill="white" stroke="#cc8800" stroke-width="1.5" rx="5"/>
+            <text x="975" y="410" text-anchor="middle" font-weight="bold" font-size="14">ClaudeProvider</text>
+            <text x="860" y="435" font-size="11" fill="#333">Claude 3.x, 3.5</text>
+            <text x="860" y="453" font-size="11" fill="#333">Streaming support</text>
+            <text x="860" y="471" font-size="11" fill="#333">Token tracking</text>
+            
+            <!-- Factory -->
+            <rect x="1150" y="385" width="350" height="110" fill="white" stroke="#cc8800" stroke-width="1.5" rx="5"/>
+            <text x="1325" y="410" text-anchor="middle" font-weight="bold" font-size="14">ProviderFactory</text>
+            <text x="1160" y="435" font-size="11" fill="#333">get_provider :: Name → Provider</text>
+            <text x="1160" y="453" font-size="11" fill="#333">get_with_fallback :: [Name] → Provider</text>
+            <text x="1160" y="471" font-size="11" fill="#333">Auto-fallback chains</text>
+            <text x="1160" y="489" font-size="11" fill="#555" font-style="italic">Graceful degradation</text>
+        </g>
+        
+        <!-- Composition arrow: Foundation → Provider -->
+        <path d="M 800 300 L 800 340" stroke="#666" stroke-width="2" 
+              marker-end="url(#composition)" stroke-dasharray="5,5"/>
+        <text x="810" y="325" font-size="11" fill="#666">depends on</text>
+        
+        <!-- Layer 3: Agent Controller -->
+        <g id="layer3">
+            <rect x="50" y="560" width="1500" height="280" 
+                  fill="url(#agentGrad)" stroke="#8844cc" stroke-width="2" rx="10"/>
+            <text x="800" y="585" text-anchor="middle" font-size="18" font-weight="bold" fill="#8844cc">
+                Layer 3: Agent Controller (Execution Engine)
+            </text>
+            
+            <!-- Base Controller -->
+            <rect x="100" y="605" width="450" height="210" fill="white" stroke="#8844cc" stroke-width="1.5" rx="5"/>
+            <text x="325" y="630" text-anchor="middle" font-weight="bold" font-size="14">AgentController (Base)</text>
+            <text x="110" y="655" font-size="11" fill="#333">• Load agent definition (YAML)</text>
+            <text x="110" y="673" font-size="11" fill="#333">• Initialize LLM provider</text>
+            <text x="110" y="691" font-size="11" fill="#333">• Manage task queue</text>
+            <text x="110" y="709" font-size="11" fill="#333">• Handle message inbox</text>
+            <text x="110" y="727" font-size="11" fill="#333">• Execute actions via LLM</text>
+            <text x="110" y="745" font-size="11" fill="#333">• Log all activities</text>
+            <text x="110" y="763" font-size="11" fill="#333">• Threading support</text>
+            <text x="110" y="805" font-size="10" fill="#555" font-style="italic">
+                execute_action :: (ActionId × Context) → LLMResponse
+            </text>
+            
+            <!-- Specialized Agents -->
+            <rect x="600" y="605" width="280" height="100" fill="white" stroke="#8844cc" stroke-width="1.5" rx="5"/>
+            <text x="740" y="630" text-anchor="middle" font-weight="bold" font-size="14">SectionAgent</text>
+            <text x="610" y="655" font-size="11" fill="#333">draft_initial_section</text>
+            <text x="610" y="673" font-size="11" fill="#333">revise_from_feedback</text>
+            <text x="610" y="691" font-size="11" fill="#333">validate_section_integrity</text>
+            
+            <rect x="600" y="715" width="280" height="100" fill="white" stroke="#8844cc" stroke-width="1.5" rx="5"/>
+            <text x="740" y="740" text-anchor="middle" font-weight="bold" font-size="14">GardenerAgent</text>
+            <text x="610" y="765" font-size="11" fill="#333">validate_latex_syntax</text>
+            <text x="610" y="783" font-size="11" fill="#333">check_semantic_alignment</text>
+            <text x="610" y="801" font-size="11" fill="#333">generate_feedback</text>
+            
+            <rect x="930" y="605" width="280" height="100" fill="white" stroke="#8844cc" stroke-width="1.5" rx="5"/>
+            <text x="1070" y="630" text-anchor="middle" font-weight="bold" font-size="14">OutlineAgent</text>
+            <text x="940" y="655" font-size="11" fill="#333">extract_section_intents</text>
+            <text x="940" y="673" font-size="11" fill="#333">modify_structure</text>
+            <text x="940" y="691" font-size="11" fill="#333">broadcast_intent_updates</text>
+            
+            <rect x="930" y="715" width="280" height="100" fill="white" stroke="#8844cc" stroke-width="1.5" rx="5"/>
+            <text x="1070" y="740" text-anchor="middle" font-weight="bold" font-size="14">HypervisorAgent</text>
+            <text x="940" y="765" font-size="11" fill="#333">detect_agent_drift</text>
+            <text x="940" y="783" font-size="11" fill="#333">generate_refocus_message</text>
+            <text x="940" y="801" font-size="11" fill="#333">propose_optimizations</text>
+            
+            <rect x="1260" y="605" width="240" height="210" fill="white" stroke="#8844cc" stroke-width="1.5" rx="5"/>
+            <text x="1380" y="630" text-anchor="middle" font-weight="bold" font-size="12">+ 4 More Agents</text>
+            <text x="1270" y="660" font-size="10" fill="#333">• SocraticAgent</text>
+            <text x="1270" y="678" font-size="10" fill="#333">• DocumentDesigner</text>
+            <text x="1270" y="696" font-size="10" fill="#333">• DiagramAgent</text>
+            <text x="1270" y="714" font-size="10" fill="#333">• GlobalEnglishAgent</text>
+            <text x="1270" y="745" font-size="10" fill="#555">All extend</text>
+            <text x="1270" y="763" font-size="10" fill="#555">AgentController</text>
+        </g>
+        
+        <!-- Composition: Provider → Agent -->
+        <path d="M 800 520 L 800 560" stroke="#666" stroke-width="2" 
+              marker-end="url(#composition)" stroke-dasharray="5,5"/>
+        <text x="810" y="545" font-size="11" fill="#666">uses</text>
+        
+        <!-- Layer 4: Message Router -->
+        <g id="layer4">
+            <rect x="50" y="880" width="1500" height="200" 
+                  fill="url(#messageGrad)" stroke="#44aa44" stroke-width="2" rx="10"/>
+            <text x="800" y="905" text-anchor="middle" font-size="18" font-weight="bold" fill="#44aa44">
+                Layer 4: Message Router (Inter-Agent Communication)
+            </text>
+            
+            <!-- Router -->
+            <rect x="100" y="925" width="450" height="130" fill="white" stroke="#44aa44" stroke-width="1.5" rx="5"/>
+            <text x="325" y="950" text-anchor="middle" font-weight="bold" font-size="14">MessageRouter</text>
+            <text x="110" y="975" font-size="11" fill="#333">• Pub/sub pattern</text>
+            <text x="110" y="993" font-size="11" fill="#333">• Topic-based routing</text>
+            <text x="110" y="1011" font-size="11" fill="#333">• Schema validation</text>
+            <text x="110" y="1029" font-size="11" fill="#333">• Persistent logging</text>
+            <text x="110" y="1049" font-size="10" fill="#555" font-style="italic">
+                publish :: Message → IO Bool
+            </text>
+            
+            <!-- Message Schema -->
+            <rect x="600" y="925" width="350" height="130" fill="white" stroke="#44aa44" stroke-width="1.5" rx="5"/>
+            <text x="775" y="950" text-anchor="middle" font-weight="bold" font-size="14">Message Schema</text>
+            <text x="610" y="975" font-size="11" fill="#333">subject :: String</text>
+            <text x="610" y="993" font-size="11" fill="#333">from :: AgentId</text>
+            <text x="610" y="1011" font-size="11" fill="#333">to :: AgentId</text>
+            <text x="610" y="1029" font-size="11" fill="#333">body :: String</text>
+            <text x="610" y="1049" font-size="10" fill="#555" font-style="italic">Validated via JSON Schema</text>
+            
+            <!-- Subscriptions -->
+            <rect x="1000" y="925" width="500" height="130" fill="white" stroke="#44aa44" stroke-width="1.5" rx="5"/>
+            <text x="1250" y="950" text-anchor="middle" font-weight="bold" font-size="14">Agent Subscriptions (YAML)</text>
+            <text x="1010" y="975" font-size="11" fill="#333">• Declarative routing config</text>
+            <text x="1010" y="993" font-size="11" fill="#333">• Dynamic subscribe/unsubscribe</text>
+            <text x="1010" y="1011" font-size="11" fill="#333">• Callback registration</text>
+            <text x="1010" y="1049" font-size="10" fill="#555" font-style="italic">
+                subscribe :: (AgentId × Topic × Callback) → ()
+            </text>
+        </g>
+        
+        <!-- Bidirectional communication: Agent ↔ Router -->
+        <path d="M 325 840 L 325 925" stroke="#666" stroke-width="2" 
+              marker-end="url(#arrowhead)"/>
+        <path d="M 375 925 L 375 840" stroke="#666" stroke-width="2" 
+              marker-end="url(#arrowhead)"/>
+        <text x="385" y="885" font-size="11" fill="#666">publish</text>
+        <text x="250" y="885" font-size="11" fill="#666">receive</text>
+        
+        <!-- Layer 5: Orchestration -->
+        <g id="layer5">
+            <rect x="50" y="1120" width="1500" height="160" 
+                  fill="url(#orchGrad)" stroke="#cc4444" stroke-width="2" rx="10"/>
+            <text x="800" y="1145" text-anchor="middle" font-size="18" font-weight="bold" fill="#cc4444">
+                Layer 5: Orchestration (System Coordination)
+            </text>
+            
+            <!-- Orchestrator -->
+            <rect x="100" y="1165" width="600" height="90" fill="white" stroke="#cc4444" stroke-width="1.5" rx="5"/>
+            <text x="400" y="1190" text-anchor="middle" font-weight="bold" font-size="14">AgentOrchestrator</text>
+            <text x="110" y="1215" font-size="11" fill="#333">• Spawn all agents from definitions</text>
+            <text x="110" y="1233" font-size="11" fill="#333">• Initialize message router</text>
+            <text x="110" y="1251" font-size="11" fill="#333">• Monitor health, graceful shutdown</text>
+            
+            <!-- Bootstrap -->
+            <rect x="750" y="1165" width="750" height="90" fill="white" stroke="#cc4444" stroke-width="1.5" rx="5"/>
+            <text x="1125" y="1190" text-anchor="middle" font-weight="bold" font-size="14">Bootstrap System</text>
+            <text x="760" y="1215" font-size="11" fill="#333">• Environment setup (API keys, paths)</text>
+            <text x="760" y="1233" font-size="11" fill="#333">• Schema registry initialization</text>
+            <text x="760" y="1251" font-size="11" fill="#333">• Project path discovery</text>
+        </g>
+        
+        <!-- Orchestration controls Agents and Router -->
+        <path d="M 400 1165 L 325 840" stroke="#cc4444" stroke-width="2" 
+              marker-end="url(#arrowhead)" stroke-dasharray="3,3"/>
+        <path d="M 500 1165 L 325 1080" stroke="#cc4444" stroke-width="2" 
+              marker-end="url(#arrowhead)" stroke-dasharray="3,3"/>
+        <text x="340" y="1000" font-size="11" fill="#cc4444">controls</text>
+        
+        <!-- Layer 6: Compilation Pipeline -->
+        <g id="layer6">
+            <rect x="50" y="1320" width="1500" height="180" 
+                  fill="url(#compileGrad)" stroke="#aa44cc" stroke-width="2" rx="10"/>
+            <text x="800" y="1345" text-anchor="middle" font-size="18" font-weight="bold" fill="#aa44cc">
+                Layer 6: Compilation Pipeline (Output Generation)
+            </text>
+            
+            <!-- Document Assembly -->
+            <rect x="100" y="1365" width="450" height="110" fill="white" stroke="#aa44cc" stroke-width="1.5" rx="5"/>
+            <text x="325" y="1390" text-anchor="middle" font-weight="bold" font-size="14">Document Assembler</text>
+            <text x="110" y="1415" font-size="11" fill="#333">• Combine front/main/back matter</text>
+            <text x="110" y="1433" font-size="11" fill="#333">• Resolve cross-references</text>
+            <text x="110" y="1451" font-size="11" fill="#333">• Apply themes and styling</text>
+            <text x="110" y="1469" font-size="10" fill="#555" font-style="italic">
+                assemble :: (Outline × [Section]) → TeXDoc
+            </text>
+            
+            <!-- LaTeX Compiler -->
+            <rect x="600" y="1365" width="450" height="110" fill="white" stroke="#aa44cc" stroke-width="1.5" rx="5"/>
+            <text x="825" y="1390" text-anchor="middle" font-weight="bold" font-size="14">LaTeX Compiler</text>
+            <text x="610" y="1415" font-size="11" fill="#333">• Run pdflatex (multiple passes)</text>
+            <text x="610" y="1433" font-size="11" fill="#333">• Bibliography compilation (BibTeX)</text>
+            <text x="610" y="1451" font-size="11" fill="#333">• Error handling & reporting</text>
+            <text x="610" y="1469" font-size="10" fill="#555" font-style="italic">
+                compile :: TeXDoc → PDF | Error
+            </text>
+            
+            <!-- Multi-format Export -->
+            <rect x="1100" y="1365" width="400" height="110" fill="white" stroke="#aa44cc" stroke-width="1.5" rx="5"/>
+            <text x="1300" y="1390" text-anchor="middle" font-weight="bold" font-size="14">Multi-Format Exporter</text>
+            <text x="1110" y="1415" font-size="11" fill="#333">• PDF (primary output)</text>
+            <text x="1110" y="1433" font-size="11" fill="#333">• HTML (web version)</text>
+            <text x="1110" y="1451" font-size="11" fill="#333">• EPUB (e-reader format)</text>
+        </g>
+        
+        <!-- Data flow: Agents → Compilation -->
+        <path d="M 740 840 L 825 1365" stroke="#0066cc" stroke-width="3" 
+              marker-end="url(#dataflow)"/>
+        <text x="750" y="1100" font-size="11" fill="#0066cc" font-weight="bold">LaTeX files</text>
+        
+        <!-- Feedback flow: Compilation → Agents -->
+        <path d="M 825 1365 Q 1400 1200 1070 840" stroke="#cc6600" stroke-width="2" 
+              marker-end="url(#feedback)" stroke-dasharray="5,5"/>
+        <text x="1200" y="1100" font-size="11" fill="#cc6600" font-weight="bold">Validation feedback</text>
+        
+        <!-- Data Flow Diagram (Bottom Right) -->
+        <g id="dataflow-diagram">
+            <rect x="50" y="1550" width="700" height="600" fill="#f9f9f9" stroke="#666" stroke-width="2" rx="10"/>
+            <text x="400" y="1580" text-anchor="middle" font-size="16" font-weight="bold">
+                Data Flow: Operadic Composition
+            </text>
+            
+            <!-- Input -->
+            <ellipse cx="400" cy="1630" rx="80" ry="30" fill="#e8f4f8" stroke="#0088aa" stroke-width="2"/>
+            <text x="400" y="1638" text-anchor="middle" font-size="12" font-weight="bold">Outline</text>
+            
+            <!-- Outline → Intents -->
+            <path d="M 400 1660 L 400 1710" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+            <rect x="320" y="1710" width="160" height="40" fill="#f0e8f4" stroke="#8844cc" stroke-width="1.5" rx="5"/>
+            <text x="400" y="1735" text-anchor="middle" font-size="11">OutlineAgent</text>
+            
+            <!-- Intents -->
+            <path d="M 400 1750 L 400 1800" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+            <ellipse cx="400" cy="1830" rx="100" ry="30" fill="#e8f4f8" stroke="#0088aa" stroke-width="1.5"/>
+            <text x="400" y="1838" text-anchor="middle" font-size="11">Intent₁, ..., Intentₙ</text>
+            
+            <!-- Parallel section agents -->
+            <path d="M 350 1860 L 200 1910" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+            <path d="M 400 1860 L 400 1910" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+            <path d="M 450 1860 L 600 1910" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+            
+            <rect x="120" y="1910" width="160" height="40" fill="#f0e8f4" stroke="#8844cc" stroke-width="1.5" rx="5"/>
+            <text x="200" y="1935" text-anchor="middle" font-size="11">SectionAgent₁</text>
+            
+            <rect x="320" y="1910" width="160" height="40" fill="#f0e8f4" stroke="#8844cc" stroke-width="1.5" rx="5"/>
+            <text x="400" y="1935" text-anchor="middle" font-size="11">SectionAgent₂</text>
+            
+            <rect x="520" y="1910" width="160" height="40" fill="#f0e8f4" stroke="#8844cc" stroke-width="1.5" rx="5"/>
+            <text x="600" y="1935" text-anchor="middle" font-size="11">SectionAgentₙ</text>
+            
+            <!-- LaTeX outputs -->
+            <path d="M 200 1950 L 350 2000" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+            <path d="M 400 1950 L 400 2000" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+            <path d="M 600 1950 L 450 2000" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+            
+            <ellipse cx="400" cy="2030" rx="100" ry="30" fill="#e8f4f8" stroke="#0088aa" stroke-width="1.5"/>
+            <text x="400" y="2038" text-anchor="middle" font-size="11">LaTeX₁, ..., LaTeXₙ</text>
+            
+            <!-- Validation -->
+            <path d="M 400 2060 L 400 2110" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+            <rect x="320" y="2110" width="160" height="40" fill="#e8f8e8" stroke="#44aa44" stroke-width="1.5" rx="5"/>
+            <text x="400" y="2135" text-anchor="middle" font-size="11">GardenerAgent</text>
+            
+            <!-- Feedback loop -->
+            <path d="M 480 2130 Q 650 2000 550 1930" stroke="#cc6600" stroke-width="2" 
+                  marker-end="url(#feedback)" stroke-dasharray="5,5"/>
+            <text x="580" y="2020" font-size="10" fill="#cc6600">feedback</text>
+            
+            <!-- Final output -->
+            <path d="M 400 2150 L 400 2200" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+        </g>
+        
+        <!-- Type Theory Box (Bottom Left) -->
+        <g id="type-theory">
+            <rect x="800" y="1550" width="700" height="600" fill="#f9f9f9" stroke="#666" stroke-width="2" rx="10"/>
+            <text x="1150" y="1580" text-anchor="middle" font-size="16" font-weight="bold">
+                Type Signatures (Operadic View)
+            </text>
+            
+            <!-- Foundation Types -->
+            <text x="820" y="1620" font-size="13" font-weight="bold" fill="#0088aa">Foundation:</text>
+            <text x="830" y="1645" font-size="11" font-family="monospace">Outline → ValidatedOutline</text>
+            <text x="830" y="1665" font-size="11" font-family="monospace">RefId → Citation</text>
+            <text x="830" y="1685" font-size="11" font-family="monospace">AgentId → (TaskQueue × Logs)</text>
+            
+            <!-- Provider Types -->
+            <text x="820" y="1720" font-size="13" font-weight="bold" fill="#cc8800">Providers:</text>
+            <text x="830" y="1745" font-size="11" font-family="monospace">[Message] → (Config → LLMResponse)</text>
+            <text x="830" y="1765" font-size="11" font-family="monospace">String → (SystemPrompt → LLMResponse)</text>
+            
+            <!-- Agent Types -->
+            <text x="820" y="1800" font-size="13" font-weight="bold" fill="#8844cc">Agents:</text>
+            <text x="830" y="1825" font-size="11" font-family="monospace">SectionAgent :: Intent → LaTeX</text>
+            <text x="830" y="1845" font-size="11" font-family="monospace">GardenerAgent :: LaTeX → Validation</text>
+            <text x="830" y="1865" font-size="11" font-family="monospace">OutlineAgent :: Outline → [Intent]</text>
+            <text x="830" y="1885" font-size="11" font-family="monospace">HypervisorAgent :: [AgentState] → [Message]</text>
+            
+            <!-- Message Types -->
+            <text x="820" y="1920" font-size="13" font-weight="bold" fill="#44aa44">Messages:</text>
+            <text x="830" y="1945" font-size="11" font-family="monospace">Message :: {from: AgentId, to: AgentId, body: String}</text>
+            <text x="830" y="1965" font-size="11" font-family="monospace">Router.publish :: Message → IO Bool</text>
+            <text x="830" y="1985" font-size="11" font-family="monospace">Router.subscribe :: (AgentId × Topic × Callback) → ()</text>
+            
+            <!-- Composition -->
+            <text x="820" y="2020" font-size="13" font-weight="bold" fill="#666">Composition:</text>
+            <text x="830" y="2045" font-size="11" font-family="monospace">compose :: Agent₁ → Agent₂ → ComposedAgent</text>
+            <text x="830" y="2065" font-size="11" font-style="italic" fill="#666">
+                where Agent₁.output_type = Agent₂.input_type
+            </text>
+            
+            <!-- Operadic Laws -->
+            <text x="820" y="2100" font-size="13" font-weight="bold" fill="#666">Operadic Laws:</text>
+            <text x="830" y="2125" font-size="11" fill="#555">• Identity: id ∘ f = f ∘ id = f</text>
+            <text x="830" y="2145" font-size="11" fill="#555">• Associativity: (f ∘ g) ∘ h = f ∘ (g ∘ h)</text>
+            <text x="830" y="2165" font-size="11" fill="#555">• Multi-arity: Agents can take multiple inputs</text>
+            
+        </g>
+        
+        <!-- Legend -->
+        <g id="legend">
+            <rect x="50" y="2180" width="300" height="15" fill="none"/>
+            
+            <line x1="60" y1="2185" x2="90" y2="2185" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+            <text x="95" y="2190" font-size="10">Function call</text>
+            
+            <line x1="60" y1="2205" x2="90" y2="2205" stroke="#333" stroke-width="2" 
+                  marker-end="url(#composition)" stroke-dasharray="5,5"/>
+            <text x="95" y="2210" font-size="10">Composition/Dependency</text>
+            
+            <line x1="200" y1="2185" x2="230" y2="2185" stroke="#0066cc" stroke-width="3" marker-end="url(#dataflow)"/>
+            <text x="235" y="2190" font-size="10">Data flow</text>
+            
+            <line x1="200" y1="2205" x2="230" y2="2205" stroke="#cc6600" stroke-width="2" 
+                  marker-end="url(#feedback)" stroke-dasharray="5,5"/>
+            <text x="235" y="2210" font-size="10">Feedback loop</text>
+        </g>
+    </svg>
+</body>
+</html>

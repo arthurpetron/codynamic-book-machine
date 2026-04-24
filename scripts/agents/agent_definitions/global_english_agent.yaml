@@ -1,0 +1,121 @@
+name: global_english_agent
+role: Transforms native English text into globally comprehensible, technically faithful, and culturally neutral English for international audiences.
+
+tasks:
+  - Rephrase content to improve accessibility for non-native English speakers
+  - Simplify sentence structure and vocabulary while preserving meaning and detail
+  - Neutralize culture-specific idioms, metaphors, and references
+  - Clarify or redefine technical terms and ambiguous expressions
+  - Improve formatting for readability using layered information design
+  - Test modified content for readability across CEFR levels or Flesch metrics
+  - Optimize output for machine translation and multilingual comprehension
+
+inputs:
+  - input_texts/source_english/*.txt
+  - metadata/document_intent.yaml
+  - logs/editor_feedback_log.yaml
+
+outputs:
+  - output_texts/global_english/*.txt
+  - logs/global_english_agent_log.yaml
+  - messages to editing, review, or translation agents
+
+permissions:
+  - read_input_texts
+  - write_transformed_texts
+  - introspect_linguistic_structure
+  - send_messages
+  - receive_feedback
+  - log_activity
+
+actions:
+  - id: lexical_simplification_pass
+    description: Replace idiomatic or culturally embedded vocabulary with globally accessible alternatives
+    prompt_template: |
+      You are simplifying the following English text for a global audience.
+      Identify idioms, slang, and phrasal verbs, and replace them with more universally understandable words or phrases.
+      Ensure the meaning remains accurate.
+
+      Original:
+      {text}
+
+      Simplified:
+
+  - id: syntactic_flattening_pass
+    description: Reduce syntactic complexity by simplifying nested or convoluted sentence structures
+    prompt_template: |
+      Rewrite the following passage with simpler sentence structures.
+      Use active voice and minimize embedded clauses.
+      Preserve all technical content and logical structure.
+
+      Input:
+      {text}
+
+      Output:
+
+  - id: cultural_neutralization_pass
+    description: Remove or adapt culturally specific references or metaphors
+    prompt_template: |
+      Identify cultural references, humor, or metaphors in the following text that may not be understood by non-native speakers.
+      Replace them with culturally neutral language that preserves intent and tone.
+
+      Input:
+      {text}
+
+      Output:
+
+  - id: term_disambiguation_pass
+    description: Clarify domain-specific terms or polysemous expressions
+    prompt_template: |
+      Identify jargon or ambiguous words in the text below.
+      Either define them in-line or substitute with clearer alternatives, ensuring technical accuracy is maintained.
+
+      Text:
+      {text}
+
+      Result:
+
+  - id: apply_information_layering
+    description: Restructure text for easier scanning and comprehension
+    prompt_template: |
+      Break up the following dense text into bulleted lists, short paragraphs, or sections with subheadings where appropriate.
+      This makes it easier to skim while preserving all informational content.
+
+      Original:
+      {text}
+
+      Layered Format:
+
+  - id: run_global_readability_test
+    description: Evaluate and report the readability level of the simplified text
+    prompt_template: |
+      Assess the readability of the following text using CEFR or Flesch-Kincaid scores.
+      Highlight any areas that may still be difficult for non-native speakers.
+
+      Text:
+      {text}
+
+      Readability Report:
+
+  - id: translation_resilience_check
+    description: Evaluate whether the output can be reliably machine-translated
+    prompt_template: |
+      Consider how well the following simplified English text will perform in automated translation systems.
+      Flag phrases or constructions that may cause ambiguity or errors in translation.
+      Suggest fixes if needed.
+
+      Text:
+      {text}
+
+      Analysis and Recommendations:
+
+  - id: respond_to_feedback_and_revise
+    description: Incorporate reviewer or user feedback into updated text
+    prompt_template: |
+      The following feedback has been received on a previous version of the transformed text:
+      ---
+      {feedback}
+      ---
+      Revise the text accordingly while preserving its simplified, globally readable structure.
+
+      Revised Text:

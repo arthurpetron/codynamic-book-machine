@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Development Schema Registry",
+  "description": "Registry for development environment with experimental schemas",
+  
+  "schemas": {
+    "work_outline": {
+      "name": "Work Outline Schema",
+      "description": "Complete definition for any written work (book, paper, monograph, essay)",
+      "latest": "2.1.0",
+      "stable": "2.1.0",
+      
+      "versions": {
+        "3.0.0-alpha": {
+          "json_file": "work_outline_schema_3.0.0-alpha.json",
+          "yaml_file": "work_outline_schema_3.0.0-alpha.yaml",
+          "released": "2024-11-22",
+          "status": "experimental",
+          "breaking_changes": true,
+          "changelog": "Experimental v3.0 with enhanced AI collaboration features",
+          "compatible_with": []
+        },
+        "2.1.0": {
+          "json_file": "work_outline_schema_2.1.0.json",
+          "yaml_file": "work_outline_schema_2.1.0.yaml",
+          "released": "2024-11-21",
+          "status": "current",
+          "breaking_changes": false,
+          "changelog": "Integrated comprehensive metadata (8 categories)",
+          "compatible_with": ["2.0.0"]
+        },
+        "2.0.0": {
+          "json_file": "work_outline_schema_2.0.0.json",
+          "yaml_file": "work_outline_schema_2.0.0.yaml",
+          "released": "2025-05-26",
+          "status": "stable",
+          "breaking_changes": true,
+          "changelog": "Initial recursive schema with dual dependencies",
+          "compatible_with": []
+        }
+      }
+    }
+  },
+  
+  "metadata": {
+    "registry_version": "1.0.0-dev",
+    "environment": "development",
+    "last_updated": "2024-11-22",
+    "naming_convention": "{schema_name}_{major}.{minor}.{patch}.{format}",
+    "version_format": "semver",
+    "notes": "Development registry includes experimental alpha/beta versions"
+  }
+}

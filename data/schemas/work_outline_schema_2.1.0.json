@@ -1,0 +1,451 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://codynamic-book-machine/schemas/work-outline-v2.json",
+  "title": "Work Outline Schema v2.0",
+  "description": "Complete definition for any written work (book, paper, monograph, essay)",
+  "type": "object",
+  "required": ["work"],
+  "properties": {
+    "work": {
+      "type": "object",
+      "required": ["id", "type", "title", "structure"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$",
+          "description": "Unique identifier for this work"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["book", "paper", "monograph", "essay", "article", "thesis"],
+          "description": "Type of written work"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Full title of the work"
+        },
+        "subtitle": {
+          "type": "string",
+          "description": "Optional subtitle"
+        },
+        "summary": {
+          "type": "string",
+          "description": "Multi-paragraph abstract"
+        },
+        "intent": {
+          "type": "object",
+          "properties": {
+            "audience": {"type": "string"},
+            "writing_style": {"type": "string"},
+            "author_persona": {"type": "string"},
+            "reader_takeaway": {"type": "string"},
+            "genre": {"type": "string"},
+            "epistemology": {"type": "string"}
+          }
+        },
+        "authors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "role"],
+            "properties": {
+              "name": {"type": "string"},
+              "affiliation": {"type": "string"},
+              "email": {"type": "string", "format": "email"},
+              "orcid": {"type": "string"},
+              "role": {
+                "type": "string",
+                "enum": ["author", "editor", "contributor"]
+              }
+            }
+          }
+        },
+        "metadata": {
+          "type": "object",
+          "required": ["version", "created", "updated"],
+          "properties": {
+            "version": {"type": "string"},
+            "created": {"type": "string", "format": "date"},
+            "updated": {"type": "string", "format": "date"},
+            "maintained_by": {"type": "string"},
+            "language": {"type": "string", "pattern": "^[a-z]{2}$"},
+            "license": {"type": "string"},
+            "doi": {"type": "string"},
+            "isbn": {"type": "string"},
+            "publisher": {"type": "string"},
+            "publication_date": {"type": "string", "format": "date"},
+            "status": {
+              "type": "string",
+              "enum": ["draft", "review", "final", "published"]
+            }
+          }
+        },
+        "front_matter": {
+          "type": "object",
+          "properties": {
+            "title_page": {
+              "type": "object",
+              "properties": {
+                "enabled": {"type": "boolean"},
+                "custom_content": {"type": "string"}
+              }
+            },
+            "copyright_page": {
+              "type": "object",
+              "properties": {
+                "enabled": {"type": "boolean"},
+                "year": {"type": "string"},
+                "holder": {"type": "string"},
+                "license_text": {"type": "string"}
+              }
+            },
+            "dedication": {
+              "type": "object",
+              "properties": {
+                "enabled": {"type": "boolean"},
+                "text": {"type": "string"}
+              }
+            },
+            "epigraph": {
+              "type": "object",
+              "properties": {
+                "enabled": {"type": "boolean"},
+                "quote": {"type": "string"},
+                "attribution": {"type": "string"}
+              }
+            },
+            "table_of_contents": {
+              "type": "object",
+              "properties": {
+                "enabled": {"type": "boolean"},
+                "depth": {"type": "integer", "minimum": 1, "maximum": 10}
+              }
+            },
+            "list_of_figures": {
+              "type": "object",
+              "properties": {"enabled": {"type": "boolean"}}
+            },
+            "list_of_tables": {
+              "type": "object",
+              "properties": {"enabled": {"type": "boolean"}}
+            },
+            "foreword": {
+              "type": "object",
+              "properties": {
+                "enabled": {"type": "boolean"},
+                "author": {"type": "string"},
+                "content_file": {"type": "string"}
+              }
+            },
+            "preface": {
+              "type": "object",
+              "properties": {
+                "enabled": {"type": "boolean"},
+                "content_file": {"type": "string"}
+              }
+            },
+            "acknowledgments": {
+              "type": "object",
+              "properties": {
+                "enabled": {"type": "boolean"},
+                "content_file": {"type": "string"}
+              }
+            }
+          }
+        },
+        "structure": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/structural_element"
+          }
+        },
+        "citations": {
+          "type": "object",
+          "properties": {
+            "database_file": {"type": "string"},
+            "entries": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/citation"
+              }
+            }
+          }
+        },
+        "diagrams": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/diagram"
+          }
+        },
+        "media": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/media_item"
+          }
+        },
+        "back_matter": {
+          "type": "object",
+          "properties": {
+            "appendices": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "title"],
+                "properties": {
+                  "id": {"type": "string"},
+                  "title": {"type": "string"},
+                  "content_file": {"type": "string"}
+                }
+              }
+            },
+            "glossary": {
+              "type": "object",
+              "properties": {
+                "enabled": {"type": "boolean"},
+                "entries": {"type": "array"}
+              }
+            },
+            "bibliography": {
+              "type": "object",
+              "properties": {
+                "enabled": {"type": "boolean"},
+                "style": {"type": "string"},
+                "source": {"type": "string"}
+              }
+            },
+            "index": {
+              "type": "object",
+              "properties": {
+                "enabled": {"type": "boolean"},
+                "auto_generate": {"type": "boolean"}
+              }
+            }
+          }
+        },
+        "compilation": {
+          "type": "object",
+          "properties": {
+            "output_formats": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["pdf", "html", "epub", "markdown"]
+              }
+            },
+            "validation": {
+              "type": "object",
+              "properties": {
+                "check_dependencies": {"type": "boolean"},
+                "check_citations": {"type": "boolean"},
+                "check_cross_refs": {"type": "boolean"},
+                "orphan_detection": {"type": "boolean"}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "structural_element": {
+      "type": "object",
+      "required": ["type", "id"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["part", "chapter", "section", "subsection", "subsubsection", "subsubsubsection"]
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        },
+        "number": {
+          "oneOf": [
+            {"type": "integer"},
+            {"type": "string"}
+          ]
+        },
+        "title": {"type": "string"},
+        "goal": {"type": "string"},
+        "summary": {"type": "string"},
+        "prerequisites": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {"type": "string"},
+              {
+                "type": "object",
+                "properties": {
+                  "section_id": {"type": "string"},
+                  "description": {"type": "string"}
+                }
+              }
+            ]
+          }
+        },
+        "dependencies": {
+          "type": "object",
+          "properties": {
+            "structural": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["section_id", "dependency_type"],
+                "properties": {
+                  "section_id": {"type": "string"},
+                  "dependency_type": {
+                    "type": "string",
+                    "enum": ["builds_on", "references", "extends", "contradicts", "contextualizes", "is_part_of", "prerequisite_for", "parallels"]
+                  },
+                  "required": {"type": "boolean"}
+                }
+              }
+            },
+            "narrative": {"type": "string"}
+          }
+        },
+        "key_concepts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "term", "definition"],
+            "properties": {
+              "id": {"type": "string"},
+              "term": {"type": "string"},
+              "definition": {"type": "string"},
+              "introduced_in": {"type": "string"},
+              "related_terms": {
+                "type": "array",
+                "items": {"type": "string"}
+              }
+            }
+          }
+        },
+        "citations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ref_id": {"type": "string"}
+            }
+          }
+        },
+        "content": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {"$ref": "#/definitions/structural_element"}
+            },
+            {"type": "null"}
+          ]
+        },
+        "content_file": {"type": "string"},
+        "content_text": {"type": "string"}
+      }
+    },
+    "citation": {
+      "type": "object",
+      "required": ["id", "type", "title", "year"],
+      "properties": {
+        "id": {"type": "string"},
+        "type": {
+          "type": "string",
+          "enum": ["article", "book", "inproceedings", "thesis", "webpage", "preprint"]
+        },
+        "authors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "family": {"type": "string"},
+              "given": {"type": "string"}
+            }
+          }
+        },
+        "title": {"type": "string"},
+        "year": {"type": "integer"},
+        "journal": {"type": "string"},
+        "volume": {"type": "string"},
+        "issue": {"type": "string"},
+        "pages": {"type": "string"},
+        "doi": {"type": "string"},
+        "publisher": {"type": "string"},
+        "location": {"type": "string"},
+        "isbn": {"type": "string"},
+        "url": {"type": "string", "format": "uri"},
+        "access_date": {"type": "string", "format": "date"},
+        "abstract": {"type": "string"},
+        "keywords": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "relationships": {
+          "type": "object",
+          "properties": {
+            "cites": {"type": "array", "items": {"type": "string"}},
+            "cited_by": {"type": "array", "items": {"type": "string"}},
+            "related_to": {"type": "array", "items": {"type": "string"}}
+          }
+        },
+        "used_in": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "section_id": {"type": "string"},
+              "context": {"type": "string"}
+            }
+          }
+        },
+        "notes": {"type": "string"}
+      }
+    },
+    "diagram": {
+      "type": "object",
+      "required": ["id", "title"],
+      "properties": {
+        "id": {"type": "string"},
+        "title": {"type": "string"},
+        "caption": {"type": "string"},
+        "purpose": {"type": "string"},
+        "source_file": {"type": "string"},
+        "rendered_file": {"type": "string"},
+        "definition": {
+          "type": "object",
+          "properties": {
+            "type": {"type": "string"},
+            "code": {"type": "string"}
+          }
+        },
+        "appears_in": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "section_id": {"type": "string"},
+              "placement": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "media_item": {
+      "type": "object",
+      "required": ["id", "type", "file"],
+      "properties": {
+        "id": {"type": "string"},
+        "type": {
+          "type": "string",
+          "enum": ["image", "video", "interactive", "audio"]
+        },
+        "title": {"type": "string"},
+        "caption": {"type": "string"},
+        "purpose": {"type": "string"},
+        "file": {"type": "string"},
+        "alt_text": {"type": "string"}
+      }
+    }
+  }
+}

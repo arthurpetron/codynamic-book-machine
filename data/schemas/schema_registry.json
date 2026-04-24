@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Schema Registry",
+  "description": "Registry of all schemas with versioning metadata. This is the single source of truth for schema discovery.",
+  
+  "schemas": {
+    "work_outline": {
+      "name": "Work Outline Schema",
+      "description": "Complete definition for any written work (book, paper, monograph, essay)",
+      "latest": "2.1.0",
+      "stable": "2.1.0",
+      
+      "versions": {
+        "2.1.0": {
+          "json_file": "work_outline_schema_2.1.0.json",
+          "yaml_file": "work_outline_schema_2.1.0.yaml",
+          "released": "2024-11-21",
+          "status": "current",
+          "breaking_changes": false,
+          "changelog": "Integrated comprehensive metadata (8 categories)",
+          "compatible_with": ["2.0.0"]
+        },
+        "2.0.0": {
+          "json_file": "work_outline_schema_2.0.0.json",
+          "yaml_file": "work_outline_schema_2.0.0.yaml",
+          "released": "2025-05-26",
+          "status": "stable",
+          "breaking_changes": true,
+          "changelog": "Initial recursive schema with dual dependencies",
+          "compatible_with": []
+        }
+      }
+    }
+  },
+  
+  "metadata": {
+    "registry_version": "1.0.0",
+    "last_updated": "2024-11-21",
+    "naming_convention": "{schema_name}_{major}.{minor}.{patch}.{format}",
+    "version_format": "semver"
+  }
+}

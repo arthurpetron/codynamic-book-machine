@@ -1,0 +1,30 @@
+# Codynamic Book Machine - Python Dependencies
+
+# Core LLM providers
+openai>=1.0.0
+anthropic>=0.18.0
+
+# Data handling
+pyyaml>=6.0
+python-dateutil>=2.8.0
+jsonschema>=4.17.0  # For schema validation
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.0
+
+# Development tools
+black>=23.0.0
+pylint>=2.17.0
+mypy>=1.4.0
+
+# LaTeX compilation support (system dependencies)
+# Note: Requires pdflatex/latexmk installed separately
+# MacTeX: https://www.tug.org/mactex/
+# MiKTeX (Windows): https://miktex.org/
+# TeX Live (Linux): sudo apt-get install texlive-full
+
+# Optional: Image processing for PDF rendering
+# Pillow>=10.0.0
+# pdf2image>=1.16.0

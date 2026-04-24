@@ -1,0 +1,19 @@
+name: document_designer_agent
+
+role: Generate LaTeX imports, packages, and layout code given document metadata and intent
+
+permissions:
+  - read_all_agent_state
+  - read_all_message_logs
+  - write_messages_to_all
+  - introspect_self
+  - log_activity
+
+inputs:
+  - outline.title
+  - outline.intent.writing_style
+  - outline.chapters[*].title
+outputs:
+  - latex_preamble_block
+  - suggested_documentclass_options
+  - optional_package_notes
