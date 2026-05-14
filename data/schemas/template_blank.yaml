@@ -1,0 +1,204 @@
+# Work Outline Template v2.0
+# Copy this file and fill in your details to create a new work
+
+work:
+  # === IDENTIFICATION ===
+  id: "your_work_id"  # e.g., "codynamic_theory_book"
+  type: "book"  # Options: book|paper|monograph|essay|article|thesis
+  title: "Your Work Title"
+  subtitle: ""  # Optional
+  
+  # === HIGH-LEVEL INTENT ===
+  summary: |
+    Write a paragraph or two describing what this work accomplishes,
+    its scope, and its intended impact. This is your elevator pitch.
+  
+  intent:
+    audience: "Who are you writing for?"
+    writing_style: "What tone and approach?"  # academic, poetic, technical, etc.
+    author_persona: "What voice do you adopt?"  # teacher, explorer, guide, etc.
+    reader_takeaway: "What should readers gain?"
+    genre: "How to classify this?"  # nonfiction, theory, textbook, etc.
+    epistemology: ""  # Optional: intuitionism, empiricism, etc.
+
+  # === AUTHOR INFORMATION ===
+  authors:
+    - name: "Your Name"
+      affiliation: ""  # Optional
+      email: ""  # Optional
+      orcid: ""  # Optional
+      role: "author"  # author|editor|contributor
+
+  # === METADATA ===
+  metadata:
+    version: "0.1.0"
+    created: "2025-05-26"
+    updated: "2025-05-26"
+    maintained_by: "author"
+    language: "en"
+    license: "CC-BY-4.0"  # Or your preferred license
+    status: "draft"  # draft|review|final|published
+
+  # === FRONT MATTER ===
+  front_matter:
+    title_page:
+      enabled: true
+    
+    copyright_page:
+      enabled: true
+      year: "2025"
+      holder: "Your Name"
+    
+    dedication:
+      enabled: false
+      text: ""
+    
+    epigraph:
+      enabled: false
+      quote: ""
+      attribution: ""
+    
+    table_of_contents:
+      enabled: true
+      depth: 3
+    
+    list_of_figures:
+      enabled: false
+    
+    list_of_tables:
+      enabled: false
+    
+    preface:
+      enabled: false
+      content_file: ""
+    
+    acknowledgments:
+      enabled: false
+      content_file: ""
+
+  # === MAIN CONTENT STRUCTURE ===
+  structure:
+    # For a BOOK with Parts:
+    - type: "part"
+      id: "part_01"
+      number: "I"
+      title: "Part Title"
+      summary: |
+        What this part covers
+      
+      content:
+        - type: "chapter"
+          id: "ch01"
+          number: 1
+          title: "Chapter Title (Introduction)"
+          
+          goal: |
+            What should readers gain from this chapter?
+          
+          summary: |
+            Overview of chapter scope and approach
+          
+          prerequisites: []  # Optional list of what reader should know
+          
+          dependencies:
+            structural: []  # Add section references
+            narrative: ""  # Optional human description
+          
+          key_concepts: []  # Terms introduced in this chapter
+          
+          citations: []  # Citation IDs used
+          
+          content:
+            - type: "section"
+              id: "ch01_sec01"
+              number: "1.1"
+              title: "Section Title"
+              
+              goal: ""
+              summary: ""
+              
+              content_file: "sections/ch01_sec01.md"
+              # OR use content_text for inline content
+
+    # For a PAPER (no Parts):
+    # - type: "chapter"
+    #   id: "ch01"
+    #   number: 1
+    #   title: "Introduction"
+    #   # ... chapter fields ...
+
+  # === CITATIONS DATABASE ===
+  citations:
+    entries: []
+    # Example entry:
+    # - id: "cite_001"
+    #   type: "article"
+    #   authors:
+    #     - family: "Smith"
+    #       given: "John"
+    #   title: "Paper Title"
+    #   year: 2024
+    #   journal: "Journal Name"
+    #   volume: "1"
+    #   pages: "1-10"
+    #   doi: ""
+
+  # === DIAGRAMS ===
+  diagrams: []
+  # Example:
+  # - id: "fig_01"
+  #   title: "Figure Title"
+  #   caption: "Caption text"
+  #   purpose: "What does this communicate?"
+  #   source_file: "diagrams/fig_01.py"
+  #   rendered_file: "diagrams/fig_01.png"
+  #   appears_in:
+  #     - section_id: "ch01_sec01"
+
+  # === MEDIA ===
+  media: []
+  # Example:
+  # - id: "img_01"
+  #   type: "image"
+  #   title: "Image Title"
+  #   caption: "Caption"
+  #   purpose: "Role in the argument"
+  #   file: "media/image.png"
+  #   alt_text: "Accessibility description"
+
+  # === BACK MATTER ===
+  back_matter:
+    appendices: []
+    
+    glossary:
+      enabled: false
+      entries: []
+    
+    bibliography:
+      enabled: true
+      style: "APA"
+      source: "citations.entries"
+    
+    index:
+      enabled: false
+      auto_generate: false
+    
+    about_author:
+      enabled: false
+      content_file: ""
+
+  # === COMPILATION SETTINGS ===
+  compilation:
+    output_formats:
+      - pdf
+    
+    pdf_settings:
+      document_class: "book"
+      paper_size: "letter"
+      font_size: "11pt"
+      two_side: true
+    
+    validation:
+      check_dependencies: true
+      check_citations: true
+      check_cross_refs: true

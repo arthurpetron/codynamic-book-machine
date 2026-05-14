@@ -1,11 +1,14 @@
 type: object
 required:
   - subject
+  - from
   - to
   - reply_to
   - body
 properties:
   subject:
+    type: string
+  from:
     type: string
   to:
     type: string

@@ -1,0 +1,704 @@
+# WORK OUTLINE SCHEMA v2.1
+# A complete definition for any written work (book, paper, monograph, essay)
+# Single YAML file defines the entire artifact
+# 
+# v2.1 Enhancement: Integrated comprehensive metadata from template_outline_metadata.yaml
+# Now includes 8 metadata categories: descriptive, administrative, structural,
+# technical, semantic, relational, contextual, and computational
+
+schema_version: "2.1"
+schema_name: "work_outline_schema"
+
+# =============================================================================
+# ROOT STRUCTURE
+# =============================================================================
+
+work:
+  # Core identification
+  id: "unique_work_identifier"
+  type: "book|paper|monograph|essay|article|thesis"
+  title: "Full title of the work"
+  subtitle: "Optional subtitle"
+  
+  # High-level intent
+  summary: |
+    Multi-paragraph abstract describing the work's purpose, scope, and impact.
+    This is the elevator pitch for what this work accomplishes.
+  
+  intent:
+    audience: "Target reader archetypes, communities, or expertise levels"
+    writing_style: "Narrative tone: academic, poetic, technical-expressive, conversational, etc."
+    author_persona: "Voice the author adopts: teacher, explorer, provocateur, guide"
+    reader_takeaway: "What should readers understand/feel/be able to do after reading?"
+    genre: "Classification: nonfiction, speculative theory, manifesto, textbook, etc."
+    epistemology: "Optional: The knowledge framework or philosophical stance (e.g., intuitionism, empiricism)"
+
+  # Author information
+  authors:
+    - name: "Primary Author Name"
+      affiliation: "Optional institution or organization"
+      email: "Optional contact"
+      orcid: "Optional ORCID identifier"
+      role: "author|editor|contributor"
+    # Additional authors...
+
+  # Publication metadata (comprehensive)
+  metadata:
+    # ==========================================================================
+    # DESCRIPTIVE METADATA
+    # What the work is about, for discovery and indexing
+    # ==========================================================================
+    descriptive:
+      # Note: title, subtitle at work level to avoid duplication
+      abstract: |
+        Optional extended abstract beyond the summary field.
+        Can be more formal or publication-ready.
+      keywords:
+        - "keyword1"
+        - "keyword2"
+        - "keyword3"
+      subject: "Primary subject classification (e.g., Computer Science, Philosophy)"
+      language: "en"  # ISO 639-1 code
+      genre: "nonfiction|textbook|monograph|treatise|manifesto|handbook"
+      intended_audience: "Detailed audience description beyond intent.audience"
+    
+    # ==========================================================================
+    # ADMINISTRATIVE METADATA
+    # Provenance, versioning, rights, and governance
+    # ==========================================================================
+    administrative:
+      provenance:
+        # Note: authors at work level; this adds institutional context
+        authors:  # Can mirror or extend work.authors with additional details
+          - name: "Author Name"
+            affiliation: "Institution"
+            role: "primary_author|contributor|editor"
+            orcid: "0000-0000-0000-0000"
+        maintainer: "Person or agent responsible for ongoing updates"
+        created_by: "Original creator if different from current author"
+      
+      versioning:
+        version: "0.1.0"
+        changelog:
+          - version: "0.1.0"
+            date: "2025-05-26"
+            changes: "Initial outline created"
+          - version: "0.2.0"
+            date: "2025-06-15"
+            changes: "Added Chapter 3, revised introduction"
+        release_notes: |
+          Optional release notes for this version
+      
+      timestamps:
+        created: "2025-05-26"
+        modified: "2025-05-26"
+        published: ""  # Optional publication date
+        archived: ""   # Optional archival date
+      
+      rights_and_access:
+        license: "CC-BY-4.0|MIT|proprietary|custom"
+        copyright_holder: "Name of copyright holder"
+        copyright_year: "2025"
+        access_permissions:
+          - "open_access"
+          - "institutional_access"
+          - "paid_access"
+        embargo_date: ""  # If applicable
+        usage_terms: |
+          Optional detailed usage terms beyond license
+        distribution_rights: "How this work may be distributed"
+    
+    # ==========================================================================
+    # STRUCTURAL METADATA
+    # Physical and organizational characteristics
+    # ==========================================================================
+    structural:
+      # Note: table_of_contents generated from structure; this tracks stats
+      section_hierarchy:
+        - "Part I: 3 chapters"
+        - "Part II: 4 chapters"
+      page_count: 0  # Estimated or actual
+      word_count: 0  # Estimated or actual
+      figure_count: 0
+      table_count: 0
+      diagram_count: 0
+      equation_count: 0
+      
+      file_manifest:
+        - file: "main.tex"
+          purpose: "Primary LaTeX file"
+        - file: "bibliography.bib"
+          purpose: "Citation database"
+      
+      citation_map:
+        # Mapping of citation IDs to their usage across the work
+        cite_001:
+          - "ch01_sec02"
+          - "ch03_sec01"
+    
+    # ==========================================================================
+    # TECHNICAL METADATA
+    # File format, encoding, and rendering specifications
+    # ==========================================================================
+    technical:
+      file_format: "YAML|LaTeX|Markdown|DocBook"
+      encoding: "UTF-8"
+      file_size_bytes: 0
+      checksum: "SHA256 hash for verification"
+      
+      page_dimensions: "8.5x11 inches|A4|custom"
+      dpi: 300  # For images/diagrams
+      
+      font_info:
+        - family: "Computer Modern"
+          usage: "body_text"
+        - family: "Latin Modern Mono"
+          usage: "code_blocks"
+      
+      software_used:
+        - name: "LaTeX"
+          version: "2023"
+        - name: "BibTeX"
+          version: "0.99d"
+      
+      dependencies:
+        - "TikZ for diagrams"
+        - "AMS packages for mathematics"
+        - "hyperref for cross-references"
+    
+    # ==========================================================================
+    # SEMANTIC METADATA
+    # Intellectual content, arguments, and conceptual structure
+    # ==========================================================================
+    semantic:
+      ontology:
+        - "Category Theory"
+        - "Embodied Cognition"
+        - "Systems Theory"
+      
+      thesis_statement: |
+        The central argument or claim of the work.
+        What is this work trying to prove or demonstrate?
+      
+      research_questions:
+        - "How do codynamic systems differ from static models?"
+        - "What role does recursion play in learning?"
+      
+      key_definitions:
+        - term: "Codynamic System"
+          definition: "A system that evolves its structure through interaction"
+          introduced_in: "ch01_sec02"
+      
+      argument_structure: |
+        Overview of how the argument unfolds across the work.
+        E.g., "Part I establishes foundations, Part II proves theorems,
+        Part III demonstrates applications."
+      
+      purpose: |
+        The work's ultimate purpose beyond audience/takeaway.
+        Why does this work need to exist?
+      
+      methodology: "Theoretical|Empirical|Mixed|Constructive|Axiomatic"
+      
+      epistemological_stance: "intuitionism|empiricism|rationalism|pragmatism"
+    
+    # ==========================================================================
+    # RELATIONAL METADATA
+    # Connections to other works and the scholarly network
+    # ==========================================================================
+    relational:
+      references:
+        # Works cited by this work (high-level; details in citations section)
+        - ref_id: "cite_001"
+          relationship: "builds_on"
+        - ref_id: "cite_042"
+          relationship: "critiques"
+      
+      cited_by:
+        # Works that cite this work (if known)
+        - work_id: "external_work_001"
+          title: "Extensions of Codynamic Theory"
+          authors: "Smith, J."
+          year: 2026
+      
+      related_works:
+        # Thematically or methodologically related
+        - work_id: "external_work_002"
+          title: "Category Theory for Scientists"
+          relationship: "complementary"
+      
+      supersedes: ""  # ID of work this replaces/updates
+      superseded_by: ""  # ID of work that replaces this
+      derived_from: ""  # Source work if this is a translation/adaptation
+      
+      linked_uris:
+        - uri: "https://example.com/codynamic-theory"
+          type: "project_website"
+        - uri: "https://github.com/user/codynamic-theory"
+          type: "code_repository"
+      
+      companion_materials:
+        - type: "dataset"
+          url: "https://example.com/datasets"
+        - type: "code"
+          url: "https://github.com/user/implementations"
+    
+    # ==========================================================================
+    # CONTEXTUAL METADATA
+    # Historical, cultural, and institutional context
+    # ==========================================================================
+    contextual:
+      historical_context: |
+        Historical circumstances surrounding the work's creation.
+        What era, events, or intellectual movements influenced it?
+      
+      geographic_context: |
+        Geographic or regional context if relevant.
+      
+      cultural_context: |
+        Cultural or social context that shapes the work.
+      
+      institutional_context: |
+        Institutional affiliations, research groups, or academic context.
+        E.g., "Developed at MIT Media Lab"
+      
+      funding_sources:
+        - agency: "National Science Foundation"
+          grant_number: "NSF-12345"
+        - agency: "Independent research"
+          grant_number: ""
+      
+      disclaimers:
+        - "Views expressed are those of the author"
+        - "Not peer-reviewed"
+    
+    # ==========================================================================
+    # COMPUTATIONAL METADATA
+    # Machine processing, validation, and system integration
+    # ==========================================================================
+    computational:
+      schema_version: "2.0"
+      unique_identifier: "UUID or DOI or custom ID"
+      machine_readable_format: "YAML|JSON|XML"
+      
+      api_endpoints:
+        - endpoint: "https://api.example.com/works/123"
+          purpose: "REST API for programmatic access"
+      
+      validation_status:
+        schema_valid: true
+        dependencies_resolved: true
+        citations_verified: true
+        last_validated: "2025-05-26"
+      
+      execution_logs:
+        - timestamp: "2025-05-26T10:30:00Z"
+          agent: "outline_converter"
+          action: "converted_from_v1"
+        - timestamp: "2025-05-26T11:00:00Z"
+          agent: "gardener_agent"
+          action: "validated_structure"
+      
+      build_metadata:
+        last_build: "2025-05-26T12:00:00Z"
+        build_system: "LaTeX|pandoc|custom"
+        output_artifacts:
+          - "output/main.pdf"
+          - "output/main.html"
+      
+      machine_tags:
+        # Custom tags for programmatic filtering/sorting
+        - "auto-generated-outline"
+        - "needs-citation-check"
+        - "ready-for-review"
+
+  # =============================================================================
+  # FRONT MATTER
+  # =============================================================================
+  
+  front_matter:
+    title_page:
+      enabled: true
+      custom_content: "Optional LaTeX or markdown override"
+    
+    copyright_page:
+      enabled: true
+      year: "2025"
+      holder: "Copyright holder name"
+      license_text: |
+        Optional custom license text or reference
+    
+    dedication:
+      enabled: false
+      text: |
+        Optional dedication text
+    
+    epigraph:
+      enabled: false
+      quote: "Optional opening quote"
+      attribution: "— Author Name"
+    
+    table_of_contents:
+      enabled: true
+      depth: 3  # How many levels deep to show
+    
+    list_of_figures:
+      enabled: false
+    
+    list_of_tables:
+      enabled: false
+    
+    foreword:
+      enabled: false
+      author: "Foreword author name"
+      content_file: "path/to/foreword.md"  # External file reference
+    
+    preface:
+      enabled: true
+      content_file: "path/to/preface.md"
+    
+    acknowledgments:
+      enabled: true
+      content_file: "path/to/acknowledgments.md"
+    
+    # Custom front matter sections
+    custom_sections:
+      - id: "notation_guide"
+        title: "Notation and Conventions"
+        content_file: "path/to/notation.md"
+        order: 5  # Position in front matter sequence
+
+  # =============================================================================
+  # MAIN MATTER STRUCTURE (Recursive Hierarchy)
+  # =============================================================================
+  
+  structure:
+    # Parts are optional top-level groupings
+    - type: "part"
+      id: "part_01"
+      number: "I"  # Roman numeral, Arabic, or custom
+      title: "Part Title"
+      summary: |
+        Optional overview of what this part covers and how chapters relate
+      
+      # Chapters within this part
+      content:
+        - type: "chapter"
+          id: "ch01"
+          number: 1
+          title: "Chapter Title (e.g., Introduction)"
+          
+          # Intent and learning design
+          goal: |
+            The intended outcome or transformation for the reader.
+            What should they be able to do/understand after this chapter?
+          
+          summary: |
+            High-level description of the chapter's scope and approach.
+            This is the roadmap for the chapter.
+          
+          # Optional: What reader should know before this chapter
+          prerequisites:
+            - "Basic understanding of set theory"
+            - "Familiarity with first-order logic"
+            # Can also reference other sections by ID:
+            - section_id: "ch00_sec02"
+              description: "Notation conventions introduced in the preface"
+          
+          # CRITICAL: Dependencies on other sections
+          # This is both machine-readable (IDs) and human-expressible
+          dependencies:
+            # Machine-readable dependency graph
+            structural:
+              - section_id: "ch00_sec01"
+                dependency_type: "builds_on|references|extends|contradicts"
+                required: true
+              - section_id: "part_01_intro"
+                dependency_type: "contextualizes"
+                required: false
+            
+            # Human-readable narrative (optional, for prose expression)
+            narrative: |
+              This chapter builds directly on the notation established in the
+              preface and extends the ideas first introduced in Part I.
+          
+          # Key concepts introduced in this chapter
+          key_concepts:
+            - id: "codynamic_loop"
+              term: "Codynamic Loop"
+              definition: "A recursive structure where..."
+              introduced_in: "ch01_sec02"  # Optional: specific section
+            - id: "structural_recursion"
+              term: "Structural Recursion"
+              definition: "The process by which..."
+          
+          # Citations used in this chapter
+          citations:
+            - ref_id: "cite_001"  # References entry in citations database
+            - ref_id: "cite_042"
+          
+          # Recursive section structure
+          content:
+            - type: "section"
+              id: "ch01_sec01"
+              number: "1.1"
+              title: "Section Title"
+              
+              goal: "Section-specific learning goal"
+              summary: "What this section covers"
+              
+              prerequisites: []  # Same structure as chapter
+              dependencies:
+                structural:
+                  - section_id: "ch01"
+                    dependency_type: "is_part_of"
+                    required: true
+              
+              key_concepts: []  # Same structure as chapter
+              citations: []
+              
+              # Subsections (recursive!)
+              content:
+                - type: "subsection"
+                  id: "ch01_sec01_sub01"
+                  number: "1.1.1"
+                  title: "Subsection Title"
+                  
+                  goal: "Subsection goal"
+                  summary: "Subsection scope"
+                  
+                  # Can recurse further...
+                  content:
+                    - type: "subsubsection"
+                      id: "ch01_sec01_sub01_subsub01"
+                      number: "1.1.1.1"
+                      title: "Deep dive topic"
+                      
+                      # Leaf node: actual content
+                      content_file: "sections/ch01_sec01_sub01_subsub01.md"
+                      # OR inline content:
+                      content_text: |
+                        The actual prose content goes here.
+                        This is the terminal node of the hierarchy.
+                      
+                      # Can still have metadata
+                      key_concepts: []
+                      citations: []
+                      dependencies:
+                        structural:
+                          - section_id: "ch01_sec01_sub01"
+                            dependency_type: "is_part_of"
+                            required: true
+
+  # =============================================================================
+  # CITATIONS AND REFERENCES DATABASE
+  # =============================================================================
+  
+  citations:
+    # Citation database (can also be external YAML/JSON file)
+    database_file: "citations/references.yaml"  # External reference
+    
+    # Or inline definition:
+    entries:
+      - id: "cite_001"
+        type: "article|book|inproceedings|thesis|webpage|preprint"
+        
+        # Standard bibliographic fields
+        authors:
+          - family: "Petron"
+            given: "Arthur"
+        title: "Codynamic Systems: A New Framework"
+        year: 2024
+        
+        # Publication venue
+        journal: "Journal of Theoretical Systems"  # For articles
+        volume: "12"
+        issue: "3"
+        pages: "45-67"
+        doi: "10.1234/jts.2024.001"
+        
+        # Or for books:
+        publisher: "Academic Press"
+        location: "Cambridge, MA"
+        isbn: "978-0-12-345678-9"
+        
+        # URLs and access
+        url: "https://example.com/paper"
+        access_date: "2025-05-26"
+        
+        # Annotations
+        abstract: |
+          Optional abstract of the cited work
+        
+        keywords:
+          - "codynamic theory"
+          - "structural recursion"
+        
+        # Relational metadata (Web of Science style)
+        relationships:
+          cites:
+            - "cite_042"  # This work cites another work
+            - "cite_103"
+          cited_by:
+            - "cite_201"  # Works that cite this one
+          related_to:
+            - "cite_055"  # Thematically related works
+        
+        # Where this citation appears in the current work
+        used_in:
+          - section_id: "ch01_sec02"
+            context: "theoretical_foundation"
+          - section_id: "ch03_sec01"
+            context: "empirical_validation"
+        
+        notes: |
+          Optional personal notes or annotations about this source
+
+  # =============================================================================
+  # DIAGRAMS AND COMPUTATIONAL DEFINITIONS
+  # =============================================================================
+  
+  diagrams:
+    - id: "diag_001"
+      title: "Diagram Title"
+      caption: "Descriptive caption for the figure"
+      
+      # Intent: what this diagram communicates
+      purpose: |
+        Linguistic description of what this diagram shows and why it matters.
+        What insight does it provide?
+      
+      # Implementation
+      source_file: "diagrams/codynamic_loop.py"  # Computational definition
+      rendered_file: "diagrams/codynamic_loop.png"  # Output image
+      
+      # Or inline definition for simple diagrams
+      definition:
+        type: "tikz|mermaid|graphviz|matplotlib|custom"
+        code: |
+          # Actual code or markup for generating the diagram
+      
+      # Where it appears
+      appears_in:
+        - section_id: "ch01_sec02"
+          placement: "after_paragraph_3"
+      
+      # Dependencies
+      depends_on:
+        - diagram_id: "diag_000"  # Builds on previous diagram
+      
+      metadata:
+        created: "2025-05-26"
+        updated: "2025-05-26"
+        version: "1.0"
+
+  # =============================================================================
+  # ARTWORK AND MEDIA
+  # =============================================================================
+  
+  media:
+    - id: "img_001"
+      type: "image|video|interactive|audio"
+      title: "Media Title"
+      caption: "Caption text"
+      
+      purpose: |
+        What role does this media play in the argument/narrative?
+      
+      file: "media/cover_art.png"
+      alt_text: "Accessibility description"
+      
+      appears_in:
+        - section_id: "title_page"
+      
+      metadata:
+        creator: "Artist Name"
+        license: "CC-BY-4.0"
+        source_url: "https://example.com/original"
+
+  # =============================================================================
+  # BACK MATTER
+  # =============================================================================
+  
+  back_matter:
+    appendices:
+      - id: "appendix_a"
+        title: "Appendix A: Mathematical Proofs"
+        content_file: "appendices/proofs.md"
+        
+        # Appendices can have their own structure
+        sections:
+          - id: "appendix_a_sec01"
+            title: "Proof of Theorem 3.2"
+            content_file: "appendices/proof_theorem_3_2.md"
+    
+    glossary:
+      enabled: true
+      # Can be generated from key_concepts or defined explicitly
+      entries:
+        - term: "Codynamic Loop"
+          definition: "A recursive structure..."
+          see_also:
+            - "Structural Recursion"
+            - "Energy Path"
+          defined_in: "ch01_sec02"
+    
+    bibliography:
+      enabled: true
+      style: "APA|MLA|Chicago|IEEE|ACM|custom"
+      source: "citations.database"  # References the citations section
+    
+    index:
+      enabled: true
+      # Can be auto-generated or manually curated
+      auto_generate: true
+      manual_entries:
+        - term: "codynamic theory"
+          see_also: ["structural recursion", "energy paths"]
+          page_refs: ["generated"]  # Filled during compilation
+    
+    about_author:
+      enabled: true
+      content_file: "back_matter/about_author.md"
+    
+    # Custom back matter sections
+    custom_sections:
+      - id: "future_directions"
+        title: "Future Research Directions"
+        content_file: "back_matter/future_directions.md"
+        order: 1  # Position in back matter sequence
+
+  # =============================================================================
+  # COMPILATION AND OUTPUT CONFIGURATION
+  # =============================================================================
+  
+  compilation:
+    output_formats:
+      - pdf
+      - html
+      - epub
+      - markdown
+    
+    pdf_settings:
+      document_class: "book|report|article|memoir"
+      paper_size: "letter|a4|custom"
+      font_size: "10pt|11pt|12pt"
+      two_side: true
+      chapter_style: "classic|modern|elegant"
+      
+    styling:
+      theme: "academic|minimal|expressive|custom"
+      custom_preamble_file: "latex/custom_preamble.tex"
+      
+    # Automated checks and validations
+    validation:
+      check_dependencies: true  # Verify all dependency IDs exist
+      check_citations: true      # Verify all citation IDs exist
+      check_cross_refs: true     # Verify all section references
+      orphan_detection: true     # Warn about unreferenced sections
+      
+    # Build configuration
+    build:
+      parallel: true
+      cache_enabled: true
+      incremental: true  # Only rebuild changed sections

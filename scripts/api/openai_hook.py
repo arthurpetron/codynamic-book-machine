@@ -5,7 +5,7 @@ import openai
 from typing import List
 
 # Load API key from environment or config
-openai.api_key = os.getenv("OPENAI_API_KEY")
+openai.api_key = os.getenv("KEY_OPENAI_API")
 
 DEFAULT_MODEL = "gpt-4"
 
@@ -18,7 +18,7 @@ def call_openai(prompt: str, model: str = DEFAULT_MODEL, temperature: float = 0.
         response = openai.ChatCompletion.create(
             model=model,
             messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "system", "content": "You are a helpful book writing assistant."},
                 {"role": "user", "content": prompt},
             ],
             temperature=temperature,

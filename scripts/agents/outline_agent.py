@@ -1,130 +1,239 @@
-# scripts/outline_agent.py
+"""
+Outline Agent - Schema-Based Validation
+
+This agent validates and proposes improvements to book outlines.
+It uses the actual Work Outline Schema v2.1 as the single source of truth.
+
+NO HARDCODED VALIDATION RULES - the schema is the operational definition.
+"""
 
 import yaml
+import sys
 from pathlib import Path
 from datetime import datetime
+from typing import Dict, List, Any
 
-OUTLINE_PATH = Path("book_data/codynamic_theory_book/outline/codynamic_theory.yaml")
-LOG_PATH = Path("book_data/codynamic_theory_book/logs/outline_agent_log.txt")
-PROPOSAL_PATH = Path("book_data/codynamic_theory_book/proposals/outline_proposal.yaml")
+# Add project root to path for imports
+from scripts.utils.project_paths import get_project_root
+sys.path.insert(0, str(get_project_root()))
 
-REQUIRED_KEYS = ["title", "summary", "intent", "chapters"]
-REQUIRED_INTENT_KEYS = ["audience", "writing_style", "author_persona", "reader_takeaway", "genre"]
-REQUIRED_CHAPTER_KEYS = ["id", "title", "goal", "summary", "sections"]
-REQUIRED_SECTION_KEYS = ["id", "title", "content_summary"]
+from utils.schema_validator import SchemaValidator
 
 
-def load_outline():
-    with open(OUTLINE_PATH, "r") as f:
-        return yaml.safe_load(f)["outline"]
-
-
-def check_outline_keys(outline):
-    log = []
-    for key in REQUIRED_KEYS:
-        if key not in outline:
-            log.append(f"Missing top-level key: {key}")
-
-    for ikey in REQUIRED_INTENT_KEYS:
-        if ikey not in outline.get("intent", {}):
-            log.append(f"Missing intent key: {ikey}")
-
-    for chapter in outline.get("chapters", []):
-        for ckey in REQUIRED_CHAPTER_KEYS:
-            if ckey not in chapter:
-                log.append(f"Chapter {chapter.get('id', '[unknown]')} missing key: {ckey}")
-        for section in chapter.get("sections", []):
-            for skey in REQUIRED_SECTION_KEYS:
-                if skey not in section:
-                    log.append(f"Section {section.get('id', '[unknown]')} missing key: {skey}")
-
-    return log
-
-
-def propose_outline_edits(outline):
+class OutlineAgent:
     """
-    This is a stub function simulating an LLM-based analysis of the current outline,
-    returning proposed edits or additions to improve structure or flow.
+    Agent for validating and improving book outlines.
+    Uses the Work Outline Schema as the authoritative definition.
     """
-    title = outline.get("title", "Untitled")
-    summary = outline.get("summary", "")
-    intent = outline.get("intent", {})
-
-    existing_ids = [ch["id"] for ch in outline.get("chapters", [])]
-    proposal = {
-        "proposed_additions": [
-            {
-                "id": "ch99",
-                "title": "Conclusion: Codynamic Futures",
-                "goal": "Synthesize key themes and suggest next research paths",
-                "summary": "Wraps up the ideas and proposes practical applications.",
-                "sections": [
-                    {
-                        "id": "ch99_sec01",
-                        "title": "Final Synthesis",
-                        "content_summary": "A final integration of codynamic principles."
-                    },
-                    {
-                        "id": "ch99_sec02",
-                        "title": "Looking Ahead",
-                        "content_summary": "Challenges, opportunities, and open questions."
-                    }
-                ]
-            }
-        ],
-        "mid_document_insert": {
-            "insert_after": "ch01",
-            "proposal": {
-                "id": "ch01b",
-                "title": "Embodied Interactions",
-                "goal": "Bridge theory of codynamic recursion to embodied systems",
-                "summary": "This chapter introduces how structural learning manifests in real environments.",
-                "sections": [
-                    {
-                        "id": "ch01b_sec01",
-                        "title": "Agents in Context",
-                        "content_summary": "An overview of agency within mutable environments."
-                    },
-                    {
-                        "id": "ch01b_sec02",
-                        "title": "Structural Modulation",
-                        "content_summary": "How codynamic systems shape and are shaped by embodiment."
-                    }
-                ]
-            }
+    
+    def __init__(self, outline_path: Path, schema_dir: Path = None):
+        """
+        Initialize the outline agent.
+        
+        Args:
+            outline_path: Path to the outline YAML file
+            schema_dir: Optional path to schemas directory
+        """
+        from scripts.utils.project_paths import get_cached_project_structure
+        
+        self.outline_path = Path(outline_path)
+        # Use book-specific directories for logs and proposals
+        book_dir = self.outline_path.parent.parent  # outline -> book_data/book_name
+        self.log_path = book_dir / "logs" / "outline_agent_log.txt"
+        self.proposal_path = book_dir / "proposals" / "outline_proposal.yaml"
+        
+        # Initialize schema validator - THIS is our source of truth
+        self.validator = SchemaValidator(schema_dir)
+        
+        # Ensure directories exist
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+        self.proposal_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    def load_outline(self) -> Dict[str, Any]:
+        """Load the outline from file."""
+        if not self.outline_path.exists():
+            raise FileNotFoundError(f"Outline not found: {self.outline_path}")
+        
+        with open(self.outline_path, 'r') as f:
+            return yaml.safe_load(f)
+    
+    def validate_outline(self, outline: Dict[str, Any]) -> tuple[bool, List[str]]:
+        """
+        Validate outline against the schema.
+        
+        Returns:
+            Tuple of (is_valid, error_messages)
+        """
+        return self.validator.validate(outline)
+    
+    def check_completeness(self, outline: Dict[str, Any]) -> Dict[str, List[str]]:
+        """
+        Check for optional but recommended fields.
+        
+        Returns:
+            Dictionary of missing recommended fields by category
+        """
+        return self.validator.check_completeness(outline)
+    
+    def generate_validation_report(self, outline: Dict[str, Any]) -> str:
+        """Generate comprehensive validation report."""
+        return self.validator.generate_validation_report(outline)
+    
+    def propose_outline_edits(self, outline: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Analyze outline and propose improvements.
+        
+        This is where LLM-based analysis would happen in production.
+        For now, provides structural recommendations based on completeness check.
+        """
+        work = outline.get('work', {})
+        title = work.get('title', 'Untitled')
+        
+        # Check what's missing
+        missing = self.check_completeness(outline)
+        
+        proposal = {
+            'timestamp': datetime.now().isoformat(),
+            'outline_title': title,
+            'validation_status': {
+                'strict_valid': self.validate_outline(outline)[0],
+                'completeness_issues': len(missing) > 0
+            },
+            'recommended_additions': []
         }
-    }
-    return proposal
+        
+        # Propose additions based on missing fields
+        if 'metadata' in missing:
+            proposal['recommended_additions'].append({
+                'category': 'metadata',
+                'priority': 'high',
+                'rationale': 'Metadata captures the intent and context - critical for intuitionist approach',
+                'missing_fields': missing['metadata']
+            })
+        
+        if 'intent' in missing:
+            proposal['recommended_additions'].append({
+                'category': 'intent',
+                'priority': 'high',
+                'rationale': 'Intent fields define the philosophical framework and audience',
+                'missing_fields': missing['intent']
+            })
+        
+        if 'structure' in missing:
+            proposal['recommended_additions'].append({
+                'category': 'structure',
+                'priority': 'medium',
+                'rationale': 'Dependencies track how sections build on each other',
+                'missing_fields': missing['structure']
+            })
+        
+        # Example structural proposals (in production, LLM would generate these)
+        structure = work.get('structure', [])
+        if structure:
+            existing_ids = [ch.get('id', '') for ch in structure]
+            
+            # Only propose if we don't already have a conclusion chapter
+            has_conclusion = any('conclusion' in ch.get('title', '').lower() for ch in structure)
+            
+            if not has_conclusion:
+                proposal['suggested_chapters'] = [
+                    {
+                        'type': 'chapter',
+                        'id': 'ch99',
+                        'title': 'Conclusion: Codynamic Futures',
+                        'goal': 'Synthesize key themes and suggest next research paths',
+                        'summary': 'Wraps up the ideas and proposes practical applications.',
+                        'position': 'end',
+                        'rationale': 'Book needs a synthesizing conclusion'
+                    }
+                ]
+        
+        return proposal
+    
+    def write_log(self, messages: List[str]):
+        """Write validation results to log file."""
+        with open(self.log_path, 'a') as f:
+            f.write(f"\n{'=' * 60}\n")
+            f.write(f"Outline Agent Run: {datetime.now().isoformat()}\n")
+            f.write(f"{'=' * 60}\n")
+            for msg in messages:
+                f.write(f"{msg}\n")
+    
+    def write_proposal(self, proposal: Dict[str, Any]):
+        """Write improvement proposal to file."""
+        with open(self.proposal_path, 'w') as f:
+            yaml.dump(proposal, f, sort_keys=False, allow_unicode=True)
+        print(f"[Outline Agent] Wrote proposal to: {self.proposal_path}")
+    
+    def run(self, verbose: bool = True) -> bool:
+        """
+        Main agent execution.
+        
+        Args:
+            verbose: Whether to print detailed output
+            
+        Returns:
+            True if outline is valid, False otherwise
+        """
+        if verbose:
+            print(f"[Outline Agent] Loading outline: {self.outline_path}")
+        
+        # Load outline
+        outline = self.load_outline()
+        
+        # Generate validation report
+        report = self.generate_validation_report(outline)
+        
+        if verbose:
+            print("\n" + report)
+        
+        # Log the report
+        self.write_log(report.split('\n'))
+        
+        # Generate and write proposal
+        proposal = self.propose_outline_edits(outline)
+        self.write_proposal(proposal)
+        
+        # Return validation status
+        is_valid, _ = self.validate_outline(outline)
+        return is_valid
 
 
-def write_log(log_messages):
-    with open(LOG_PATH, "a") as f:
-        f.write(f"\n[Outline Agent Run: {datetime.now().isoformat()}]\n")
-        for line in log_messages:
-            f.write(f"{line}\n")
-
-
-def write_proposal(proposal):
-    PROPOSAL_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(PROPOSAL_PATH, "w") as f:
-        yaml.dump(proposal, f)
-    print(f"[Outline Agent] Wrote proposal to: {PROPOSAL_PATH}")
-
-
-def run_outline_agent():
-    outline = load_outline()
-    messages = check_outline_keys(outline)
-    if messages:
-        print("[Outline Agent] Issues found:")
-        for m in messages:
-            print(f"- {m}")
-        write_log(messages)
+def run_outline_agent(outline_path: str = None):
+    """
+    Convenience function to run the outline agent.
+    
+    Args:
+        outline_path: Optional path to outline. If None, uses default codynamic theory outline.
+    """
+    if outline_path is None:
+        # Default to codynamic theory outline using robust discovery
+        from scripts.utils.project_paths import get_cached_project_structure
+        project_structure = get_cached_project_structure()
+        outline_path = (
+            project_structure.book_data_dir / "codynamic_theory_book" 
+            / "outline" / "codynamic_theory.yaml"
+        )
+    
+    agent = OutlineAgent(outline_path)
+    is_valid = agent.run(verbose=True)
+    
+    if is_valid:
+        print("\n✓ Outline validation passed")
+        return 0
     else:
-        print("[Outline Agent] Outline structure is valid.")
-
-    proposal = propose_outline_edits(outline)
-    write_proposal(proposal)
+        print("\n✗ Outline has validation issues - see proposal for recommendations")
+        return 1
 
 
 if __name__ == "__main__":
-    run_outline_agent()
+    """
+    Run the outline agent on the codynamic theory outline.
+    """
+    import sys
+    
+    # Allow passing outline path as command-line argument
+    outline_path = sys.argv[1] if len(sys.argv) > 1 else None
+    
+    exit_code = run_outline_agent(outline_path)
+    sys.exit(exit_code)

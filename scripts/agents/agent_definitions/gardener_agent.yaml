@@ -1,5 +1,5 @@
 name: gardener_agent
-role: Validates presence, renderability, and semantic alignment of section payloads in the codynamic manuscript.
+role: Validates presence, renderability, and semantic alignment of section payloads in the manuscript.
 
 tasks:
   - confirm_tex_exists
@@ -9,6 +9,13 @@ tasks:
   - detect_agent_timeout_or_stuck
   - verify_content_alignment_with_outline
 
+permissions:
+  - read_all_agent_state
+  - read_all_message_logs
+  - write_messages_to_all
+  - introspect_self
+  - log_activity
+  
 inputs:
   - outline.yaml
   - tex/section_payloads/*.tex

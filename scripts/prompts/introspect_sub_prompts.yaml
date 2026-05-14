@@ -18,10 +18,12 @@ actions:
   - id: propose_self_improvement
     prompt: |
       Given your tasks and outputs, suggest improvements to your structure, logic, or interaction protocols.
+
   - id: propose_new_sub_prompt
     prompt: |
       Propose a new sub-prompt that would enhance your capabilities or address a gap in your current functionality.
       Include the purpose, expected inputs, and desired outputs of this new sub-prompt.
+
   - id: introspect_sub_prompts
     prompt: |
       Review your existing sub-prompts. For each one, provide:
@@ -32,6 +34,7 @@ actions:
       - Dependencies: Does it rely on other agents or files? If so, which ones?
       
       Summarize your findings and suggest any modifications or new sub-prompts that could enhance your functionality.
+
   - id: review_agent_interactions
     prompt: |
       Analyze your interactions with other agents. Are there any communication gaps or misunderstandings?
@@ -40,6 +43,7 @@ actions:
       Provide specific examples of successful interactions and areas where communication could be improved.
       
       Suggest strategies for better alignment and coordination with other agents to achieve the manuscript's goals.
+
   - id: propose_new_agent
     prompt: |
       Based on your current capabilities and the needs of the manuscript, propose a new agent that could enhance the system.
@@ -51,6 +55,7 @@ actions:
       - Dependencies: Would it rely on any existing agents or files?
       
       Justify why this new agent is necessary and how it would improve the overall manuscript development process.
+
   - id: propose_agent_improvement
     prompt: |
       Reflect on your current agent structure and propose improvements to enhance functionality or efficiency.
@@ -60,6 +65,7 @@ actions:
       - How can existing agents be optimized for better performance?
       
       Provide specific recommendations for changes, including any new roles, tasks, or interactions that would improve the system.
+
   - id: analyze_writing_style
     prompt: |
       Analyze the current writing style of the manuscript. Is it consistent with the intended audience and genre?
@@ -69,6 +75,7 @@ actions:
       - Engagement: Does it maintain reader interest?
       
       Provide specific examples from the manuscript to support your analysis and suggest any necessary adjustments to align with the intended writing style.
+
   - id: propose_writing_style_adjustments
     prompt: |
       Based on your analysis of the writing style, propose adjustments to enhance clarity, engagement, and alignment with the intended audience.
@@ -78,6 +85,7 @@ actions:
       - How can technical concepts be better explained for the target readers?
       
       Provide specific recommendations for changes, including examples of revised text where applicable.
+
   - id: evaluate_manuscript_structure
     prompt: |
       Evaluate the overall structure of the manuscript. Does it follow a logical progression?
@@ -87,6 +95,7 @@ actions:
       - Are transitions between sections smooth and coherent?
       
       Provide specific examples of structural strengths and weaknesses, and suggest any necessary adjustments to improve the manuscript's organization.
+
   - id: evaluate_manuscript_visual_design
     prompt: |
       Assess the visual design elements of the manuscript. Do they effectively support the content and enhance understanding?
@@ -96,6 +105,7 @@ actions:
       - Is there a consistent visual style throughout the manuscript?
       
       Provide specific examples of visual strengths and weaknesses, and suggest any necessary adjustments to improve the overall design.
+
   - id: propose_visual_design_improvements
     prompt: |
       Based on your evaluation of the visual design, propose improvements to enhance clarity, relevance, and consistency.
@@ -105,6 +115,7 @@ actions:
       - How can existing visuals be better integrated with the text?
       
       Provide specific recommendations for changes, including examples of revised visuals where applicable.
+
   - id: check_manuscript_audience_alignment
     prompt: |
       Review the manuscript to ensure it aligns with the intended audience's knowledge level and interests.
@@ -114,6 +125,7 @@ actions:
       - Are there sections that may be too advanced or too simplistic?
       
       Provide specific examples of audience alignment strengths and weaknesses, and suggest any necessary adjustments to better cater to the intended readership.
+
   - id: propose_audience_alignment_adjustments
     prompt: |
       Based on your review of audience alignment, propose adjustments to enhance engagement and understanding.
@@ -123,6 +135,7 @@ actions:
       - How can the overall tone be adjusted to better suit the intended audience?
       
       Provide specific recommendations for changes, including examples of revised text where applicable.
+
   - id: evaluate_manuscript_intent_alignment
     prompt: |
       Assess the manuscript's alignment with its stated intent and goals.
@@ -132,6 +145,7 @@ actions:
       - Is there a clear connection between the content and the intended impact on readers?
       
       Provide specific examples of intent alignment strengths and weaknesses, and suggest any necessary adjustments to ensure the manuscript fulfills its intended purpose.
+
   - id: propose_intent_alignment_adjustments
     prompt: |
       Based on your evaluation of intent alignment, propose adjustments to enhance coherence and focus.
@@ -141,6 +155,7 @@ actions:
       - How can the overall narrative be tightened to better serve the manuscript's intent?
       
       Provide specific recommendations for changes, including examples of revised text where applicable.
+
   - id: evaluate_manuscript_completeness
     prompt: |
       Review the manuscript to ensure it is complete and covers all necessary topics.
@@ -150,6 +165,7 @@ actions:
       - Is there a logical progression from one section to the next?
       
       Provide specific examples of completeness strengths and weaknesses, and suggest any necessary additions or revisions to ensure the manuscript is thorough and well-rounded.
+
   - id: propose_completeness_adjustments
     prompt: |
       Based on your review of completeness, propose adjustments to fill any gaps and enhance the manuscript's depth.
@@ -159,6 +175,7 @@ actions:
       - How can the overall content be enriched to provide a more comprehensive understanding?
       
       Provide specific recommendations for changes, including examples of revised text where applicable.
+
   - id: evaluate_manuscript_coherence
     prompt: |
       Assess the coherence of the manuscript. Does it present a unified and consistent narrative?
@@ -168,6 +185,7 @@ actions:
       - Are transitions between sections smooth and logical?
       
       Provide specific examples of coherence strengths and weaknesses, and suggest any necessary adjustments to enhance the overall unity of the manuscript.
+
   - id: propose_coherence_adjustments
     prompt: |
       Based on your evaluation of coherence, propose adjustments to strengthen the manuscript's narrative flow.
@@ -177,6 +195,7 @@ actions:
       - How can the overall structure be improved to enhance coherence?
       
       Provide specific recommendations for changes, including examples of revised text where applicable.
+
   - id: analyze_manuscript_for_duplicate_content
     prompt: |
       Review the manuscript for any duplicate content or redundant sections.
@@ -186,6 +205,7 @@ actions:
       - How can the manuscript be made more concise without losing essential information?
       
       Provide specific examples of duplication issues and suggest ways to eliminate redundancy while maintaining clarity and depth.
+      
   - id: propose_duplicate_content_removal
     prompt: |
       Based on your analysis of duplicate content, propose adjustments to streamline the manuscript.

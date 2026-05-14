@@ -43,6 +43,9 @@ outline:
       file: "artwork/cover.png"
 
   metadata:
+    
+    title: "Codynamic Theory: Structure Is All You Need"
+    author: "Arthur Petron"
     version: 0.1
     created: 2025-05-26
     updated: 2025-05-26

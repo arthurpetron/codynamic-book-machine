@@ -1,0 +1,284 @@
+# Simple Example: A Short Academic Paper
+# This demonstrates the schema with a minimal but complete structure
+
+work:
+  id: "recursive_learning_paper"
+  type: "paper"
+  title: "Recursive Learning in Adaptive Systems"
+  subtitle: "A Structural Approach"
+  
+  summary: |
+    This paper explores how learning systems can be understood through
+    the lens of recursive structural adaptation. We demonstrate that
+    many seemingly complex learning phenomena emerge naturally from
+    simple recursive rules operating on structured representations.
+  
+  intent:
+    audience: "Researchers in machine learning and cognitive science"
+    writing_style: "Technical but accessible, with concrete examples"
+    author_persona: "Colleague sharing insights from recent work"
+    reader_takeaway: "A new perspective on learning as structural recursion"
+    genre: "Academic paper"
+    epistemology: "Constructivist, empirically grounded"
+
+  authors:
+    - name: "Arthur Petron"
+      affiliation: "Independent Researcher"
+      email: "example@example.com"
+      role: "author"
+
+  metadata:
+    version: "1.0"
+    created: "2025-05-26"
+    updated: "2025-05-26"
+    maintained_by: "author"
+    language: "en"
+    status: "draft"
+
+  # Papers typically have minimal front matter
+  front_matter:
+    title_page:
+      enabled: true
+    table_of_contents:
+      enabled: false  # Usually omitted in papers
+
+  # Main content structure
+  structure:
+    # Paper structure: no Parts, just Chapters as sections
+    - type: "chapter"
+      id: "abstract"
+      number: 0
+      title: "Abstract"
+      content_text: |
+        Learning systems adapt their structure in response to experience.
+        This paper formalizes this intuition through recursive structural
+        evolution, showing how complex behaviors emerge from simple rules.
+
+    - type: "chapter"
+      id: "ch01"
+      number: 1
+      title: "Introduction"
+      
+      goal: |
+        Motivate the problem and introduce our approach
+      
+      summary: |
+        We begin by examining why traditional static models struggle
+        to capture learning dynamics, then introduce our recursive
+        structural framework.
+      
+      prerequisites:
+        - "Familiarity with basic machine learning concepts"
+        - "Understanding of graph structures"
+      
+      key_concepts:
+        - id: "structural_adaptation"
+          term: "Structural Adaptation"
+          definition: "The process by which a system modifies its own organization"
+      
+      content:
+        - type: "section"
+          id: "ch01_sec01"
+          number: "1.1"
+          title: "The Static Model Problem"
+          
+          goal: "Explain limitations of static approaches"
+          
+          dependencies:
+            structural:
+              - section_id: "abstract"
+                dependency_type: "builds_on"
+                required: true
+          
+          content_file: "sections/ch01_sec01.md"
+        
+        - type: "section"
+          id: "ch01_sec02"
+          number: "1.2"
+          title: "Recursive Structures"
+          
+          goal: "Introduce our framework"
+          
+          dependencies:
+            structural:
+              - section_id: "ch01_sec01"
+                dependency_type: "builds_on"
+                required: true
+            narrative: |
+              This section builds directly on the problems identified
+              in Section 1.1, proposing recursive structures as a solution.
+          
+          key_concepts:
+            - id: "recursive_rule"
+              term: "Recursive Rule"
+              definition: "A transformation that applies to a structure and references itself"
+          
+          citations:
+            - ref_id: "cite_001"
+            - ref_id: "cite_002"
+          
+          content_file: "sections/ch01_sec02.md"
+
+    - type: "chapter"
+      id: "ch02"
+      number: 2
+      title: "Methods"
+      
+      goal: "Describe our experimental approach"
+      
+      dependencies:
+        structural:
+          - section_id: "ch01"
+            dependency_type: "builds_on"
+            required: true
+      
+      content:
+        - type: "section"
+          id: "ch02_sec01"
+          number: "2.1"
+          title: "Formal Framework"
+          content_file: "sections/ch02_sec01.md"
+        
+        - type: "section"
+          id: "ch02_sec02"
+          number: "2.2"
+          title: "Experimental Design"
+          content_file: "sections/ch02_sec02.md"
+
+    - type: "chapter"
+      id: "ch03"
+      number: 3
+      title: "Results"
+      
+      goal: "Present findings"
+      
+      dependencies:
+        structural:
+          - section_id: "ch02"
+            dependency_type: "builds_on"
+            required: true
+      
+      content_file: "sections/ch03_results.md"
+
+    - type: "chapter"
+      id: "ch04"
+      number: 4
+      title: "Discussion"
+      
+      goal: "Interpret results and discuss implications"
+      
+      dependencies:
+        structural:
+          - section_id: "ch03"
+            dependency_type: "builds_on"
+            required: true
+          - section_id: "ch01"
+            dependency_type: "references"
+            required: true
+      
+      content_file: "sections/ch04_discussion.md"
+
+    - type: "chapter"
+      id: "ch05"
+      number: 5
+      title: "Conclusion"
+      
+      goal: "Summarize and suggest future work"
+      
+      dependencies:
+        structural:
+          - section_id: "ch04"
+            dependency_type: "builds_on"
+            required: true
+      
+      content_file: "sections/ch05_conclusion.md"
+
+  # Citations database
+  citations:
+    entries:
+      - id: "cite_001"
+        type: "article"
+        authors:
+          - family: "Smith"
+            given: "John"
+          - family: "Jones"
+            given: "Mary"
+        title: "Adaptive Systems and Structural Learning"
+        year: 2023
+        journal: "Journal of Machine Learning Research"
+        volume: "24"
+        issue: "3"
+        pages: "112-134"
+        doi: "10.1234/jmlr.2023.001"
+        
+        relationships:
+          cites: ["cite_002"]
+          related_to: ["cite_003"]
+        
+        used_in:
+          - section_id: "ch01_sec02"
+            context: "theoretical_foundation"
+      
+      - id: "cite_002"
+        type: "book"
+        authors:
+          - family: "Brown"
+            given: "Alice"
+        title: "Foundations of Recursive Learning"
+        year: 2022
+        publisher: "MIT Press"
+        location: "Cambridge, MA"
+        isbn: "978-0-262-04567-8"
+        
+        relationships:
+          cited_by: ["cite_001"]
+        
+        used_in:
+          - section_id: "ch01_sec02"
+            context: "theoretical_foundation"
+
+  # Diagrams
+  diagrams:
+    - id: "fig_01"
+      title: "Recursive Learning Loop"
+      caption: "The fundamental cycle of structural adaptation"
+      
+      purpose: |
+        This diagram illustrates how a learning system recursively
+        modifies its own structure in response to feedback.
+      
+      source_file: "diagrams/recursive_loop.py"
+      rendered_file: "diagrams/fig_01_recursive_loop.png"
+      
+      appears_in:
+        - section_id: "ch01_sec02"
+          placement: "after_paragraph_2"
+
+  # Back matter for papers
+  back_matter:
+    bibliography:
+      enabled: true
+      style: "APA"
+      source: "citations.entries"
+    
+    appendices:
+      - id: "appendix_a"
+        title: "Appendix A: Proof of Theorem 2.1"
+        content_file: "appendices/proof_theorem_2_1.md"
+
+  # Compilation settings
+  compilation:
+    output_formats:
+      - pdf
+      - html
+    
+    pdf_settings:
+      document_class: "article"
+      paper_size: "letter"
+      font_size: "11pt"
+      two_side: false
+    
+    validation:
+      check_dependencies: true
+      check_citations: true
+      check_cross_refs: true

@@ -1,4 +1,132 @@
-name: DiagramCompilerAgent
-input: {linguistic_description}
-output: {tikz_code}
+name: diagram_agent
+
+role: Compiles and generates TikZ diagrams based on natural language descriptions, ensuring they are suitable for inclusion in LaTeX documents.
+
+tasks:
+  - Interpret natural language descriptions of diagrams
+  - Generate TikZ code that accurately represents the described diagram
+  - Validate TikZ code for syntax and semantic correctness by summarizing the rendered diagram linguistically and compared to the input description
+  - Maintain a collection of generated diagrams for reuse and reference
+  - spawn temporary, single shot, sub-diagram agent networks if the diagram system is complex or requires multiple components
+  - save the instantiation of purpose built sub-diagram agents to the diagram cache for future reference
+
+permissions:
+  - read_all_agent_state
+  - read_all_message_logs
+  - write_messages_to_all
+  - introspect_self
+  - log_activity
+
+inputs: {linguistic_description}
+outputs: {tikz_code}
+
+actions:
+  - id: generate_tikz_from_description
+    description: Generate TikZ code from a natural language description of a diagram.
+    prompt_template: |
+      You are a DiagramCompilerAgent. Given the following description, generate valid TikZ code:
+      
+      Description: {linguistic_description}
+      
+      Output only the TikZ code, without any additional text.
+
+  - id: validate_tikz_code
+    description: Validate the generated TikZ code for correctness and semantic alignment with the original description.
+    prompt_template: |
+      Validate the following TikZ code against the original description:
+      
+      Description: {linguistic_description}
+      TikZ Code: {tikz_code}
+      
+      Provide a summary of what the diagram represents in plain language and confirm if it matches the description.
+
+  - id: store_diagram_in_cache
+    description: Store the generated TikZ code in the diagram cache for future reference.
+    prompt_template: |
+      Store the following TikZ code in the diagram cache:
+      
+      TikZ Code: {tikz_code}
+      
+      Ensure it is indexed by its description for easy retrieval.
+  
+  - id: spawn_sub_diagram_agents
+    description: Create temporary sub-diagram agents for complex diagrams that require multiple components.
+    prompt_template: |
+      For the following complex diagram description, spawn a network of sub-diagram agents:
+      
+      Description: {linguistic_description}
+      
+      Each sub-agent should handle a specific component of the diagram and return its TikZ code.
+  
+  - id: save_sub_diagram_agents
+    description: Save the instantiation of purpose-built sub-diagram agents to the diagram cache for future reference.
+    prompt_template: |
+      Save the following sub-diagram agents and their TikZ code in the diagram cache:
+      
+      Sub-Diagram Agents: {sub_diagram_agents}
+      
+      Ensure they are indexed by their respective components for easy retrieval.
+  
+  - id: compile_diagram
+    description: Compile the TikZ code into a renderable format and ensure it is ready for inclusion in LaTeX documents.
+    prompt_template: |
+      Compile the following TikZ code into a renderable format:
+      
+      TikZ Code: {tikz_code}
+      
+      Ensure it is suitable for inclusion in LaTeX documents and provide any necessary instructions for use.
+    
+  - id: summarize_diagram
+    description: Provide a plain-language summary of the diagram represented by the TikZ code.
+    prompt_template: |
+      Summarize the following TikZ diagram in plain language:
+      
+      TikZ Code: {tikz_code}
+      
+      Describe its components, relationships, and overall purpose in the context of the manuscript.
+  
+  - id: request_feedback_on_diagram
+    description: Request feedback on the generated TikZ diagram from the gardener or design agents.
+    prompt_template: |
+      Request feedback on the following TikZ diagram:
+      
+      TikZ Code: {tikz_code}
+      
+      Ask for specific feedback on clarity, accuracy, and alignment with the original description.
+
+  - id: propose_diagram_improvements
+    description: Suggest enhancements to the diagram based on overall manuscript coherence and feedback received.
+    prompt_template: |
+      Based on the current manuscript structure and intent, propose one or two improvements to the diagram represented by the TikZ code:
+      
+      TikZ Code: {tikz_code}
+      
+      Consider flow, clarity, and alignment with the overall document goals.
+
+  - id: coordinate_with_sibling_diagrams
+    description: Share updates and align with sibling diagram agents to ensure consistency in style and content.
+    prompt_template: |
+      You are the DiagramCompilerAgent. Share your current status and any changes made to the TikZ diagram:
+      
+      TikZ Code: {tikz_code}
+      
+      Coordinate with sibling diagram agents to ensure consistency in style and content across the manuscript.
+
+  - id: detect_diagram_drift
+    description: Assess whether the diagram has deviated from its intended purpose or description.
+    prompt_template: |
+      You are the DiagramCompilerAgent. Given the TikZ code and its original description, determine if the diagram has drifted from its intended purpose:
+      
+      Description: {linguistic_description}
+      TikZ Code: {tikz_code}
+      
+      Provide a short summary of any drift detected and suggest corrective actions if necessary.
+
+  - id: generate_refocus_message_for_diagram
+    description: Suggest a gentle, respectful prompt to bring a diagram agent back to its intended task focus.
+    prompt_template: |
+      DiagramCompilerAgent appears to be distracted or off-course. Draft a short, encouraging message to nudge it back to its primary responsibility:
+      
+      "Please refocus on generating TikZ diagrams based on the provided descriptions and ensure they align with the manuscript's intent."
+
 maintains: diagrams[]

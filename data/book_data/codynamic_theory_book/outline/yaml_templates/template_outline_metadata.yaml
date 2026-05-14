@@ -1,0 +1,83 @@
+metadata:
+  descriptive_metadata:
+      title: ""
+      subtitle: ""
+      abstract: ""
+      keywords: []
+      subject: ""
+      language: ""
+      genre: ""
+      intended_audience: ""
+
+  administrative_metadata:
+      provenance:
+        authors: []
+        affiliations: []
+        maintainer: ""
+      versioning:
+        version: ""
+        changelog: []
+        release_notes: ""
+      timestamps:
+        created: ""
+        modified: ""
+        published: ""
+      rights_and_access:
+        license: ""
+        copyright_holder: ""
+        access_permissions: []
+        embargo_date: ""
+        usage_terms: ""
+
+  structural_metadata:
+      table_of_contents: []
+      section_hierarchy: []
+      page_count: 0
+      figure_count: 0
+      table_count: 0
+      file_manifest: []
+      citation_map: {}
+
+  technical_metadata:
+      file_format: ""
+      encoding: ""
+      file_size_bytes: 0
+      checksum: ""
+      page_dimensions: ""
+      dpi: 0
+      font_info: []
+      software_used: []
+      dependencies: []
+
+  semantic_metadata:
+      ontology: []
+      thesis_statement: ""
+      research_questions: []
+      key_definitions: []
+      argument_structure: ""
+      purpose: ""
+
+  relational_metadata:
+      references: []
+      cited_by: []
+      related_works: []
+      supersedes: ""
+      superseded_by: ""
+      derived_from: ""
+      linked_uris: []
+
+  contextual_metadata:
+      historical_context: ""
+      geographic_context: ""
+      cultural_context: ""
+      institutional_context: ""
+      funding_sources: []
+      disclaimers: []
+
+  computational_metadata:
+      schema_version: ""
+      unique_identifier: ""
+      machine_readable_format: ""
+      api_endpoints: []
+      validation_status: ""
+      execution_logs: []

@@ -1,0 +1,88 @@
+work:
+  id: on_the_closure_of_compositional_hierarchies_in_dig
+  type: book
+  title: On the Closure of Compositional Hierarchies in Digital Symmetries
+  subtitle: ''
+  summary: The outline presents a structured plan for a technical book examining the
+    interplay of compositionality, closure properties, and symmetries in digital systems,
+    drawing from category theory (operads, PROPs), Boolean function theory (clones,
+    Post's lattice), and applications to hardware, software, and beyond (e.g., quantum,
+    crypto, ML).
+  intent:
+    audience: TO BE SPECIFIED
+    writing_style: TO BE SPECIFIED
+    author_persona: TO BE SPECIFIED
+    reader_takeaway: TO BE SPECIFIED
+    genre: nonfiction
+  authors:
+  - name: TO BE SPECIFIED
+    affiliation: ''
+    email: ''
+    role: author
+  metadata:
+    version: 0.1.0
+    created: '2025-11-21'
+    updated: '2025-11-21'
+    maintained_by: author
+    language: en
+    status: draft
+  front_matter:
+    title_page:
+      enabled: true
+    copyright_page:
+      enabled: true
+      year: '2025'
+      holder: TO BE SPECIFIED
+    dedication:
+      enabled: false
+      text: ''
+    epigraph:
+      enabled: false
+      quote: ''
+      attribution: ''
+    table_of_contents:
+      enabled: true
+      depth: 3
+    list_of_figures:
+      enabled: false
+    list_of_tables:
+      enabled: false
+    preface:
+      enabled: false
+      content_file: ''
+    acknowledgments:
+      enabled: false
+      content_file: ''
+  structure: []
+  citations:
+    entries: []
+  diagrams: []
+  media: []
+  back_matter:
+    appendices: []
+    glossary:
+      enabled: false
+      entries: []
+    bibliography:
+      enabled: true
+      style: APA
+      source: citations.entries
+    index:
+      enabled: false
+      auto_generate: false
+    about_author:
+      enabled: false
+      content_file: ''
+  compilation:
+    output_formats:
+    - pdf
+    pdf_settings:
+      document_class: book
+      paper_size: letter
+      font_size: 11pt
+      two_side: true
+    validation:
+      check_dependencies: true
+      check_citations: true
+      check_cross_refs: true
+      orphan_detection: true

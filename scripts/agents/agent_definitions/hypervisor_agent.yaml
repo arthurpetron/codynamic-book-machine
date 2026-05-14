@@ -19,6 +19,7 @@ outputs:
   - messages to any agent as needed. You must use the inter-agent messaging format.
     ```
     subject: <brief summary>
+    from: hypervisor_agent
     to: <agent_id>
     reply_to: <receiving_agent_id>
     body: |
