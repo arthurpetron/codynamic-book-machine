@@ -11,11 +11,9 @@ import shutil
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 import yaml
-import sys
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from scripts.agents.agent_controller import AgentController, launch_agent_thread
+from scripts.agents.lifecycle import AgentLifecycleState
 from scripts.api import Message, LLMResponse
 
 
@@ -78,6 +76,7 @@ class TestAgentController(unittest.TestCase):
         )
         
         self.assertEqual(controller.agent_id, "test_001")
+        self.assertEqual(controller.lifecycle_state, AgentLifecycleState.INIT)
         self.assertEqual(controller.agent_def['name'], "test_agent")
         self.assertIsNotNone(controller.agent_state_dir)
         self.assertTrue(controller.agent_state_dir.exists())
@@ -159,6 +158,7 @@ class TestAgentController(unittest.TestCase):
             tokens_used=50
         )
         self.mock_provider.call.return_value = mock_response
+        controller.activate_pre_operational()
         
         # Execute action
         response = controller.execute_action(
@@ -187,6 +187,7 @@ class TestAgentController(unittest.TestCase):
             data_root=self.data_root
         )
         
+        controller.activate_pre_operational()
         with self.assertRaises(ValueError):
             controller.execute_action("nonexistent_action")
     
@@ -206,6 +207,9 @@ class TestAgentController(unittest.TestCase):
             provider="mock"
         )
         self.mock_provider.call.return_value = mock_response
+        controller.activate_pre_operational()
+        controller.activate_safe_operational()
+        controller.activate_operational()
         
         # Add task and execute
         controller.add_task("simple_action")
@@ -224,6 +228,9 @@ class TestAgentController(unittest.TestCase):
             data_root=self.data_root
         )
         
+        controller.activate_pre_operational()
+        controller.activate_safe_operational()
+        controller.activate_operational()
         result = controller.run_next_task()
         self.assertFalse(result)
     
@@ -242,6 +249,8 @@ class TestAgentController(unittest.TestCase):
             "body": "Test content"
         }
         
+        controller.activate_pre_operational()
+        controller.activate_safe_operational()
         controller.receive_message(message)
         
         self.assertEqual(len(controller.message_inbox), 1)

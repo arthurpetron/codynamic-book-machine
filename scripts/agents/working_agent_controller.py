@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 
 from scripts.agents.agent_controller import AgentController
+from scripts.agents.lifecycle import COMMUNICATION_STATES, OUTPUT_MUTATION_STATES
 from scripts.work import (
     WorkManager,
     WorkItem,
@@ -204,6 +205,10 @@ class WorkingAgentController(AgentController):
         Uses WorkManager to select and execute work.
         """
         # Run planning cycle first
+        if self.lifecycle_state not in OUTPUT_MUTATION_STATES:
+            raise RuntimeError(
+                f"Agent {self.agent_id} cannot advance work queue in {self.lifecycle_state.value}"
+            )
         self.work_manager.run_planning_cycle()
         
         # Get next work item
@@ -240,7 +245,7 @@ class WorkingAgentController(AgentController):
         
         while self.running:
             # Process messages first
-            if self.message_inbox:
+            if self.message_inbox and self.lifecycle_state in COMMUNICATION_STATES:
                 message = self.message_inbox.pop(0)
                 self._process_work_message(message)
                 continue
@@ -251,7 +256,7 @@ class WorkingAgentController(AgentController):
                 self._handle_overcommit(report)
             
             # Execute work
-            if self.run_next_task():
+            if self.lifecycle_state in OUTPUT_MUTATION_STATES and self.run_next_task():
                 continue
             
             # Idle - run introspection or planning

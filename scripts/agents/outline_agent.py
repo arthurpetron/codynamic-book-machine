@@ -8,16 +8,14 @@ NO HARDCODED VALIDATION RULES - the schema is the operational definition.
 """
 
 import yaml
-import sys
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Any
 
-# Add project root to path for imports
-from scripts.utils.project_paths import get_project_root
-sys.path.insert(0, str(get_project_root()))
+from scripts.agents.runtime_agents import OutlineAgentController
+from scripts.utils.schema_validator import SchemaValidator
 
-from utils.schema_validator import SchemaValidator
+OutlineRuntimeAgent = OutlineAgentController
 
 
 class OutlineAgent:

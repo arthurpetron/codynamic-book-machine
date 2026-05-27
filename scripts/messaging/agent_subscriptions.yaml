@@ -1,0 +1,15 @@
+subscriptions: {}
+
+communication:
+  # Change to "deny" to require every sender -> recipient edge to be listed.
+  default: allow
+
+  # Explicit denials override both explicit allows and the default.
+  deny: {}
+
+  # Use agent IDs as keys. Values can be agent IDs, "*", or "all_agents".
+  allow:
+    hypervisor_agent:
+      - all_agents
+    "*":
+      - hypervisor_agent

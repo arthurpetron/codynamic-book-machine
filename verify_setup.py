@@ -110,7 +110,6 @@ def test_provider_import():
     print("\nTesting provider system...")
     
     try:
-        sys.path.insert(0, str(Path.cwd()))
         from scripts.api import LLMProvider, Message, get_provider_with_fallback
         print("  ✅ Provider imports successful")
         

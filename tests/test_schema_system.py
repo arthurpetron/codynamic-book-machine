@@ -11,10 +11,6 @@ Verifies that:
 import json
 import pytest
 from pathlib import Path
-import sys
-
-# Add parent to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from scripts.utils.schema_registry import SchemaRegistry, get_registry, get_latest_schema
 from scripts.utils.schema_validator import SchemaValidator
@@ -196,7 +192,9 @@ class TestNoHardcodedVersions:
         content = registry_path.read_text()
         
         # Should not have REGISTRY_FILE as hardcoded constant
-        assert 'REGISTRY_FILE = "schema_registry.json"' not in content
+        assert 'REGISTRY_FILE = "schema_registry.json"' not in content.replace(
+            'DEFAULT_REGISTRY_FILE = "schema_registry.json"', ''
+        )
         
         # Should have DEFAULT and ENV constants instead
         assert 'DEFAULT_REGISTRY_FILE' in content

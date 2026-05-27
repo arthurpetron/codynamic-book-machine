@@ -14,6 +14,14 @@ from datetime import datetime
 from typing import Dict, List, Optional, Any
 import logging
 
+from scripts.agents.action_output import ActionOutput
+from scripts.agents.lifecycle import (
+    ALLOWED_TRANSITIONS,
+    API_STATES,
+    COMMUNICATION_STATES,
+    OUTPUT_MUTATION_STATES,
+    AgentLifecycleState,
+)
 from scripts.api import (
     get_provider,
     get_provider_with_fallback,
@@ -22,6 +30,9 @@ from scripts.api import (
     LLMProvider,
     LLMProviderError
 )
+from scripts.prompts.runtime import build_validated_system_prompt
+from scripts.user_chat import UserChatQueue, agent_can_talk_to_user
+from scripts.work import WorkManager
 
 
 logging.basicConfig(level=logging.INFO)
@@ -60,6 +71,8 @@ class AgentController:
         """
         self.agent_id = agent_id
         self.yaml_path = Path(agent_yaml_path)
+        self.provider_name = provider_name
+        self._provider = provider
         
         # Set up directory structure
         self.data_root = Path(data_root) if data_root else Path("data")
@@ -69,21 +82,19 @@ class AgentController:
         # Load agent definition
         self.agent_def = self._load_agent_definition()
         
-        # Initialize LLM provider
-        if provider:
-            self.provider = provider
-        else:
-            self.provider = self._initialize_provider(provider_name)
-        
         # Initialize state
+        self.lifecycle_state = AgentLifecycleState.BOOTSTRAP
         self.task_queue = self._load_task_queue()
         self.message_inbox: List[Dict[str, Any]] = []
         self.running = False
+        self.work_manager = WorkManager(agent_id=agent_id, data_root=self.data_root)
         
         # Message router will be set externally
         self.message_router = None
+        self.transition_to(AgentLifecycleState.INIT, reason="controller initialized")
         
-        logger.info(f"[{self.agent_id}] Controller initialized with {self.provider.get_provider_name()} provider")
+        provider_label = self._provider.get_provider_name() if self._provider else "uninitialized"
+        logger.info(f"[{self.agent_id}] Controller initialized in INIT with {provider_label} provider")
     
     def _load_agent_definition(self) -> Dict[str, Any]:
         """Load and validate agent definition from YAML"""
@@ -94,10 +105,11 @@ class AgentController:
             agent_def = yaml.safe_load(f)
         
         # Validate required fields
-        required_fields = ['name', 'role', 'actions']
+        required_fields = ['name', 'role']
         missing = [f for f in required_fields if f not in agent_def]
         if missing:
             raise ValueError(f"Agent definition missing fields: {missing}")
+        agent_def.setdefault("actions", [])
         
         return agent_def
     
@@ -108,6 +120,73 @@ class AgentController:
         except Exception as e:
             logger.warning(f"[{self.agent_id}] Failed to initialize {provider_name}, trying fallback: {e}")
             return get_provider_with_fallback([provider_name, "openai", "anthropic"])
+
+    @property
+    def provider(self) -> LLMProvider:
+        """Lazily initialize provider only after the agent leaves INIT."""
+        if self.lifecycle_state not in API_STATES:
+            raise RuntimeError(
+                f"Agent {self.agent_id} cannot access provider in {self.lifecycle_state.value}"
+            )
+        if self._provider is None:
+            self._provider = self._initialize_provider(self.provider_name)
+        return self._provider
+
+    def transition_to(self, new_state: AgentLifecycleState | str, reason: str = ""):
+        """Transition lifecycle state and persist an audit event."""
+        new_state = AgentLifecycleState(new_state)
+        allowed = ALLOWED_TRANSITIONS[self.lifecycle_state]
+        if new_state not in allowed and new_state != self.lifecycle_state:
+            raise ValueError(
+                f"Invalid lifecycle transition {self.lifecycle_state.value} -> {new_state.value}"
+            )
+        old_state = self.lifecycle_state
+        self.lifecycle_state = new_state
+        self._save_lifecycle_state(reason=reason, old_state=old_state)
+        return self.lifecycle_state
+
+    def wake(self):
+        """Awaken an existing dormant agent into INIT."""
+        return self.transition_to(AgentLifecycleState.INIT, reason="wake")
+
+    def sleep(self):
+        """Persist state and return to offline INIT."""
+        self._save_task_queue()
+        return self.transition_to(AgentLifecycleState.INIT, reason="sleep")
+
+    def pause(self):
+        """Pause the agent without discarding state."""
+        return self.transition_to(AgentLifecycleState.INIT, reason="pause")
+
+    def resume(self, target_state: AgentLifecycleState | str = AgentLifecycleState.PRE_OPERATIONAL):
+        """Resume from INIT into a functional state."""
+        return self.transition_to(target_state, reason="resume")
+
+    def activate_pre_operational(self):
+        return self.transition_to(AgentLifecycleState.PRE_OPERATIONAL, reason="planning enabled")
+
+    def activate_safe_operational(self):
+        return self.transition_to(AgentLifecycleState.SAFE_OPERATIONAL, reason="communication enabled")
+
+    def activate_operational(self):
+        return self.transition_to(AgentLifecycleState.OPERATIONAL, reason="output mutation enabled")
+
+    def _save_lifecycle_state(self, reason: str = "", old_state: AgentLifecycleState = None):
+        state_path = self.agent_state_dir / "lifecycle_state.yaml"
+        payload = {
+            "agent_id": self.agent_id,
+            "state": self.lifecycle_state.value,
+            "updated_at": datetime.now().isoformat(),
+            "reason": reason,
+        }
+        with open(state_path, "w") as f:
+            yaml.safe_dump(payload, f, sort_keys=False)
+        self._append_to_log(self.agent_state_dir / "lifecycle_audit.yaml", {
+            "timestamp": payload["updated_at"],
+            "from": old_state.value if old_state else None,
+            "to": self.lifecycle_state.value,
+            "reason": reason,
+        })
     
     def _load_task_queue(self) -> List[Dict[str, Any]]:
         """Load task queue from persistent storage"""
@@ -172,6 +251,10 @@ class AgentController:
             ValueError: If action_id not found
             LLMProviderError: If LLM call fails
         """
+        if self.lifecycle_state not in API_STATES:
+            raise RuntimeError(
+                f"Agent {self.agent_id} cannot execute API actions in {self.lifecycle_state.value}"
+            )
         # Get action definition
         actions = self.agent_def.get('actions', {})
         
@@ -196,7 +279,7 @@ class AgentController:
             prompt = prompt_template
         
         # Build system message
-        system_prompt = self._build_system_prompt()
+        system_prompt = self._build_system_prompt(action_id=action_id, action_context=context)
         
         # Execute via provider
         messages = [
@@ -220,7 +303,15 @@ class AgentController:
             logger.error(f"[{self.agent_id}] LLM call failed: {e}")
             raise
     
-    def _build_system_prompt(self) -> str:
+    def _build_system_prompt(
+        self,
+        action_id: str = "",
+        action_context: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """Build, validate, and snapshot system prompt from runtime context."""
+        return build_validated_system_prompt(self, action_id, action_context)
+
+    def _legacy_build_system_prompt(self) -> str:
         """Build system prompt from agent definition"""
         name = self.agent_def.get('name', self.agent_id)
         role = self.agent_def.get('role', 'Assistant')
@@ -244,8 +335,70 @@ Your responsibilities:
             system_prompt += "\nYour permissions:\n"
             for perm in permissions:
                 system_prompt += f"- {perm}\n"
+
+        allowed_recipients = self.get_allowed_message_recipients()
+        if allowed_recipients is not None:
+            system_prompt += "\nMessaging policy:\n"
+            if allowed_recipients:
+                system_prompt += "You may send messages only to:\n"
+                for recipient in allowed_recipients:
+                    system_prompt += f"- {recipient}\n"
+            else:
+                system_prompt += "You may not initiate messages to other agents.\n"
         
         return system_prompt
+
+    def get_allowed_message_recipients(self) -> Optional[List[str]]:
+        """Return configured outbound recipients for prompt injection."""
+        if not self.message_router:
+            return None
+        policy = getattr(self.message_router, "communication_policy", {}) or {}
+        default = policy.get("default", "allow")
+        allow = policy.get("allow", {}) or {}
+        deny = policy.get("deny", {}) or {}
+
+        explicit = set()
+        for key in (self.agent_id, "*", "all_agents"):
+            value = allow.get(key, [])
+            if isinstance(value, str):
+                value = [value]
+            explicit.update(value)
+
+        denied = set()
+        for key in (self.agent_id, "*", "all_agents"):
+            value = deny.get(key, [])
+            if isinstance(value, str):
+                value = [value]
+            denied.update(value)
+
+        if default == "allow" and "*" not in denied and "all_agents" not in denied:
+            return ["all_agents"] if not explicit else sorted(explicit | {"all_agents"})
+        return sorted(recipient for recipient in explicit if recipient not in denied)
+
+    def can_talk_to_user(self) -> bool:
+        """Return whether this agent definition can queue user-facing messages."""
+        return agent_can_talk_to_user(self.agent_def)
+
+    def queue_user_message(
+        self,
+        subject: str,
+        body: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Queue a user-facing request or question if permissions allow it."""
+        if self.lifecycle_state not in COMMUNICATION_STATES:
+            raise RuntimeError(
+                f"Agent {self.agent_id} cannot queue user messages in {self.lifecycle_state.value}"
+            )
+        if not self.can_talk_to_user():
+            raise PermissionError(f"Agent {self.agent_id} is not allowed to talk to the user")
+        queue = UserChatQueue(data_root=self.data_root)
+        return queue.add_request(
+            from_agent=self.agent_id,
+            subject=subject,
+            body=body,
+            metadata=metadata,
+        )
     
     def run_next_task(self) -> bool:
         """
@@ -254,6 +407,10 @@ Your responsibilities:
         Returns:
             True if task was executed, False if queue empty
         """
+        if self.lifecycle_state not in OUTPUT_MUTATION_STATES:
+            raise RuntimeError(
+                f"Agent {self.agent_id} cannot advance task queue in {self.lifecycle_state.value}"
+            )
         if not self.task_queue:
             return False
         
@@ -279,11 +436,21 @@ Your responsibilities:
         
         Override or extend in subclasses for specific agent behaviors.
         """
-        # Default: just log the output
+        output = ActionOutput(
+            output_type="proposal",
+            agent_id=self.agent_id,
+            action_id=action_id,
+            payload={"content": response.content},
+        )
+        self._append_to_log(self.agent_state_dir / "outputs.yaml", output.to_dict())
         logger.debug(f"[{self.agent_id}] Action output: {response.content[:200]}...")
     
     def receive_message(self, message: Dict[str, Any]):
         """Add message to inbox for processing"""
+        if self.lifecycle_state not in COMMUNICATION_STATES:
+            raise RuntimeError(
+                f"Agent {self.agent_id} cannot receive messages in {self.lifecycle_state.value}"
+            )
         self.message_inbox.append(message)
         logger.info(f"[{self.agent_id}] Message received: {message.get('subject', 'no subject')}")
     
@@ -378,13 +545,13 @@ Your responsibilities:
         
         while self.running:
             # Process messages first
-            if self.message_inbox:
+            if self.message_inbox and self.lifecycle_state in COMMUNICATION_STATES:
                 message = self.message_inbox.pop(0)
                 self.process_message(message)
                 continue
             
             # Then execute tasks
-            if self.run_next_task():
+            if self.lifecycle_state in OUTPUT_MUTATION_STATES and self.run_next_task():
                 continue
             
             # Idle - could add introspection task here
@@ -401,9 +568,11 @@ Your responsibilities:
         """Get agent statistics"""
         return {
             "agent_id": self.agent_id,
-            "provider": self.provider.get_provider_name(),
-            "provider_stats": self.provider.get_stats(),
+            "state": self.lifecycle_state.value,
+            "provider": self._provider.get_provider_name() if self._provider else None,
+            "provider_stats": self._provider.get_stats() if self._provider else {},
             "task_queue_length": len(self.task_queue),
+            "work_queue_length": len(self.work_manager.items),
             "message_inbox_length": len(self.message_inbox),
             "running": self.running
         }

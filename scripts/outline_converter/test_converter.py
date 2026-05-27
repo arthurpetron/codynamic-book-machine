@@ -3,13 +3,7 @@ Test Suite for Outline Converter
 Demonstrates conversion of various outline formats
 """
 
-import sys
-from pathlib import Path
-
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent))
-
-from converter import OutlineConverter
+from scripts.outline_converter.converter import OutlineConverter
 
 
 # Test input 1: Digital Symmetries (nested nodes format)

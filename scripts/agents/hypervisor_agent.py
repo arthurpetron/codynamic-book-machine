@@ -1,13 +1,15 @@
-# scripts/agents/hypervisor_agent.py
-
 import yaml
 from pathlib import Path
 from datetime import datetime
+from scripts.agents.runtime_agents import HypervisorAgentController
 from scripts.prompts.prompt_generator import generate_prompt_bundle
 from scripts.api.openai_hook import call_openai
 
-class HypervisorAgent:
+class HypervisorAgent(HypervisorAgentController):
+    """Legacy hypervisor behavior on top of lifecycle-aware controller."""
+
     def __init__(self, agent_yaml_path):
+        super().__init__(agent_yaml_path, "hypervisor_agent")
         self.agent_yaml_path = Path(agent_yaml_path)
         self.prompt_bundle = generate_prompt_bundle(agent_yaml_path, context_dict={})
         self.log_path = Path("logs/hypervisor_log.yaml")

@@ -39,6 +39,10 @@ build/Release
 # Dependency directories
 node_modules/
 jspm_packages/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
 
 # Snowpack dependency directory
 web_modules/

@@ -16,7 +16,8 @@ inputs:
 
 outputs:
   - logs/hypervisor_log.yaml
-  - messages to any agent as needed. You must use the inter-agent messaging format.
+  - |
+    messages to any agent as needed. You must use the inter-agent messaging format.
     ```
     subject: <brief summary>
     from: hypervisor_agent
@@ -30,6 +31,7 @@ permissions:
   - read_all_agent_state
   - read_all_message_logs
   - write_messages_to_all
+  - queue_user_messages
   - introspect_self
   - log_activity
 

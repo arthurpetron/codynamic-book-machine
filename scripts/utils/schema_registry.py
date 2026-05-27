@@ -208,10 +208,32 @@ class SchemaRegistry:
         if not schema:
             raise ValueError(f"Schema '{schema_name}' not found in registry")
         
-        versions = list(schema.get("versions", {}).keys())
+        versions = [
+            version
+            for version in schema.get("versions", {}).keys()
+            if self._schema_version_files_exist(schema_name, version)
+        ]
         # Sort by semantic version
         versions.sort(key=lambda v: tuple(int(x) for x in v.split('.')), reverse=True)
         return versions
+
+    def _schema_version_files_exist(self, schema_name: str, version: str) -> bool:
+        """Return True when all files declared for a schema version exist."""
+        version_data = (
+            self.registry
+            .get("schemas", {})
+            .get(schema_name, {})
+            .get("versions", {})
+            .get(version, {})
+        )
+        filenames = [
+            version_data.get("json_file"),
+            version_data.get("yaml_file"),
+        ]
+        return all(
+            filename and (self.schema_dir / filename).exists()
+            for filename in filenames
+        )
     
     def get_latest_version(self, schema_name: str) -> str:
         """

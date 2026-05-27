@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "web": "python3 -m http.server 4173 --directory public"
+  },
+  "devDependencies": {
+    "electron": "42.2.0"
   }
 }

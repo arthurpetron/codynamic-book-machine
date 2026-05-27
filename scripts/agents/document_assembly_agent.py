@@ -3,18 +3,20 @@ import yaml
 import difflib
 from datetime import datetime
 from pathlib import Path
+from scripts.book.repository import BookRepository
+from scripts.utils.project_paths import get_cached_project_structure
 
-BOOK_ROOT = Path("book_data/codynamic_theory_book")
+BOOK_ROOT = get_cached_project_structure().book_data_dir / "codynamic_theory_book"
 OUTLINE_PATH = BOOK_ROOT / "outline/codynamic_theory.yaml"
 SECTION_PAYLOAD_DIR = BOOK_ROOT / "tex/section_payloads"
 OUTPUT_TEX_PATH = BOOK_ROOT / "tex/codynamic_theory.tex"
 LOG_DIR = BOOK_ROOT / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
+BOOK_REPOSITORY = BookRepository(BOOK_ROOT)
 
 
 def load_outline(path):
-    with open(path, "r") as f:
-        return yaml.safe_load(f)["outline"]
+    return BOOK_REPOSITORY.load_book()["work"]
 
 
 def load_section_payload(section_id):
@@ -56,13 +58,27 @@ def generate_preamble(outline):
 
 def assemble_tex(outline):
     doc = [generate_preamble(outline)]
-    for chapter in outline.get("chapters", []):
-        doc.append(f"\\section*{{{chapter['title']}}}\n")
-        for section in chapter.get("sections", []):
-            section_tex = load_section_payload(section["id"])
-            doc.append(section_tex + "\n")
+    for node in outline.get("structure", []):
+        doc.extend(assemble_node_tex(node, level=1))
     doc.append("\\end{document}\n")
     return "\n".join(doc)
+
+
+def assemble_node_tex(node, level=1):
+    command = {
+        1: "section",
+        2: "subsection",
+        3: "subsubsection",
+    }.get(level, "paragraph")
+    doc = [f"\\{command}*{{{node['title']}}}\n"]
+    children = node.get("content") or []
+    if children:
+        for child in children:
+            doc.extend(assemble_node_tex(child, level=level + 1))
+    else:
+        section_tex = load_section_payload(node["id"]) or BOOK_REPOSITORY.load_section(node["id"])
+        doc.append(section_tex + "\n")
+    return doc
 
 
 def write_tex_file(content, output_path):

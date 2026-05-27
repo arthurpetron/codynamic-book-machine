@@ -5,19 +5,22 @@ import subprocess
 import yaml
 from pathlib import Path
 from datetime import datetime
+from scripts.book.repository import BookRepository
+from scripts.agents.runtime_agents import GardenerAgent
+from scripts.utils.project_paths import get_cached_project_structure
 
-BOOK_ROOT = Path("book_data/codynamic_theory_book")
+BOOK_ROOT = get_cached_project_structure().book_data_dir / "codynamic_theory_book"
 OUTLINE_PATH = BOOK_ROOT / "outline/codynamic_theory.yaml"
 SECTION_PAYLOAD_DIR = BOOK_ROOT / "tex/section_payloads"
 RENDER_OUTPUT_DIR = BOOK_ROOT / "renders"
 LOG_PATH = BOOK_ROOT / f"logs/gardener_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
 
 RENDER_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+BOOK_REPOSITORY = BookRepository(BOOK_ROOT)
 
 
 def load_outline():
-    with open(OUTLINE_PATH, "r") as f:
-        return yaml.safe_load(f)["outline"]
+    return BOOK_REPOSITORY.load_book()["work"]
 
 
 def compile_section_tex(section_id):
@@ -59,17 +62,24 @@ def validate_outline_payloads():
     outline = load_outline()
     logs = []
 
-    for chapter in outline.get("chapters", []):
-        for section in chapter.get("sections", []):
-            section_id = section["id"]
-            success, message = compile_section_tex(section_id)
-            logs.append((section_id, success, message))
+    for section_id in iter_leaf_section_ids(outline.get("structure", [])):
+        success, message = compile_section_tex(section_id)
+        logs.append((section_id, success, message))
 
     with open(LOG_PATH, "w") as log_file:
         for sid, success, msg in logs:
             line = f"[{sid}] {'OK' if success else 'FAIL'} - {msg}\n"
             print(line.strip())
             log_file.write(line)
+
+
+def iter_leaf_section_ids(nodes):
+    for node in nodes:
+        children = node.get("content") or []
+        if children:
+            yield from iter_leaf_section_ids(children)
+        else:
+            yield node["id"]
 
 
 if __name__ == "__main__":

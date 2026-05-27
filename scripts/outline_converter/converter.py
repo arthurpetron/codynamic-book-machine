@@ -11,6 +11,9 @@ from typing import Dict, List, Any, Optional, Tuple
 from pathlib import Path
 from datetime import datetime
 
+from scripts.api import LLMProviderError, get_provider_with_fallback
+from scripts.utils.schema_validator import SchemaValidator
+
 
 class OutlineConverter:
     """
@@ -25,7 +28,9 @@ class OutlineConverter:
             llm_provider: Optional LLM interface for intelligent extraction
         """
         self.llm_provider = llm_provider
-        self.schema_version = "2.1"
+        self.schema_version = "2.1.0"
+        self.last_report: Dict[str, Any] = {}
+        self.last_llm_error: Optional[str] = None
         
     def detect_format(self, content: str) -> str:
         """
@@ -55,6 +60,17 @@ class OutlineConverter:
             pass
         
         return 'unknown'
+
+    def get_llm_provider(self):
+        """Return an explicitly supplied provider or construct the configured fallback."""
+        if self.llm_provider:
+            return self.llm_provider
+        try:
+            self.llm_provider = get_provider_with_fallback()
+            return self.llm_provider
+        except LLMProviderError as e:
+            self.last_llm_error = str(e)
+            return None
     
     def parse_outline(self, content: str, format_type: str = None) -> Dict[str, Any]:
         """
@@ -80,6 +96,75 @@ class OutlineConverter:
             return self._parse_yaml_v1(content)
         else:
             raise ValueError(f"Unknown format: {format_type}")
+
+    def convert_with_llm(self, content: str, source_format: str = "unknown") -> Dict[str, Any]:
+        """
+        Ask the configured LLM provider to convert arbitrary outline-like input.
+
+        The result is accepted only if it parses as a dict and validates against
+        the registered Work Outline schema.
+        """
+        provider = self.get_llm_provider()
+        if not provider:
+            raise ValueError(f"No LLM provider available: {self.last_llm_error}")
+
+        system_prompt = (
+            "You convert arbitrary outline-like input into the Codynamic Book "
+            "Machine's canonical Work Outline Schema v2.1 JSON. Return only JSON, "
+            "with no markdown fences or commentary. The JSON root must be an object "
+            "with a single key named work. Preserve source titles, hierarchy, "
+            "summaries, diagrams, artwork/media, and metadata when present. Do not "
+            "invent prose section bodies. For leaf structure nodes, set content_file "
+            "to content/sections/<node_id>.md. Use lowercase snake_case ids matching "
+            "^[a-z0-9_]+$. Include required fields: work.id, work.type, work.title, "
+            "work.structure, and metadata.version/created/updated."
+        )
+        prompt = f"""
+Source format hint: {source_format}
+
+Input outline:
+{content}
+
+Return canonical JSON only.
+"""
+        response = provider.simple_prompt(
+            prompt,
+            system_prompt=system_prompt,
+            temperature=0.0,
+            max_tokens=6000,
+        )
+        candidate = self._extract_structured_response(response.content)
+        if "work" not in candidate and "outline" in candidate:
+            parsed = self._parse_yaml_v1(yaml.safe_dump(candidate, sort_keys=False))
+            candidate = self.map_to_schema_v2(parsed, interactive=False)
+        elif "work" not in candidate:
+            candidate = self.map_to_schema_v2(candidate, interactive=False)
+
+        valid, errors = SchemaValidator().validate(candidate)
+        if not valid:
+            raise ValueError(f"LLM conversion did not validate: {'; '.join(errors)}")
+
+        return candidate
+
+    def _extract_structured_response(self, response_text: str) -> Dict[str, Any]:
+        """Extract JSON or YAML from a model response."""
+        cleaned = response_text.strip()
+        fenced = re.search(r"```(?:json|yaml|yml)?\s*(.*?)```", cleaned, re.DOTALL)
+        if fenced:
+            cleaned = fenced.group(1).strip()
+
+        json_match = re.search(r"\{.*\}", cleaned, re.DOTALL)
+        if cleaned.startswith("{") and json_match:
+            cleaned = json_match.group(0)
+
+        try:
+            parsed = json.loads(cleaned)
+        except json.JSONDecodeError:
+            parsed = yaml.safe_load(cleaned)
+
+        if not isinstance(parsed, dict):
+            raise ValueError("LLM response did not contain a structured object")
+        return parsed
     
     def _parse_nested_nodes(self, content: str) -> Dict[str, Any]:
         """Parse nested node format (like the Digital Symmetries example)."""
@@ -284,6 +369,9 @@ class OutlineConverter:
             'title': outline.get('title', 'Untitled Work'),
             'summary': outline.get('summary', ''),
             'intent': outline.get('intent', {}),
+            'metadata': outline.get('metadata', {}),
+            'diagrams': outline.get('diagrams', []),
+            'artwork': outline.get('artwork', []),
             'structure': [],
             'front_matter': {},
             'back_matter': {}
@@ -364,13 +452,13 @@ class OutlineConverter:
             'subtitle': '',
             'summary': parsed.get('summary', ''),
             'intent': parsed.get('intent', self._create_default_intent()),
-            'authors': [self._create_default_author()],
-            'metadata': self._create_metadata(),
+            'authors': [self._create_author(parsed.get('metadata', {}))],
+            'metadata': self._create_metadata(parsed.get('metadata', {})),
             'front_matter': self._map_front_matter(parsed.get('front_matter', {})),
             'structure': self._map_structure(parsed['structure']),
             'citations': {'entries': []},
-            'diagrams': [],
-            'media': [],
+            'diagrams': self._map_diagrams(parsed.get('diagrams', [])),
+            'media': self._map_artwork(parsed.get('artwork', [])),
             'back_matter': self._map_back_matter(parsed.get('back_matter', {})),
             'compilation': self._create_default_compilation()
         }
@@ -379,6 +467,10 @@ class OutlineConverter:
             work = self._interactive_fill(work)
         
         return {'work': work}
+
+    def validate_canonical(self, outline: Dict[str, Any]) -> Tuple[bool, List[str]]:
+        """Validate a canonical outline against the registered schema."""
+        return SchemaValidator().validate(outline)
     
     def _generate_id(self, title: str) -> str:
         """Generate a valid ID from title."""
@@ -406,13 +498,34 @@ class OutlineConverter:
             'email': '',
             'role': 'author'
         }
+
+    def _create_author(self, source_metadata: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
+        """Create author entry from source metadata when available."""
+        source_metadata = source_metadata or {}
+        author = self._create_default_author()
+        if source_metadata.get('author'):
+            author['name'] = source_metadata['author']
+        return author
     
-    def _create_metadata(self) -> Dict[str, Any]:
+    def _create_metadata(self, source_metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Create comprehensive metadata with all 8 categories."""
+        source_metadata = source_metadata or {}
         today = datetime.now().strftime('%Y-%m-%d')
         current_year = str(datetime.now().year)
+        created = str(source_metadata.get('created', today))
+        updated = str(source_metadata.get('updated', today))
+        version = str(source_metadata.get('version', '0.1.0'))
+        maintainer = source_metadata.get('maintained_by', 'author')
+        author = source_metadata.get('author', 'TO BE SPECIFIED')
         
         return {
+            'version': version,
+            'created': created,
+            'updated': updated,
+            'maintained_by': maintainer,
+            'language': 'en',
+            'license': source_metadata.get('license', 'CC-BY-4.0'),
+            'status': 'draft',
             'descriptive': {
                 'abstract': '',
                 'keywords': [],
@@ -425,29 +538,29 @@ class OutlineConverter:
             'administrative': {
                 'provenance': {
                     'authors': [],
-                    'maintainer': 'author',
+                    'maintainer': maintainer,
                     'created_by': ''
                 },
                 'versioning': {
-                    'version': '0.1.0',
+                    'version': version,
                     'changelog': [
                         {
-                            'version': '0.1.0',
-                            'date': today,
-                            'changes': 'Initial outline created'
+                            'version': version,
+                            'date': updated,
+                            'changes': 'Migrated to canonical work outline format'
                         }
                     ],
                     'release_notes': ''
                 },
                 'timestamps': {
-                    'created': today,
-                    'modified': today,
+                    'created': created,
+                    'modified': updated,
                     'published': '',
                     'archived': ''
                 },
                 'rights_and_access': {
                     'license': 'CC-BY-4.0',
-                    'copyright_holder': 'TO BE SPECIFIED',
+                    'copyright_holder': author,
                     'copyright_year': current_year,
                     'access_permissions': ['open_access'],
                     'embargo_date': '',
@@ -512,7 +625,7 @@ class OutlineConverter:
             },
             
             'computational': {
-                'schema_version': '2.0',
+                'schema_version': self.schema_version,
                 'unique_identifier': self._generate_uuid(),
                 'machine_readable_format': 'YAML',
                 'api_endpoints': [],
@@ -552,7 +665,7 @@ class OutlineConverter:
             'copyright_page': {
                 'enabled': True,
                 'year': str(datetime.now().year),
-                'holder': 'TO BE SPECIFIED'
+                'holder': ''
             },
             'dedication': {'enabled': False, 'text': ''},
             'epigraph': {'enabled': False, 'quote': '', 'attribution': ''},
@@ -576,7 +689,7 @@ class OutlineConverter:
         for idx, item in enumerate(structure, 1):
             node = {
                 'type': item.get('type', 'chapter'),
-                'id': item.get('id', f"{item['type']}_{idx:02d}"),
+                'id': item.get('id') or f"{item.get('type', 'section')}_{idx:02d}",
                 'number': item.get('number', idx),
                 'title': item['title'],
                 'goal': item.get('goal', ''),
@@ -592,11 +705,114 @@ class OutlineConverter:
                 node['content'] = self._map_structure(item['content'])
             else:
                 # Leaf node - needs content_file or content_text
-                node['content_file'] = f"sections/{node['id']}.md"
+                node['content_file'] = f"content/sections/{node['id']}.md"
             
             result.append(node)
         
         return result
+
+    def _map_diagrams(self, diagrams: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Map legacy diagram metadata into canonical diagram entries."""
+        mapped = []
+        for diagram in diagrams:
+            mapped.append({
+                'id': diagram.get('id') or self._generate_id(diagram.get('title', 'diagram')),
+                'title': diagram.get('title', 'Untitled Diagram'),
+                'caption': diagram.get('description', ''),
+                'purpose': diagram.get('description', ''),
+                'definition': {
+                    'type': 'text',
+                    'code': diagram.get('computational_definition', '')
+                }
+            })
+        return mapped
+
+    def _map_artwork(self, artwork: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Map legacy artwork entries into canonical media items."""
+        mapped = []
+        for item in artwork:
+            mapped.append({
+                'id': item.get('id') or self._generate_id(item.get('title', 'artwork')),
+                'type': 'image',
+                'title': item.get('title', 'Untitled Artwork'),
+                'caption': item.get('description', ''),
+                'file': item.get('file', ''),
+                'purpose': item.get('description', '')
+            })
+        return mapped
+
+    def build_report(
+        self,
+        source_format: str,
+        source: Dict[str, Any],
+        canonical: Dict[str, Any],
+        llm_used: bool = False,
+        validation_errors: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """Build a human-readable migration report payload."""
+        source_structure = source.get('structure', [])
+        canonical_structure = canonical['work'].get('structure', [])
+        leaf_count = self._count_leaves(canonical_structure)
+        return {
+            'timestamp': datetime.now().isoformat(),
+            'source_format': source_format,
+            'canonical_schema': f'work_outline_schema_{self.schema_version}',
+            'work_id': canonical['work']['id'],
+            'title': canonical['work']['title'],
+            'top_level_elements': len(canonical_structure),
+            'leaf_sections': leaf_count,
+            'diagrams': len(canonical['work'].get('diagrams', [])),
+            'media': len(canonical['work'].get('media', [])),
+            'llm_used': llm_used,
+            'llm_error': self.last_llm_error,
+            'validation_errors': validation_errors or [],
+            'notes': [
+                'Converted to canonical work/structure/content outline.',
+                f'Reusable section payloads are referenced under content/sections/ for {leaf_count} leaf sections.',
+                f'Original top-level elements parsed: {len(source_structure)}.'
+            ]
+        }
+
+    def format_report(self, report: Dict[str, Any]) -> str:
+        """Render a migration report for humans."""
+        lines = [
+            'Outline Migration Report',
+            '=' * 24,
+            f"Timestamp: {report['timestamp']}",
+            f"Source format: {report['source_format']}",
+            f"Canonical schema: {report['canonical_schema']}",
+            f"Work: {report['title']} ({report['work_id']})",
+            f"Top-level elements: {report['top_level_elements']}",
+            f"Leaf sections: {report['leaf_sections']}",
+            f"Diagrams: {report['diagrams']}",
+            f"Media: {report['media']}",
+            f"LLM used: {report['llm_used']}",
+            '',
+            'Notes:',
+        ]
+        lines.extend(f"- {note}" for note in report['notes'])
+        if report.get('llm_error'):
+            lines.extend(['', 'LLM fallback:', f"- {report['llm_error']}"])
+        if report.get('validation_errors'):
+            lines.extend(['', 'Validation errors:'])
+            lines.extend(f"- {error}" for error in report['validation_errors'])
+        return '\n'.join(lines) + '\n'
+
+    def write_report(self, report_path: str | Path, report: Optional[Dict[str, Any]] = None) -> None:
+        """Write the latest migration report."""
+        report = report or self.last_report
+        Path(report_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(report_path).write_text(self.format_report(report))
+
+    def _count_leaves(self, nodes: List[Dict[str, Any]]) -> int:
+        count = 0
+        for node in nodes:
+            children = node.get('content') or []
+            if children:
+                count += self._count_leaves(children)
+            else:
+                count += 1
+        return count
     
     def _map_back_matter(self, bm: Dict[str, Any]) -> Dict[str, Any]:
         """Map back matter to v2.1 structure."""
@@ -641,7 +857,9 @@ class OutlineConverter:
         return work
     
     def convert(self, input_content: str, output_path: str = None,
-                format_type: str = None, interactive: bool = True) -> str:
+                format_type: str = None, interactive: bool = True,
+                report_path: str = None, quiet: bool = False,
+                use_llm: str | bool = "auto") -> str:
         """
         Main conversion method.
         
@@ -668,19 +886,70 @@ class OutlineConverter:
             content = input_content
         
         # Parse the outline
-        print(f"🔍 Detecting format...")
+        if not quiet:
+            print(f"🔍 Detecting format...")
         if format_type is None:
             format_type = self.detect_format(content)
-        print(f"✓ Detected format: {format_type}")
-        
-        print(f"📖 Parsing outline...")
-        parsed = self.parse_outline(content, format_type)
-        print(f"✓ Parsed {len(parsed['structure'])} top-level elements")
-        
-        # Map to v2.1 schema
-        print(f"🗺️  Mapping to schema v2.1...")
-        schema_v2 = self.map_to_schema_v2(parsed, interactive)
-        print(f"✓ Mapped to standardized format with comprehensive metadata")
+        if not quiet:
+            print(f"✓ Detected format: {format_type}")
+
+        llm_requested = use_llm is True or use_llm == "always"
+        llm_disabled = use_llm is False or use_llm == "never"
+        llm_auto = use_llm == "auto" and format_type == "unknown"
+        parsed = None
+        llm_used = False
+        validation_errors: List[str] = []
+
+        if llm_requested or llm_auto:
+            if not quiet:
+                print("🤖 Requesting LLM-assisted conversion...")
+            try:
+                schema_v2 = self.convert_with_llm(content, format_type)
+                llm_used = True
+                parsed = {'title': schema_v2['work']['title'], 'structure': schema_v2['work'].get('structure', [])}
+                if not quiet:
+                    print("✓ LLM conversion produced valid canonical outline")
+            except Exception as e:
+                self.last_llm_error = str(e)
+                if llm_requested:
+                    raise
+                if not quiet:
+                    print(f"⚠️  LLM conversion unavailable; using deterministic parser: {e}")
+
+        if not llm_used:
+            if not quiet:
+                print(f"📖 Parsing outline...")
+            parsed = self.parse_outline(content, format_type)
+            if not quiet:
+                print(f"✓ Parsed {len(parsed['structure'])} top-level elements")
+
+            if not quiet:
+                print(f"🗺️  Mapping to schema v2.1...")
+            schema_v2 = self.map_to_schema_v2(parsed, interactive)
+            valid, validation_errors = self.validate_canonical(schema_v2)
+            if not valid and use_llm == "auto" and not llm_disabled:
+                if not quiet:
+                    print("🤖 Deterministic conversion did not validate; trying LLM repair...")
+                try:
+                    schema_v2 = self.convert_with_llm(content, format_type)
+                    llm_used = True
+                    validation_errors = []
+                except Exception as e:
+                    self.last_llm_error = str(e)
+            if not quiet:
+                print(f"✓ Mapped to standardized format with comprehensive metadata")
+
+        valid, validation_errors = self.validate_canonical(schema_v2)
+        if not valid:
+            raise ValueError(f"Converted outline is not schema-valid: {'; '.join(validation_errors)}")
+
+        self.last_report = self.build_report(
+            format_type,
+            parsed or {'title': schema_v2['work']['title'], 'structure': []},
+            schema_v2,
+            llm_used=llm_used,
+            validation_errors=validation_errors,
+        )
         
         # Convert to YAML
         yaml_output = yaml.dump(schema_v2, sort_keys=False, 
@@ -690,7 +959,12 @@ class OutlineConverter:
         if output_path:
             with open(output_path, 'w') as f:
                 f.write(yaml_output)
-            print(f"💾 Saved to: {output_path}")
+            if not quiet:
+                print(f"💾 Saved to: {output_path}")
+        if report_path:
+            self.write_report(report_path)
+            if not quiet:
+                print(f"🧾 Report saved to: {report_path}")
         
         return yaml_output
 

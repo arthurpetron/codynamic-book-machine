@@ -123,10 +123,11 @@ class DiscoveryPhase(BootPhase[BookMachineSystem]):
         elif env_registry_file:
             system.registry_path = system.schema_dir / env_registry_file
         
-        # Discover LLM providers
-        if os.getenv('OPENAI_API_KEY'):
+        # Discover LLM providers. Provider implementations use KEY_* names;
+        # SDK-default names are accepted as aliases for compatibility.
+        if os.getenv('KEY_OPENAI_API') or os.getenv('OPENAI_API_KEY'):
             system.llm_providers.append('openai')
-        if os.getenv('ANTHROPIC_API_KEY'):
+        if os.getenv('KEY_ANTHROPIC_API') or os.getenv('ANTHROPIC_API_KEY'):
             system.llm_providers.append('anthropic')
         
         if not system.llm_providers:

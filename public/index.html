@@ -1,5 +1,155 @@
-<!DOCTYPE html>
-<html>
-<head><title>Codynamic Book Machine</title></head>
-<body><div id="root"></div></body>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Codynamic Book Machine</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="root" class="app-shell" data-chat-collapsed="false">
+      <header class="titlebar" aria-label="Application menu">
+        <div class="traffic-lights" aria-hidden="true">
+          <span class="light red"></span>
+          <span class="light amber"></span>
+          <span class="light green"></span>
+        </div>
+        <nav class="menu" aria-label="Primary">
+          <button type="button">File</button>
+          <button type="button">Edit</button>
+          <button type="button">Review</button>
+          <button type="button">Agents</button>
+          <button type="button">Export</button>
+          <button type="button">Git</button>
+          <button type="button">Help</button>
+        </nav>
+        <div class="user-badge" aria-label="Signed in user">
+          <span class="avatar">AP</span>
+          <span>Arthur</span>
+          <button id="user-chat-button" class="user-chat-button" type="button" aria-label="Pending user chat messages">
+            User Chat
+            <span id="user-chat-count" class="queue-badge">0</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="workspace" aria-label="Book authoring workspace">
+        <aside class="outline-pane" aria-label="Outline">
+          <div class="pane-header">
+            <div>
+              <p class="eyebrow">Outline</p>
+              <h1>Codynamic Theory</h1>
+            </div>
+            <button class="icon-button" type="button" aria-label="Collapse outline" title="Collapse outline">-</button>
+          </div>
+
+          <div class="outline-tools">
+            <label class="search-field">
+              <span class="sr-only">Search outline</span>
+              <input id="outline-search" type="search" placeholder="Search outline" />
+            </label>
+            <button class="primary-action" type="button">New Section</button>
+          </div>
+
+          <div class="outline-tree" id="outline-tree" role="tree" aria-label="Book outline"></div>
+        </aside>
+
+        <section class="editor-pane" aria-label="Section editor">
+          <div class="tabs" role="tablist" aria-label="Editor views">
+            <button class="tab is-active" type="button" role="tab" aria-selected="true" data-tab="editor">Editor</button>
+            <button class="tab" type="button" role="tab" aria-selected="false" data-tab="agents">Agent Settings</button>
+            <button class="tab" type="button" role="tab" aria-selected="false" data-tab="references">References</button>
+          </div>
+
+          <div class="section-meta">
+            <div>
+              <p class="eyebrow">Current section</p>
+              <h2 id="section-title">From Static to Codynamic</h2>
+            </div>
+            <div class="meta-pills">
+              <span id="section-status" class="status-pill good">94% coherent</span>
+              <span id="section-agent" class="status-pill neutral">Section-1.1 active</span>
+            </div>
+          </div>
+
+          <div class="editor-grid">
+            <section class="text-editor" aria-label="LaTeX text editor">
+              <div class="editor-toolbar" aria-label="Editor toolbar">
+                <button type="button" title="Bold">B</button>
+                <button type="button" title="Italic">I</button>
+                <button type="button" title="Insert citation">Cite</button>
+                <button type="button" title="Compile selected section">Compile</button>
+                <span class="toolbar-spacer"></span>
+                <label class="toggle">
+                  <input id="sync-toggle" type="checkbox" checked />
+                  <span>Live sync</span>
+                </label>
+              </div>
+              <textarea id="latex-editor" spellcheck="false" aria-label="LaTeX source"></textarea>
+            </section>
+
+            <aside class="preview-pane" aria-label="Live PDF preview">
+              <div class="preview-header">
+                <div>
+                  <p class="eyebrow">Live PDF Preview</p>
+                  <h2 id="preview-title">Compiled spread</h2>
+                </div>
+                <span class="compile-state">Ready</span>
+              </div>
+              <div class="pdf-stage" aria-label="PDF page preview">
+                <article class="pdf-page">
+                  <p class="pdf-kicker">Chapter 1</p>
+                  <h3 id="pdf-heading">From Static to Codynamic</h3>
+                  <p id="pdf-copy">
+                    Traditional static models fix the shape of a system before its interaction with the world is known. Codynamic structure instead treats form as something revised by local constraints, feedback, and intent.
+                  </p>
+                  <div class="equation">S(t + 1) = refine(S(t), I, E)</div>
+                  <p>
+                    The resulting document workflow mirrors the theory: outline, agents, dependencies, and compiled pages remain visible as one coordinated surface.
+                  </p>
+                </article>
+              </div>
+              <div class="page-strip" aria-label="Preview pages">
+                <button class="thumb is-active" type="button" aria-label="Page 1"></button>
+                <button class="thumb" type="button" aria-label="Page 2"></button>
+                <button class="thumb" type="button" aria-label="Page 3"></button>
+              </div>
+            </aside>
+          </div>
+        </section>
+      </main>
+
+      <footer class="agent-console" aria-label="Agent console">
+        <div class="agent-status">
+          <div class="health-card">
+            <span class="dot good"></span>
+            <span>Hypervisor</span>
+            <strong id="hypervisor-score">94%</strong>
+          </div>
+          <div class="health-card">
+            <span>Active</span>
+            <strong>7/12</strong>
+          </div>
+          <div class="health-card">
+            <span>Confidence</span>
+            <strong id="confidence-score">72%</strong>
+          </div>
+          <button id="pause-swarm" class="secondary-action" type="button">Pause Swarm</button>
+          <button id="request-review" class="primary-action" type="button">Request Full Review</button>
+          <button id="toggle-chat" class="icon-button" type="button" aria-expanded="true" aria-controls="chat-panels" title="Collapse chat">^</button>
+        </div>
+        <div id="chat-panels" class="chat-panels">
+          <section id="user-chat" class="user-chat-panel" aria-label="User chat requests">
+            <div class="chat-title">User Chat</div>
+            <ol id="user-chat-list" class="user-chat-list"></ol>
+          </section>
+          <section id="chat-log" class="chat-log" aria-label="Inter-agent chat log">
+            <div class="chat-title">Inter-agent chat log</div>
+            <ol id="messages" class="messages"></ol>
+          </section>
+        </div>
+      </footer>
+    </div>
+    <script src="./app.js"></script>
+  </body>
 </html>

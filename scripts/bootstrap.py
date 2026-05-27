@@ -215,13 +215,14 @@ class BootstrapSystem:
             # Already set to default in phase_0
             self._log(BootPhase.DISCOVERY, f"Registry (default): {self.config.registry_path}")
         
-        # Discover LLM providers
-        if os.getenv('OPENAI_API_KEY'):
+        # Discover LLM providers. Provider implementations use KEY_* names;
+        # SDK-default names are accepted as aliases for compatibility.
+        if os.getenv('KEY_OPENAI_API') or os.getenv('OPENAI_API_KEY'):
             self.config.openai_available = True
             self.config.llm_providers.append('openai')
             self._log(BootPhase.DISCOVERY, "OpenAI API key found")
         
-        if os.getenv('ANTHROPIC_API_KEY'):
+        if os.getenv('KEY_ANTHROPIC_API') or os.getenv('ANTHROPIC_API_KEY'):
             self.config.anthropic_available = True
             self.config.llm_providers.append('anthropic')
             self._log(BootPhase.DISCOVERY, "Anthropic API key found")

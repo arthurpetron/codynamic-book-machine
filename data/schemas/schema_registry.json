@@ -18,15 +18,6 @@
           "status": "current",
           "breaking_changes": false,
           "changelog": "Integrated comprehensive metadata (8 categories)",
-          "compatible_with": ["2.0.0"]
-        },
-        "2.0.0": {
-          "json_file": "work_outline_schema_2.0.0.json",
-          "yaml_file": "work_outline_schema_2.0.0.yaml",
-          "released": "2025-05-26",
-          "status": "stable",
-          "breaking_changes": true,
-          "changelog": "Initial recursive schema with dual dependencies",
           "compatible_with": []
         }
       }

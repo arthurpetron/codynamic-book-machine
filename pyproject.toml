@@ -1,0 +1,26 @@
+[project]
+name = "codynamic-book-machine"
+version = "0.1.0"
+description = "Structured authoring engine for Codynamic Theory."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "anthropic==0.104.1",
+    "jsonschema==4.26.0",
+    "openai==2.38.0",
+    "python-dateutil==2.9.0.post0",
+    "PyYAML==6.0.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black==26.5.1",
+    "mypy==2.1.0",
+    "pylint==4.0.5",
+    "pytest==9.0.3",
+    "pytest-cov==7.1.0",
+    "pytest-mock==3.15.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

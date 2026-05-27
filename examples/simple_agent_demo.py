@@ -13,11 +13,7 @@ Usage:
     python examples/simple_agent_demo.py
 """
 
-import sys
 from pathlib import Path
-
-# Add parent to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from scripts.agents.agent_controller import AgentController
 from scripts.api import get_provider, Message

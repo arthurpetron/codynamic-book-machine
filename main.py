@@ -10,9 +10,6 @@ import sys
 import argparse
 from pathlib import Path
 
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).parent))
-
 from scripts.bootstrap import BootstrapSystem, BootstrapError, BootPhase
 
 
