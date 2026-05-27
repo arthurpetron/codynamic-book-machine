@@ -14,6 +14,7 @@ from .creative import ArtworkSpec, DiagramArtworkService, DiagramSpec
 from .importer import BookImporter, ImportResult
 from .intake import BookIntakeService, IntakeQuestion, QUESTION_BANK
 from .knowledge_graph import GraphAnalysis, KnowledgeGraphAnalyzer
+from .library import BookLibrary, BookRecord
 from .repository import BookRepository
 from .outline_service import OutlineService
 from .typesetting import (
@@ -36,6 +37,8 @@ __all__ = [
     "ChangeSetManager",
     "BookImporter",
     "BookIntakeService",
+    "BookLibrary",
+    "BookRecord",
     "BookRepository",
     "CompileResult",
     "DesignSettingsService",

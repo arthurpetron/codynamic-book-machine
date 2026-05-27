@@ -593,6 +593,18 @@ if (window.cbm && window.cbm.imports) {
   });
 }
 
+if (window.cbm && window.cbm.app) {
+  window.cbm.app.onBookChanged(({ bookId }) => {
+    selectedId = null;
+    activityMessages = [];
+    appendActivityMessage("Library -> Book", `Opened ${bookId}.`);
+    loadAppState();
+  });
+  window.cbm.app.onLibraryMessage(({ message }) => {
+    appendActivityMessage("Library -> Book", message);
+  });
+}
+
 loadAppState();
 loadUserChat();
 loadDocumentStyles();

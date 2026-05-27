@@ -6,7 +6,12 @@ contextBridge.exposeInMainWorld('cbm', {
     section: (sectionId) => ipcRenderer.invoke('app:section', { sectionId }),
     saveSection: (sectionId, content) => ipcRenderer.invoke('app:save-section', { sectionId, content }),
     compileSection: (sectionId) => ipcRenderer.invoke('app:compile-section', { sectionId }),
-    requestReview: (subject) => ipcRenderer.invoke('app:request-review', { subject })
+    requestReview: (subject) => ipcRenderer.invoke('app:request-review', { subject }),
+    library: () => ipcRenderer.invoke('app:library'),
+    openBook: (bookId) => ipcRenderer.invoke('app:open-book', { bookId }),
+    newBook: (title) => ipcRenderer.invoke('app:new-book', { title }),
+    onBookChanged: (callback) => ipcRenderer.on('app:book:changed', (_event, payload) => callback(payload)),
+    onLibraryMessage: (callback) => ipcRenderer.on('app:library:message', (_event, payload) => callback(payload))
   },
   imports: {
     onOutlineStarted: (callback) => ipcRenderer.on('import:outline:started', (_event, payload) => callback(payload)),

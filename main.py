@@ -169,9 +169,20 @@ def cmd_intake(args):
 def cmd_import(args):
     """Import external artifacts into canonical book projects."""
     try:
-        from scripts.book import BookImporter
+        from scripts.book import BookImporter, BookLibrary
 
         if args.import_command == "outline":
+            if args.register:
+                record, result = BookLibrary(args.book_data_dir).import_outline(
+                    args.input,
+                    book_root=args.book_root,
+                    use_llm=args.use_llm,
+                )
+                print(f"Imported outline: {result.title} ({record.book_id})")
+                print(f"Book root: {result.book_root}")
+                print(f"Outline: {result.outline_path}")
+                print(f"Report: {result.report_path}")
+                return 0
             importer = BookImporter(args.book_data_dir)
             result = importer.import_outline(
                 args.input,
@@ -338,9 +349,38 @@ def cmd_typeset(args):
 def cmd_app(args):
     """Desktop app JSON API used by Electron IPC."""
     try:
-        from scripts.book import BookAppState
+        from scripts.book import BookAppState, BookLibrary
 
-        app_state = BookAppState(args.book_root, data_root=args.data_root)
+        library = BookLibrary(args.book_data_dir)
+
+        if args.app_command == "library":
+            payload = {
+                "active": library.active().book_id if library.list_books(refresh=True) else None,
+                "books": [record.__dict__ for record in library.list_books()],
+            }
+            print(json.dumps(payload, indent=2, sort_keys=True))
+            return 0
+
+        if args.app_command == "open-book":
+            payload = library.open_book(args.book_id).__dict__
+            print(json.dumps(payload, indent=2, sort_keys=True))
+            return 0
+
+        if args.app_command == "new-book":
+            tags = [tag.strip() for tag in (args.tags or "").split(",") if tag.strip()]
+            payload = library.create_book(args.title, book_id=args.book_id, tags=tags).__dict__
+            print(json.dumps(payload, indent=2, sort_keys=True))
+            return 0
+
+        if args.app_command == "archive-book":
+            payload = library.archive_book(args.book_id).__dict__
+            print(json.dumps(payload, indent=2, sort_keys=True))
+            return 0
+
+        book_root = Path(args.book_root) if args.book_root else (
+            Path(library.get(args.book_id).root) if args.book_id else library.active_root()
+        )
+        app_state = BookAppState(book_root, data_root=args.data_root)
 
         if args.app_command == "state":
             payload = app_state.snapshot(selected_id=args.selected_id)
@@ -575,6 +615,11 @@ Examples:
         default='auto',
         help='Whether converter may use LLM fallback for unknown outline formats'
     )
+    import_outline.add_argument(
+        '--register',
+        action='store_true',
+        help='Register imported outline in the book library and make it active'
+    )
     import_outline.set_defaults(func=cmd_import)
 
     # Authoring command
@@ -686,8 +731,18 @@ Examples:
     )
     app_parser.add_argument(
         '--book-root',
-        default='data/book_data/codynamic_theory_book',
+        default=None,
         help='Book root to load'
+    )
+    app_parser.add_argument(
+        '--book-id',
+        default=None,
+        help='Book id from the library registry'
+    )
+    app_parser.add_argument(
+        '--book-data-dir',
+        default='data/book_data',
+        help='Book library data directory'
     )
     app_parser.add_argument(
         '--data-root',
@@ -720,6 +775,23 @@ Examples:
     app_review = app_subparsers.add_parser('request-review', help='Record a full-review request')
     app_review.add_argument('--subject', default='book')
     app_review.set_defaults(func=cmd_app)
+
+    app_library = app_subparsers.add_parser('library', help='Return registered books and active book')
+    app_library.set_defaults(func=cmd_app)
+
+    app_open = app_subparsers.add_parser('open-book', help='Set active book')
+    app_open.add_argument('book_id')
+    app_open.set_defaults(func=cmd_app)
+
+    app_new = app_subparsers.add_parser('new-book', help='Create a new intake-ready book')
+    app_new.add_argument('title')
+    app_new.add_argument('--book-id')
+    app_new.add_argument('--tags', default='')
+    app_new.set_defaults(func=cmd_app)
+
+    app_archive = app_subparsers.add_parser('archive-book', help='Archive a registered book')
+    app_archive.add_argument('book_id')
+    app_archive.set_defaults(func=cmd_app)
 
     # Beyond-MVP command
     beyond_parser = subparsers.add_parser(

@@ -12,6 +12,10 @@ function getDefaultBookRoot() {
   return path.join(__dirname, 'data', 'book_data', 'codynamic_theory_book');
 }
 
+function getBookDataDir() {
+  return path.join(__dirname, 'data', 'book_data');
+}
+
 function readUserChatQueue() {
   const queuePath = getUserChatQueuePath();
   if (!fs.existsSync(queuePath)) {
@@ -60,11 +64,17 @@ async function runAppJson(args) {
   const result = await runPython([
     path.join(__dirname, 'main.py'),
     'app',
-    '--book-root',
-    getDefaultBookRoot(),
+    '--book-data-dir',
+    getBookDataDir(),
     ...args
   ]);
   return JSON.parse(result.stdout);
+}
+
+async function getActiveBookRoot() {
+  const library = await runAppJson(['library']);
+  const active = library.books.find((book) => book.book_id === library.active);
+  return active?.root || getDefaultBookRoot();
 }
 
 async function importOutline(win) {
@@ -89,7 +99,10 @@ async function importOutline(win) {
       path.join(__dirname, 'main.py'),
       'import',
       'outline',
-      sourcePath
+      sourcePath,
+      '--book-data-dir',
+      getBookDataDir(),
+      '--register'
     ]);
     win.webContents.send('import:outline:completed', {
       sourcePath,
@@ -101,6 +114,46 @@ async function importOutline(win) {
       message: error.stderr || error.stdout || error.message
     });
   }
+}
+
+async function openBook(win) {
+  const library = await runAppJson(['library']);
+  const active = library.active;
+  const candidates = library.books.filter((book) => book.status !== 'archived');
+  if (candidates.length === 0) {
+    win.webContents.send('app:library:message', { message: 'No registered books found.' });
+    return;
+  }
+  const result = await dialog.showMessageBox(win, {
+    type: 'question',
+    title: 'Open Book',
+    message: 'Choose a book to open.',
+    buttons: candidates.map((book) => book.title),
+    cancelId: candidates.findIndex((book) => book.book_id === active),
+    noLink: true
+  });
+  if (result.response < 0 || !candidates[result.response]) {
+    return;
+  }
+  await runAppJson(['open-book', candidates[result.response].book_id]);
+  win.webContents.send('app:book:changed', { bookId: candidates[result.response].book_id });
+}
+
+async function newBook(win) {
+  const result = await dialog.showMessageBox(win, {
+    type: 'question',
+    title: 'New Book',
+    message: 'Create a new untitled intake book?',
+    buttons: ['Create', 'Cancel'],
+    cancelId: 1,
+    noLink: true
+  });
+  if (result.response !== 0) {
+    return;
+  }
+  const title = `Untitled Book ${new Date().toISOString().slice(0, 10)}`;
+  const record = await runAppJson(['new-book', title]);
+  win.webContents.send('app:book:changed', { bookId: record.book_id });
 }
 
 function parseStyles(stdout) {
@@ -119,6 +172,17 @@ function createAppMenu(win) {
     {
       label: 'File',
       submenu: [
+        {
+          label: 'New Book...',
+          accelerator: 'CmdOrCtrl+N',
+          click: () => newBook(win)
+        },
+        {
+          label: 'Open Book...',
+          accelerator: 'CmdOrCtrl+O',
+          click: () => openBook(win)
+        },
+        { type: 'separator' },
         {
           label: 'Import',
           submenu: [
@@ -207,7 +271,7 @@ app.whenReady().then(() => {
     const result = await runPython([
       path.join(__dirname, 'main.py'),
       'typeset',
-      bookRoot || getDefaultBookRoot(),
+      bookRoot || await getActiveBookRoot(),
       'set-style',
       styleId
     ]);
@@ -217,7 +281,7 @@ app.whenReady().then(() => {
     const result = await runPython([
       path.join(__dirname, 'main.py'),
       'typeset',
-      bookRoot || getDefaultBookRoot(),
+      bookRoot || await getActiveBookRoot(),
       'compile',
       '--section-id',
       sectionId
@@ -248,6 +312,15 @@ app.whenReady().then(() => {
   });
   ipcMain.handle('app:request-review', async (_event, { subject } = {}) => {
     return runAppJson(['request-review', '--subject', subject || 'book']);
+  });
+  ipcMain.handle('app:library', async () => {
+    return runAppJson(['library']);
+  });
+  ipcMain.handle('app:open-book', async (_event, { bookId }) => {
+    return runAppJson(['open-book', bookId]);
+  });
+  ipcMain.handle('app:new-book', async (_event, { title }) => {
+    return runAppJson(['new-book', title]);
   });
 
   createWindow();
