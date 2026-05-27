@@ -134,6 +134,18 @@ class BookRepository:
 
         return LatexBuildService(self.book_root, project_root=project_root)
 
+    def diagram_artwork(self):
+        """Return structured diagram/artwork service for this book."""
+        from scripts.book.creative import DiagramArtworkService
+
+        return DiagramArtworkService(self)
+
+    def knowledge_graph(self):
+        """Return citation/dependency/concept graph analyzer for this book."""
+        from scripts.book.knowledge_graph import KnowledgeGraphAnalyzer
+
+        return KnowledgeGraphAnalyzer(self)
+
     def refresh_artifacts(self):
         """Scan conventional artifact directories and persist artifact metadata."""
         return self.artifacts.refresh()

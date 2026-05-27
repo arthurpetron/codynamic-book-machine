@@ -367,6 +367,70 @@ def cmd_app(args):
         return 1
 
 
+def cmd_beyond(args):
+    """Run beyond-MVP graph, creative, and versioning actions."""
+    try:
+        from scripts.book import (
+            ArtworkSpec,
+            BookRepository,
+            ChangeSetManager,
+            DiagramSpec,
+        )
+
+        if args.beyond_command == "changeset":
+            manager = ChangeSetManager(Path("."))
+            changeset = manager.create(
+                title=args.title,
+                agent_id=args.agent_id,
+                files=args.files,
+                branch_name=args.branch_name,
+            )
+            print(json.dumps(changeset.__dict__, indent=2, sort_keys=True))
+            return 0
+
+        repository = BookRepository(Path(args.book_root))
+
+        if args.beyond_command == "graph":
+            print(json.dumps(repository.knowledge_graph().analyze().as_dict(), indent=2, sort_keys=True))
+            return 0
+
+        if args.beyond_command == "diagram":
+            spec_payload = json.loads(Path(args.spec).read_text())
+            spec = DiagramSpec(
+                diagram_id=spec_payload["diagram_id"],
+                title=spec_payload["title"],
+                linguistic_description=spec_payload["linguistic_description"],
+                computational_definition=spec_payload.get("computational_definition", {}),
+                section_id=spec_payload.get("section_id"),
+                caption=spec_payload.get("caption", ""),
+            )
+            print(json.dumps(repository.diagram_artwork().create_diagram(spec), indent=2, sort_keys=True))
+            return 0
+
+        if args.beyond_command == "artwork":
+            spec_payload = json.loads(Path(args.spec).read_text())
+            spec = ArtworkSpec(
+                artwork_id=spec_payload["artwork_id"],
+                title=spec_payload["title"],
+                linguistic_description=spec_payload["linguistic_description"],
+                visual_style=spec_payload.get("visual_style", ""),
+                computational_definition=spec_payload.get("computational_definition", {}),
+                section_id=spec_payload.get("section_id"),
+            )
+            print(json.dumps(repository.diagram_artwork().create_artwork(spec), indent=2, sort_keys=True))
+            return 0
+
+        print("Unknown beyond command")
+        return 1
+
+    except Exception as e:
+        print(json.dumps({"error": str(e)}))
+        if args.verbose:
+            import traceback
+            traceback.print_exc()
+        return 1
+
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -656,6 +720,40 @@ Examples:
     app_review = app_subparsers.add_parser('request-review', help='Record a full-review request')
     app_review.add_argument('--subject', default='book')
     app_review.set_defaults(func=cmd_app)
+
+    # Beyond-MVP command
+    beyond_parser = subparsers.add_parser(
+        'beyond',
+        help='Beyond-MVP diagrams, knowledge graph, and changesets'
+    )
+    beyond_parser.add_argument(
+        '--book-root',
+        default='data/book_data/codynamic_theory_book',
+        help='Book root to use'
+    )
+    beyond_subparsers = beyond_parser.add_subparsers(
+        dest='beyond_command',
+        help='Beyond-MVP action',
+        required=True,
+    )
+
+    beyond_graph = beyond_subparsers.add_parser('graph', help='Analyze citation, dependency, and concept graphs')
+    beyond_graph.set_defaults(func=cmd_beyond)
+
+    beyond_diagram = beyond_subparsers.add_parser('diagram', help='Create a structured diagram from a JSON spec')
+    beyond_diagram.add_argument('spec')
+    beyond_diagram.set_defaults(func=cmd_beyond)
+
+    beyond_artwork = beyond_subparsers.add_parser('artwork', help='Create a structured artwork spec from JSON')
+    beyond_artwork.add_argument('spec')
+    beyond_artwork.set_defaults(func=cmd_beyond)
+
+    beyond_changeset = beyond_subparsers.add_parser('changeset', help='Create a git-backed proposal bundle')
+    beyond_changeset.add_argument('title')
+    beyond_changeset.add_argument('--agent-id', default='agent')
+    beyond_changeset.add_argument('--branch-name')
+    beyond_changeset.add_argument('files', nargs='*')
+    beyond_changeset.set_defaults(func=cmd_beyond)
     
     # Parse arguments
     args = parser.parse_args()
