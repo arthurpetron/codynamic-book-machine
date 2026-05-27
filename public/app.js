@@ -1,4 +1,4 @@
-const sections = [
+const fallbackSections = [
   {
     chapter: "Chapter 1",
     title: "Foundations of Structure",
@@ -100,7 +100,9 @@ Gardener agents validate that local edits preserve the intended global structure
   }
 ];
 
-const messages = [
+let sections = fallbackSections;
+
+const fallbackMessages = [
   ["12:04", "Hypervisor -> All", "Coherence drop in 1.2; request dependency check from Outline Agent."],
   ["12:03", "Gardener-02 -> Section-1.2", "Validated. Minor drift around local reconfiguration language."],
   ["12:01", "Section 1.1 -> Hypervisor", "Completed: update static model contrast with new paragraph."],
@@ -125,6 +127,7 @@ const editor = document.getElementById("latex-editor");
 const title = document.getElementById("section-title");
 const previewTitle = document.getElementById("pdf-heading");
 const previewCopy = document.getElementById("pdf-copy");
+const pdfStage = document.querySelector(".pdf-stage");
 const sectionStatus = document.getElementById("section-status");
 const sectionAgent = document.getElementById("section-agent");
 const confidence = document.getElementById("confidence-score");
@@ -135,16 +138,21 @@ const requestReview = document.getElementById("request-review");
 const userChatButton = document.getElementById("user-chat-button");
 const userChatCount = document.getElementById("user-chat-count");
 const userChatList = document.getElementById("user-chat-list");
+const compileSectionButton = document.getElementById("compile-section");
+const compileState = document.getElementById("compile-state");
+const documentStyle = document.getElementById("document-style");
 
 let selectedId = "ch01_sec01";
 let userChatMessages = [];
+let activityMessages = [];
+let currentAppState = null;
 
 function getAllItems() {
   return sections.flatMap((chapter) => chapter.items);
 }
 
 function findSelected() {
-  return getAllItems().find((item) => item.id === selectedId) || sections[0].items[0];
+  return getAllItems().find((item) => item.id === selectedId) || sections[0]?.items?.[0];
 }
 
 function renderOutline(filter = "") {
@@ -186,7 +194,7 @@ function renderOutline(filter = "") {
         button.dataset.sectionId = item.id;
         const score = item.score === null ? "--" : `${item.score}%`;
         button.innerHTML = `<span class="section-name">${item.number} ${item.title}</span><span class="score ${item.tone}">${score}</span>`;
-        button.addEventListener("click", () => selectSection(item.id));
+        button.addEventListener("click", () => selectSectionFromApp(item.id));
         row.appendChild(button);
         list.appendChild(row);
       });
@@ -200,6 +208,9 @@ function renderOutline(filter = "") {
 function selectSection(id) {
   selectedId = id;
   const item = findSelected();
+  if (!item) {
+    return;
+  }
   editor.value = item.source;
   title.textContent = item.title;
   previewTitle.textContent = item.title;
@@ -211,6 +222,53 @@ function selectSection(id) {
   renderOutline(search.value);
 }
 
+async function selectSectionFromApp(id) {
+  selectedId = id;
+  if (window.cbm && window.cbm.app) {
+    try {
+      const section = await window.cbm.app.section(id);
+      updateSelectedSection(section);
+      renderOutline(search.value);
+      return;
+    } catch (error) {
+      appendActivityMessage("Desktop -> Book", `Failed to load section: ${error.message}`);
+    }
+  }
+  selectSection(id);
+}
+
+function updateSelectedSection(section) {
+  const item = getAllItems().find((candidate) => candidate.id === section.id);
+  if (item) {
+    Object.assign(item, section);
+  }
+  selectedId = section.id;
+  editor.value = section.source || "";
+  title.textContent = section.title || section.id;
+  previewTitle.textContent = section.title || section.id;
+  previewCopy.textContent = summarizeSource(section.source || section.summary || "");
+  const score = section.score;
+  const tone = section.tone || "idle";
+  sectionStatus.textContent = score === null || score === undefined ? "Not drafted" : `${score}% coherent`;
+  sectionStatus.className = `status-pill ${tone === "good" ? "good" : "neutral"}`;
+  sectionAgent.textContent = section.agent || "Queued";
+  confidence.textContent = score === null || score === undefined ? "Pending" : `${Math.max(58, score - 22)}%`;
+}
+
+function renderCompiledPreview(result) {
+  if (!pdfStage || !result) {
+    return;
+  }
+  if (result.pdf_path) {
+    const pdfUrl = `file://${result.pdf_path}`;
+    pdfStage.innerHTML = `<iframe class="pdf-frame" src="${pdfUrl}" title="Compiled PDF preview"></iframe>`;
+    return;
+  }
+  if (result.errors && result.errors.length) {
+    pdfStage.innerHTML = `<pre class="compile-diagnostics">${result.errors.join("\n")}</pre>`;
+  }
+}
+
 function summarizeSource(source) {
   const paragraph = source
     .split("\n")
@@ -220,7 +278,11 @@ function summarizeSource(source) {
 }
 
 function renderMessages(extraMessage) {
-  const allMessages = extraMessage ? [extraMessage, ...messages] : messages;
+  if (extraMessage) {
+    activityMessages.unshift(extraMessage);
+  }
+  const baseMessages = currentAppState?.messages || fallbackMessages;
+  const allMessages = [...activityMessages, ...baseMessages].slice(0, 40);
   messagesList.innerHTML = "";
   allMessages.forEach(([time, source, text]) => {
     const item = document.createElement("li");
@@ -228,6 +290,106 @@ function renderMessages(extraMessage) {
     item.innerHTML = `<span class="message-time">${time}</span><span class="message-source">${source}</span><span class="message-text">${text}</span>`;
     messagesList.appendChild(item);
   });
+}
+
+function appendActivityMessage(source, text) {
+  renderMessages(["now", source, text]);
+}
+
+async function loadAppState() {
+  if (!window.cbm || !window.cbm.app) {
+    renderOutline();
+    selectSection(selectedId);
+    renderMessages();
+    return;
+  }
+
+  try {
+    const state = await window.cbm.app.state(selectedId);
+    currentAppState = state;
+    sections = state.outline || [];
+    selectedId = state.selectedId || selectedId;
+    document.querySelector(".outline-pane h1").textContent = state.book?.title || "Untitled Book";
+    if (state.agentStatus) {
+      document.getElementById("hypervisor-score").textContent = `${state.agentStatus.confidence || 0}%`;
+      confidence.textContent = `${state.agentStatus.confidence || 0}%`;
+      const activeCard = document.querySelectorAll(".health-card strong")[1];
+      if (activeCard) {
+        activeCard.textContent = `${state.agentStatus.active}/${state.agentStatus.total}`;
+      }
+    }
+    renderOutline(search.value);
+    if (state.selectedSection) {
+      updateSelectedSection(state.selectedSection);
+    } else {
+      selectSection(selectedId);
+    }
+    renderCompiledPreview(state.compile);
+    renderMessages();
+  } catch (error) {
+    appendActivityMessage("Desktop -> Book", `Failed to load app state: ${error.message}`);
+    sections = fallbackSections;
+    renderOutline();
+    selectSection(selectedId);
+  }
+}
+
+async function loadDocumentStyles() {
+  if (!window.cbm || !window.cbm.typeset || !documentStyle) {
+    return;
+  }
+  const styles = await window.cbm.typeset.styles();
+  documentStyle.innerHTML = "";
+  styles.forEach((style) => {
+    const option = document.createElement("option");
+    option.value = style.styleId;
+    option.textContent = style.label;
+    option.title = style.description || "";
+    documentStyle.appendChild(option);
+  });
+}
+
+async function setDocumentStyle(styleId) {
+  if (!window.cbm || !window.cbm.typeset) {
+    return;
+  }
+  compileState.textContent = "Saving style";
+  const result = await window.cbm.typeset.setStyle(styleId);
+  compileState.textContent = "Ready";
+  appendActivityMessage("Document Design -> Typeset", result.output || `Document style set to ${styleId}.`);
+}
+
+async function compileSelectedSection() {
+  if (!window.cbm || !window.cbm.app) {
+    appendActivityMessage("Typeset -> Preview", "Section compile requires the desktop app bridge.");
+    return;
+  }
+  compileState.textContent = "Compiling";
+  try {
+    await window.cbm.app.saveSection(selectedId, editor.value);
+    const result = await window.cbm.app.compileSection(selectedId);
+    compileState.textContent = result.status === "passed" ? "Compiled" : "Failed";
+    const pdf = result.pdf_path ? ` PDF: ${result.pdf_path}` : "";
+    appendActivityMessage("Typeset -> Preview", `Compile ${result.status}.${pdf}`);
+    renderCompiledPreview(result);
+    await loadAppState();
+  } catch (error) {
+    compileState.textContent = "Failed";
+    appendActivityMessage("Typeset -> Preview", `Compile failed: ${error.message}`);
+  }
+}
+
+async function saveSelectedSection() {
+  if (!window.cbm || !window.cbm.app || !selectedId) {
+    return;
+  }
+  try {
+    await window.cbm.app.saveSection(selectedId, editor.value);
+    appendActivityMessage("Editor -> Book", `Saved ${selectedId}.`);
+    await loadAppState();
+  } catch (error) {
+    appendActivityMessage("Editor -> Book", `Save failed: ${error.message}`);
+  }
 }
 
 function pendingUserMessages() {
@@ -387,7 +549,29 @@ pauseSwarm.addEventListener("click", () => {
 });
 
 requestReview.addEventListener("click", () => {
-  renderMessages(["now", "Operator -> Hypervisor", "Full review requested across outline, section drafts, dependencies, and PDF compile state."]);
+  if (window.cbm && window.cbm.app) {
+    window.cbm.app.requestReview("book").then(() => loadAppState());
+  }
+  appendActivityMessage("Operator -> Hypervisor", "Full review requested across outline, section drafts, dependencies, and PDF compile state.");
+});
+
+compileSectionButton.addEventListener("click", () => {
+  compileSelectedSection();
+});
+
+documentStyle.addEventListener("change", () => {
+  setDocumentStyle(documentStyle.value);
+});
+
+editor.addEventListener("keydown", (event) => {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+    event.preventDefault();
+    saveSelectedSection();
+  }
+});
+
+editor.addEventListener("blur", () => {
+  saveSelectedSection();
 });
 
 userChatButton.addEventListener("click", () => {
@@ -397,6 +581,18 @@ userChatButton.addEventListener("click", () => {
   document.getElementById("user-chat").scrollIntoView({ block: "nearest" });
 });
 
-selectSection(selectedId);
-renderMessages();
+if (window.cbm && window.cbm.imports) {
+  window.cbm.imports.onOutlineStarted(({ sourcePath }) => {
+    appendActivityMessage("Importer -> Outline", `Importing outline from ${sourcePath}.`);
+  });
+  window.cbm.imports.onOutlineCompleted(({ output }) => {
+    appendActivityMessage("Importer -> Outline", output || "Outline import completed.");
+  });
+  window.cbm.imports.onOutlineFailed(({ message }) => {
+    appendActivityMessage("Importer -> Outline", `Import failed: ${message}`);
+  });
+}
+
+loadAppState();
 loadUserChat();
+loadDocumentStyles();

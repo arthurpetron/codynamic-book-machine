@@ -1,0 +1,329 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{tex/arthur-math}[2026/04/25 Arthur math display helpers]
+
+\RequirePackage{amsmath}
+\RequirePackage{amssymb}
+\RequirePackage{amsthm}
+\RequirePackage{mathtools}
+\RequirePackage{etoolbox}
+\RequirePackage{xparse}
+\RequirePackage{changepage}
+\RequirePackage{enumitem}
+\RequirePackage{marginnote}
+\RequirePackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\RequirePackage{tikz-cd}
+
+\numberwithin{equation}{section}
+
+\newlength{\arthurmathfullwidth}
+\newlength{\arthurequationsummarymarginoffset}
+\setlength{\arthurequationsummarymarginoffset}{1.6\baselineskip}
+\newif\ifarthur@math@full
+
+\definecolor{ArthurInfoBack}{HTML}{F2F7F6}
+\definecolor{ArthurInfoFrame}{HTML}{8AA6A3}
+\definecolor{ArthurNotationBack}{HTML}{F7F7F2}
+\definecolor{ArthurNotationFrame}{HTML}{B8B09A}
+
+\newtheoremstyle{arthurplain}
+  {0.8\baselineskip}
+  {0.8\baselineskip}
+  {\itshape}
+  {}
+  {\bfseries}
+  {.}
+  {0.5em}
+  {\thmname{#1}\thmnumber{ #2}\thmnote{ (#3)}}
+\newtheoremstyle{arthurdefinition}
+  {0.8\baselineskip}
+  {0.8\baselineskip}
+  {\normalfont}
+  {}
+  {\bfseries}
+  {.}
+  {0.5em}
+  {\thmname{#1}\thmnumber{ #2}\thmnote{ (#3)}}
+
+\theoremstyle{arthurplain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{arthurdefinition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+
+\DeclarePairedDelimiter{\abs}{\lvert}{\rvert}
+\DeclarePairedDelimiter{\norm}{\lVert}{\rVert}
+\DeclarePairedDelimiter{\paren}{(}{)}
+\DeclarePairedDelimiter{\bracket}{[}{]}
+\DeclarePairedDelimiter{\braces}{\lbrace}{\rbrace}
+\DeclarePairedDelimiter{\inner}{\langle}{\rangle}
+\DeclarePairedDelimiterX{\set}[2]{\lbrace}{\rbrace}{#1\,\delimsize\vert\,#2}
+
+\NewDocumentCommand{\eqtext}{m}{\quad\text{#1}}
+\NewDocumentCommand{\eqby}{m}{\quad\text{(#1)}}
+\NewDocumentCommand{\defeq}{}{\mathrel{\vcentcolon=}}
+\NewDocumentCommand{\eqdef}{}{\mathrel{=\vcentcolon}}
+\NewDocumentCommand{\underannotate}{m m}{\underbrace{#1}_{\text{#2}}}
+\NewDocumentCommand{\overannotate}{m m}{\overbrace{#1}^{\text{#2}}}
+
+\newtcolorbox{arthurinfoboxbase}[1][]{
+  enhanced,
+  breakable,
+  colback=ArthurInfoBack,
+  colframe=ArthurInfoFrame,
+  boxrule=0.45pt,
+  arc=4pt,
+  left=8pt,
+  right=8pt,
+  top=6pt,
+  bottom=6pt,
+  before skip=0.8\baselineskip,
+  after skip=0.8\baselineskip,
+  fonttitle=\bfseries,
+  #1
+}
+
+\newtcolorbox{localnotation}[1][]{
+  enhanced,
+  breakable,
+  colback=ArthurNotationBack,
+  colframe=ArthurNotationFrame,
+  boxrule=0.4pt,
+  arc=3pt,
+  left=8pt,
+  right=8pt,
+  top=6pt,
+  bottom=6pt,
+  before skip=0.7\baselineskip,
+  after skip=0.7\baselineskip,
+  title=Local notation,
+  fonttitle=\bfseries,
+  #1
+}
+
+\NewDocumentCommand{\notationitem}{m +m}{%
+  \par\noindent\makebox[0.18\linewidth][l]{\ensuremath{#1}}%
+  \parbox[t]{0.78\linewidth}{#2}\par\vspace{0.15\baselineskip}%
+}
+
+\makeatletter
+\newbox\arthur@margin@contentbox
+\newcommand{\arthur@rightmarginbox}[2][0pt]{%
+  \par\noindent
+  \makebox[0pt][l]{%
+    \hspace*{\dimexpr\textwidth+\marginparsep\relax}%
+    \raisebox{-#1}[0pt][0pt]{%
+      \begin{minipage}{\marginparwidth}%
+      #2%
+      \end{minipage}%
+    }%
+  }%
+}
+\newcommand{\arthur@margin@reserve}[1]{%
+  \par\vspace*{\dimexpr\ht#1+\dp#1\relax}%
+}
+\makeatother
+
+\makeatletter
+\NewDocumentEnvironment{infobox}{O{main} O{} +b}
+  {%
+    \ifstrequal{#1}{full}{%
+      \arthur@reset@mathfullwidth
+      \begin{adjustwidth}{}{-\dimexpr\marginparsep+\marginparwidth\relax}%
+      \begin{arthurinfoboxbase}[#2]%
+      #3%
+      \end{arthurinfoboxbase}%
+      \end{adjustwidth}%
+    }{%
+      \ifstrequal{#1}{margin}{%
+    \setbox\arthur@margin@contentbox=\vbox{%
+      \hsize=\marginparwidth
+      \linewidth=\hsize
+      \begin{arthurinfoboxbase}[width=\marginparwidth,#2]%
+      #3%
+      \end{arthurinfoboxbase}%
+        }%
+        \arthur@rightmarginbox{\copy\arthur@margin@contentbox}%
+        \arthur@margin@reserve{\arthur@margin@contentbox}%
+      }{%
+        \ifstrequal{#1}{main}{%
+          \begin{arthurinfoboxbase}[#2]%
+          #3%
+          \end{arthurinfoboxbase}%
+        }{%
+          \begin{arthurinfoboxbase}[#1]%
+          #3%
+          \end{arthurinfoboxbase}%
+        }%
+      }%
+    }%
+  }
+  {}
+\makeatother
+
+\makeatletter
+\newcommand{\arthur@reset@mathfullwidth}{%
+  \setlength{\arthurmathfullwidth}{\dimexpr\textwidth+\marginparsep+\marginparwidth\relax}%
+}
+\AtBeginDocument{\arthur@reset@mathfullwidth}
+
+\newcommand{\arthur@margin@tag}[1]{%
+  \makebox[0pt][l]{%
+    \ifarthur@math@full
+      \hspace{-\marginparwidth}%
+    \else
+      \hspace{\marginparsep}%
+    \fi
+    \raisebox{0pt}[0pt][0pt]{%
+      \parbox[t]{\marginparwidth}{\raggedleft\footnotesize\normalfont(\ignorespaces#1\unskip)}%
+    }%
+  }%
+}
+
+\newcommand{\arthur@normal@tag}[1]{%
+  \normalfont(\ignorespaces#1\unskip)%
+}
+
+\renewcommand{\tagform@}[1]{%
+  \maketag@@@{\arthur@margin@tag{#1}}%
+}
+
+\AtBeginDocument{%
+  \@ifpackageloaded{hyperref}{%
+    \DeclareRobustCommand{\eqref}[1]{\textup{\hyperref[#1]{(\ref*{#1})}}}%
+  }{%
+    \DeclareRobustCommand{\eqref}[1]{\textup{(\ref{#1})}}%
+  }%
+}
+\makeatother
+
+\NewDocumentCommand{\equationterm}{m +m}{%
+  \item[\ensuremath{#1}] #2%
+}
+
+\makeatletter
+\newbox\arthur@equation@summary@box
+\newcommand{\arthur@equation@summary@body}[1]{%
+  \footnotesize
+  \raggedright
+  \setlength{\parindent}{0pt}%
+  \textbf{Equation summary.}\par\vspace{0.2\baselineskip}%
+  \begin{description}[
+    font=\normalfont,
+    labelwidth=0.16\linewidth,
+    labelsep=0.55em,
+    leftmargin=!,
+    itemsep=0.08\baselineskip,
+    parsep=0pt,
+    topsep=0pt
+  ]
+  #1%
+  \end{description}
+}
+\makeatother
+
+\makeatletter
+\NewDocumentCommand{\equationsummary}{O{main} +m}{%
+  \ifstrequal{#1}{margin}{%
+    \setbox\arthur@equation@summary@box=\vbox{%
+      \hsize=\marginparwidth
+      \linewidth=\hsize
+      \arthur@equation@summary@body{#2}%
+    }%
+    \arthur@rightmarginbox[\arthurequationsummarymarginoffset]{\copy\arthur@equation@summary@box}%
+    \par\vspace*{\dimexpr\ht\arthur@equation@summary@box+\dp\arthur@equation@summary@box+\arthurequationsummarymarginoffset\relax}%
+  }{%
+    \ifstrequal{#1}{main}{%
+      \begin{quote}%
+      \arthur@equation@summary@body{#2}%
+      \end{quote}%
+    }{%
+      \PackageWarning{arthur-math}{Unknown \string\equationsummary\space placement `#1'; using `main'}%
+      \begin{quote}%
+      \arthur@equation@summary@body{#2}%
+      \end{quote}%
+    }%
+  }%
+}
+\makeatother
+
+\NewDocumentCommand{\eqbreak}{}{\\[0.35ex] &\quad{}}
+\NewDocumentCommand{\eqcontinue}{}{\\[0.35ex] &\quad{}}
+
+\makeatletter
+\newcommand{\arthur@math@label}{}
+
+\NewDocumentEnvironment{break_equation}{o}
+  {%
+    \IfValueTF{#1}{\def\arthur@math@label{\label{#1}}}{\def\arthur@math@label{}}%
+    \begin{equation}%
+    \begin{aligned}%
+  }
+  {%
+    \end{aligned}%
+    \arthur@math@label
+    \end{equation}%
+  }
+
+\NewDocumentEnvironment{full_equation}{o}
+  {%
+    \IfValueTF{#1}{\def\arthur@math@label{\label{#1}}}{\def\arthur@math@label{}}%
+    \arthur@reset@mathfullwidth
+    \arthur@math@fulltrue
+    \begin{adjustwidth}{}{-\dimexpr\marginparsep+\marginparwidth\relax}%
+    \begin{equation}%
+    \begin{aligned}%
+  }
+  {%
+    \end{aligned}%
+    \arthur@math@label
+    \end{equation}%
+    \end{adjustwidth}%
+    \arthur@math@fullfalse
+  }
+
+\NewDocumentEnvironment{full_display}{}
+  {%
+    \arthur@reset@mathfullwidth
+    \begin{adjustwidth}{}{-\dimexpr\marginparsep+\marginparwidth\relax}%
+    \[
+  }
+  {%
+    \]%
+    \end{adjustwidth}%
+  }
+
+\NewDocumentEnvironment{cat_math}{o O{}}
+  {%
+    \IfValueTF{#1}{\def\arthur@math@label{\label{#1}}}{\def\arthur@math@label{}}%
+    \begin{equation}%
+    \begin{tikzcd}[#2]%
+  }
+  {%
+    \end{tikzcd}%
+    \arthur@math@label
+    \end{equation}%
+  }
+
+\NewDocumentEnvironment{full_cat_math}{o O{}}
+  {%
+    \IfValueTF{#1}{\def\arthur@math@label{\label{#1}}}{\def\arthur@math@label{}}%
+    \arthur@reset@mathfullwidth
+    \arthur@math@fulltrue
+    \begin{adjustwidth}{}{-\dimexpr\marginparsep+\marginparwidth\relax}%
+    \begin{equation}%
+    \begin{tikzcd}[#2]%
+  }
+  {%
+    \end{tikzcd}%
+    \arthur@math@label
+    \end{equation}%
+    \end{adjustwidth}%
+    \arthur@math@fullfalse
+  }
+\makeatother
+
+\endinput

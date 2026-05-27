@@ -8,6 +8,8 @@ from typing import Any
 import yaml
 
 from scripts.book.artifact_registry import ArtifactRegistry
+from scripts.book.authoring import AuthoringLoop, MediaRequestRegistry, ProposalStore, VerificationHistory
+from scripts.book.intake import BookIntakeService, IntakeQuestion
 from scripts.book.outline_service import OutlineService
 
 
@@ -22,6 +24,9 @@ class BookRepository:
             if yaml_files:
                 self.outline_path = yaml_files[0]
         self.artifacts = ArtifactRegistry(self.book_root)
+        self.proposals = ProposalStore(self.book_root)
+        self.verification_history = VerificationHistory(self.book_root)
+        self.media_requests = MediaRequestRegistry(self.book_root)
 
     def load_book(self) -> dict[str, Any]:
         """Load and normalize the book outline."""
@@ -83,6 +88,51 @@ class BookRepository:
     def metadata(self) -> dict[str, Any]:
         """Return canonical work metadata."""
         return self.load_book()["work"].get("metadata", {})
+
+    def intake_service(self) -> BookIntakeService:
+        """Return an intake service bound to the current canonical book."""
+        if self.outline_path.exists():
+            return BookIntakeService(self.load_book())
+        return BookIntakeService()
+
+    def next_intake_question(self) -> IntakeQuestion | None:
+        """Return the next unanswered conversational intake question."""
+        return self.intake_service().next_question()
+
+    def record_intake_answer(
+        self,
+        question_id: str,
+        answer: str,
+        rationale: str | None = None,
+    ) -> dict[str, Any]:
+        """Persist one intake answer into the canonical book object."""
+        service = self.intake_service()
+        book = service.record_answer(question_id, answer, rationale=rationale)
+        self.save_book(book)
+        return book
+
+    def generate_initial_plan(self) -> dict[str, Any]:
+        """Generate and persist the first conversation-derived plan."""
+        service = self.intake_service()
+        book = service.generate_initial_plan()
+        self.save_book(book)
+        return book
+
+    def authoring_loop(self, mode: str = "proposal") -> AuthoringLoop:
+        """Return the proposal-first authoring loop facade for this book."""
+        return AuthoringLoop(self.book_root, mode=mode)
+
+    def design_settings(self, project_root: Path | str = Path(".")) -> DesignSettingsService:
+        """Return persisted design settings service for this book."""
+        from scripts.book.typesetting import DesignSettingsService
+
+        return DesignSettingsService(self, project_root=project_root)
+
+    def latex_builder(self, project_root: Path | str = Path(".")) -> LatexBuildService:
+        """Return LaTeX assembly and compile service for this book."""
+        from scripts.book.typesetting import LatexBuildService
+
+        return LatexBuildService(self.book_root, project_root=project_root)
 
     def refresh_artifacts(self):
         """Scan conventional artifact directories and persist artifact metadata."""

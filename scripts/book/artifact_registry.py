@@ -13,7 +13,8 @@ ARTIFACT_DIRECTORIES = {
     "tex": ("tex", ".tex"),
     "section_payload": ("tex/section_payloads", ".tex"),
     "content_section": ("content/sections", ".md"),
-    "diagram": ("diagrams", None),
+    "diagram": ("media/diagrams", None),
+    "media": ("media", None),
     "image": ("images", None),
     "artwork": ("artwork", None),
     "render": ("renders", None),
@@ -75,7 +76,7 @@ class ArtifactRegistry:
                         artifact_id=artifact_id,
                         kind=kind,
                         path=relative_path,
-                        reusable=kind in {"diagram", "image", "artwork", "section_payload"},
+                        reusable=kind in {"diagram", "media", "image", "artwork", "section_payload"},
                     )
                 )
         return artifacts

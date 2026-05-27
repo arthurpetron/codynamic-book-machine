@@ -1,0 +1,68 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{tex/arthur-margin-citations}[2026/04/25 Compact margin citations]
+
+\RequirePackage{etoolbox}
+\RequirePackage{xparse}
+\RequirePackage{marginnote}
+
+% Compact biblatex-based margin citations. This package intentionally does not
+% load biblatex; the document should choose its own bibliography style/backend.
+\makeatletter
+\newdimen\arthur@margin@used
+\newcount\arthur@margin@page
+\newbox\arthur@margin@box
+\arthur@margin@page=-1\relax
+
+\newcommand{\arthur@check@biblatex}{%
+  \@ifpackageloaded{biblatex}{}{%
+    \PackageError{arthur-margin-citations}{\string\shortcite\space requires biblatex}{%
+      Load biblatex in your document preamble, for example:
+      \string\usepackage[backend=biber,style=authoryear]{biblatex}.%
+    }%
+  }%
+}
+
+\newcommand{\arthur@margin@record}[2]{%
+  \setbox\arthur@margin@box=\vbox{%
+    \hsize=\marginparwidth
+    \footnotesize
+    \raggedright
+    #2\par
+  }%
+  \ifnum\value{page}=\arthur@margin@page\relax
+  \else
+    \global\arthur@margin@page=\value{page}\relax
+    \global\arthur@margin@used=0pt\relax
+  \fi
+  \global\advance\arthur@margin@used by \dimexpr\ht\arthur@margin@box+\dp\arthur@margin@box+\baselineskip\relax
+  \ifdim\ht\arthur@margin@box>.22\textheight
+    \PackageWarning{arthur-margin-citations}{Margin note for #1 is tall; consider shortening it}%
+  \fi
+  \ifdim\arthur@margin@used>.72\textheight
+    \PackageWarning{arthur-margin-citations}{Margin notes on page \thepage\space may be overfull after #1}%
+  \fi
+}
+
+\newcommand{\arthur@shortcite@text}[3]{%
+  \footnotesize
+  \raggedright
+  \ifblank{#1}{}{\emph{#1}\par}%
+  \textit{\citetitle{#2}}\par
+  \citeauthor{#2}%
+  \ifblank{#3}{}{,\space #3}%
+}
+
+\@ifundefined{shortcite}{%
+  \NewDocumentCommand{\shortcite}{O{} m O{}}{%
+    \arthur@check@biblatex
+    \nocite{#2}%
+    \arthur@margin@record{shortcite `#2'}{\arthur@shortcite@text{#1}{#2}{#3}}%
+    \marginnote{\arthur@shortcite@text{#1}{#2}{#3}}%
+    \cite{#2}%
+  }%
+}{%
+  \PackageWarning{arthur-margin-citations}{\string\shortcite\space already exists; arthur-margin-citations did not redefine it}%
+}
+\makeatother
+
+\endinput

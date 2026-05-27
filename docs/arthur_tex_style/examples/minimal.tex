@@ -1,0 +1,106 @@
+\documentclass[wide-notes]{arthur-book}
+
+\title{Arthur Book Minimal Example}
+\author{Arthur}
+
+\begin{document}
+\maketitle
+\tableofcontents
+
+\chapter{A Chapter}
+\section{A Section}
+\subsection{A Subsection}
+
+This page exercises headings, running headers, margin notes, and common symbols.
+\marginkey{margin key}
+
+\begin{arthurnotation}
+Use \(\Eps\), \(\Flow\), \(\Ccat\), \(\Pcat\), and \(\Tr\) as core notation.
+\end{arthurnotation}
+
+\notationbox
+
+\section{Math}
+
+The equation counter resets by section and prints in the outer margin.
+
+\begin{definition}[Radius]
+For a circle in Euclidean space, the radius is the distance from its center to
+any point on the boundary.
+\end{definition}
+
+\begin{theorem}
+If a circle has radius \(r\), then its circumference is \(2\pi r\).
+\end{theorem}
+
+\begin{proof}
+This is the standard normalization of \(\pi\), written here as a class styling
+example.
+\end{proof}
+
+\begin{localnotation}
+  \notationitem{\abs{x}}{absolute value or size.}
+  \notationitem{\set{x}{P(x)}}{the set of \(x\) satisfying \(P(x)\).}
+\end{localnotation}
+
+\begin{infobox}[title=Reading note]
+Equation summaries are useful when a display introduces several local symbols
+that will not be used throughout the whole chapter.
+\end{infobox}
+
+\begin{infobox}[margin][title=Margin note]
+This is a margin-width info box.
+\end{infobox}
+
+\begin{equation}
+  C \defeq \underannotate{2\pi r}{circle circumference}
+  \label{eq:circumference}
+\end{equation}
+
+\equationsummary[margin]{
+  \equationterm{\pi}{the ratio between circumference and diameter of a circle.}
+  \equationterm{r}{the radius of the circle.}
+  \equationterm{C}{the circumference from Equation~\eqref{eq:circumference}.}
+}
+
+\begin{break_equation}[eq:long-break]
+  F(x)
+    &= \alpha_0 + \alpha_1 x + \alpha_2 x^2 + \alpha_3 x^3
+      + \alpha_4 x^4 + \alpha_5 x^5
+  \eqbreak
+      + \alpha_6 x^6 + \alpha_7 x^7 + \alpha_8 x^8 + \alpha_9 x^9 .
+\end{break_equation}
+
+\begin{full_equation}[eq:full-width]
+  G(x)
+    &= \sum_{i=0}^{n} a_i x^i
+      + \sum_{j=0}^{m} b_j \exp(-\lambda_j x)
+      + \int_{0}^{1} K(x,t)h(t)\,dt
+      + \operatorname*{colim}_{c\in\Ccat} H(c)
+\end{full_equation}
+
+\begin{cat_math}[eq:pullback][row sep=large,column sep=large]
+  P \arrow[r] \arrow[d] & X \arrow[d, "f"] \\
+  Y \arrow[r, "g"'] & Z
+\end{cat_math}
+
+\clearpage
+
+\section{Figures}
+
+\begin{mainfigure}
+\fbox{\rule{0pt}{1.2in}\rule{0.9\textwidth}{0pt}}
+\caption{A figure constrained to the main text column.}
+\end{mainfigure}
+
+\begin{marginfigure}
+\fbox{\rule{0pt}{0.9in}\rule{0.85\marginparwidth}{0pt}}
+\caption{A margin-only figure.}
+\end{marginfigure}
+
+\begin{fullfigure}
+\fbox{\rule{0pt}{1.4in}\rule{0.95\arthurfullwidth}{0pt}}
+\caption{A full-width figure spanning the main column and margin column.}
+\end{fullfigure}
+
+\end{document}

@@ -1,0 +1,28 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{tex/arthur-notation}[2026/04/25 Arthur notation helpers]
+
+\RequirePackage{marginnote}
+
+\providecommand{\marginkey}[1]{\marginnote{\footnotesize\emph{#1}}}
+
+\newenvironment{arthurnotation}
+  {\begin{quote}\small\noindent\textbf{Notation.}\ }
+  {\end{quote}}
+
+\providecommand{\notationbox}{%
+  \begin{quote}\small
+  \textbf{Notation (core).}
+  \begin{itemize}
+    \item \(r>0\): time resolution (e.g., seconds, minutes).
+    \item \(\Tr\): small category of time bins at resolution \(r\) (morphisms respect order).
+    \item \(\Pcat\): measurable state spaces with computable/Lipschitz maps (metric structure explicit).
+    \item \(\Ccat\): objects are pairs \((H,S)\) with \(H\) a finite poset of events (history) and \(S\) a monoidal category of computable rules (structure).
+    \item \(F:\Ccat\to\Pcat\): validation functor mapping constructed models to measurable processes.
+    \item \(\Eps(r)\): total error budget at resolution \(r\), with \(\Eps(r)=\Eps_{\mathrm{meas}}(r)+\Eps_{\mathrm{model}}(r)\).
+    \item \(d(\cdot,\cdot)\): declared, unit-aware metric on observables (e.g., weighted \(L^2\) with per-channel units).
+    \item \(\Flow:\Tr\to\Pcat\): an Emotional Flow is a functor assigning a measurable state (and a computable transition) to each time bin.
+  \end{itemize}
+  \end{quote}%
+}
+
+\endinput

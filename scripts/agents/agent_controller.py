@@ -31,6 +31,7 @@ from scripts.api import (
     LLMProviderError
 )
 from scripts.prompts.runtime import build_validated_system_prompt
+from scripts.book.authoring import ProposalStore
 from scripts.user_chat import UserChatQueue, agent_can_talk_to_user
 from scripts.work import WorkManager
 
@@ -444,6 +445,25 @@ Your responsibilities:
         )
         self._append_to_log(self.agent_state_dir / "outputs.yaml", output.to_dict())
         logger.debug(f"[{self.agent_id}] Action output: {response.content[:200]}...")
+
+    def propose_file_edit(
+        self,
+        book_root: str | Path,
+        target_path: str | Path,
+        proposed_content: str,
+        rationale: str,
+        metadata: Optional[Dict[str, Any]] = None,
+        mode: str = "proposal",
+    ):
+        """Create a proposal-first file edit, or apply it in full-auto mode."""
+        return ProposalStore(book_root).propose_file_edit(
+            agent_id=self.agent_id,
+            target_path=target_path,
+            proposed_content=proposed_content,
+            rationale=rationale,
+            metadata=metadata,
+            mode=mode,
+        )
     
     def receive_message(self, message: Dict[str, Any]):
         """Add message to inbox for processing"""

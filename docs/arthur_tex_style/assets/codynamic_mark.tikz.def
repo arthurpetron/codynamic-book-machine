@@ -1,0 +1,22 @@
+% codynamic_mark.tikz.def
+\providecommand{\codynmark}[6]{% D,rings,w,g,split,bleed
+  \begin{tikzpicture}[x=1pt,y=1pt]
+    \fill[black] (0,0) rectangle (#1,#1);
+    \pgfmathsetmacro{\R}{#1/2}
+    \pgfmathsetmacro{\b}{#5*#1}
+    \pgfmathsetmacro{\bandx}{\R-\b/2}
+    \fill[black] (\bandx,0) rectangle (\bandx+\b,#1);
+    \pgfmathsetmacro{\r}{\R-#3/2}
+    \foreach \k in {1,...,#2}{
+      \draw[white, line width=#3] (\R,\R) circle[radius=\r];
+      \pgfmathsetmacro{\theta}{acos((\b/2)/\r)}
+      \pgfmathsetmacro{\delta}{min(#6*#1/\r,15)}
+      \draw[white, line width=#3]
+        ({\R+\r*cos(-\theta-\delta)},{\R+\r*sin(-\theta-\delta)})
+          arc[start angle={- \theta - \delta},
+              end angle={\theta+\delta},
+              radius=\r];
+      \pgfmathsetmacro{\r}{\r-(#3+#4)}
+    }
+  \end{tikzpicture}
+}

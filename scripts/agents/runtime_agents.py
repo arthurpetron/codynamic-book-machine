@@ -7,10 +7,26 @@ from typing import Optional
 
 from scripts.agents.agent_controller import AgentController
 from scripts.api import LLMProvider
+from scripts.book.authoring import AuthoringLoop, EditProposal
 
 
 class SectionAgent(AgentController):
     agent_kind = "section"
+
+    def propose_section_draft(
+        self,
+        book_root: str | Path,
+        section_id: str,
+        content: str,
+        rationale: str = "Draft section payload.",
+        mode: str = "proposal",
+    ) -> EditProposal:
+        return AuthoringLoop(book_root, mode=mode).propose_section_draft(
+            section_id=section_id,
+            content=content,
+            agent_id=self.agent_id,
+            rationale=rationale,
+        )
 
 
 class OutlineAgentController(AgentController):
@@ -20,17 +36,78 @@ class OutlineAgentController(AgentController):
 class GardenerAgent(AgentController):
     agent_kind = "gardener"
 
+    def record_section_check(
+        self,
+        book_root: str | Path,
+        section_id: str,
+        checks: dict[str, str],
+        rationale: str = "",
+    ) -> dict:
+        loop = AuthoringLoop(book_root)
+        return loop.history.record_check(
+            agent_id=self.agent_id,
+            subject=section_id,
+            checks=checks,
+            rationale=rationale,
+        )
+
 
 class DocumentDesignAgent(AgentController):
     agent_kind = "document_design"
+
+    def record_design_review(
+        self,
+        book_root: str | Path,
+        subject: str,
+        status: str,
+        rationale: str,
+        metadata: dict | None = None,
+    ) -> dict:
+        return AuthoringLoop(book_root).history.record_event(
+            event_type="document_design_review",
+            agent_id=self.agent_id,
+            subject=subject,
+            status=status,
+            rationale=rationale,
+            metadata=metadata,
+        )
 
 
 class DiagramAgent(AgentController):
     agent_kind = "diagram"
 
+    def fulfill_media_request(
+        self,
+        book_root: str | Path,
+        request_id: str,
+        content: str,
+        extension: str = ".tikz",
+    ) -> dict:
+        return AuthoringLoop(book_root).media.fulfill_request(
+            request_id=request_id,
+            diagram_agent=self.agent_id,
+            content=content,
+            extension=extension,
+        )
+
 
 class HypervisorAgentController(AgentController):
     agent_kind = "hypervisor"
+
+    def record_global_drift(
+        self,
+        book_root: str | Path,
+        subject: str,
+        status: str,
+        rationale: str,
+        metadata: dict | None = None,
+    ) -> dict:
+        return AuthoringLoop(book_root).record_hypervisor_drift(
+            subject=subject,
+            status=status,
+            rationale=rationale,
+            metadata=metadata,
+        )
 
 
 AGENT_CLASS_BY_DEFINITION = {

@@ -72,51 +72,57 @@
             </div>
           </div>
 
-          <div class="editor-grid">
-            <section class="text-editor" aria-label="LaTeX text editor">
-              <div class="editor-toolbar" aria-label="Editor toolbar">
-                <button type="button" title="Bold">B</button>
-                <button type="button" title="Italic">I</button>
-                <button type="button" title="Insert citation">Cite</button>
-                <button type="button" title="Compile selected section">Compile</button>
-                <span class="toolbar-spacer"></span>
-                <label class="toggle">
-                  <input id="sync-toggle" type="checkbox" checked />
-                  <span>Live sync</span>
-                </label>
-              </div>
-              <textarea id="latex-editor" spellcheck="false" aria-label="LaTeX source"></textarea>
-            </section>
-
-            <aside class="preview-pane" aria-label="Live PDF preview">
-              <div class="preview-header">
-                <div>
-                  <p class="eyebrow">Live PDF Preview</p>
-                  <h2 id="preview-title">Compiled spread</h2>
-                </div>
-                <span class="compile-state">Ready</span>
-              </div>
-              <div class="pdf-stage" aria-label="PDF page preview">
-                <article class="pdf-page">
-                  <p class="pdf-kicker">Chapter 1</p>
-                  <h3 id="pdf-heading">From Static to Codynamic</h3>
-                  <p id="pdf-copy">
-                    Traditional static models fix the shape of a system before its interaction with the world is known. Codynamic structure instead treats form as something revised by local constraints, feedback, and intent.
-                  </p>
-                  <div class="equation">S(t + 1) = refine(S(t), I, E)</div>
-                  <p>
-                    The resulting document workflow mirrors the theory: outline, agents, dependencies, and compiled pages remain visible as one coordinated surface.
-                  </p>
-                </article>
-              </div>
-              <div class="page-strip" aria-label="Preview pages">
-                <button class="thumb is-active" type="button" aria-label="Page 1"></button>
-                <button class="thumb" type="button" aria-label="Page 2"></button>
-                <button class="thumb" type="button" aria-label="Page 3"></button>
-              </div>
-            </aside>
-          </div>
+          <section class="text-editor" aria-label="LaTeX text editor">
+            <div class="editor-toolbar" aria-label="Editor toolbar">
+              <button type="button" title="Bold">B</button>
+              <button type="button" title="Italic">I</button>
+              <button type="button" title="Insert citation">Cite</button>
+              <button id="compile-section" type="button" title="Compile selected section">Compile</button>
+              <span class="toolbar-spacer"></span>
+              <label class="toggle">
+                <input id="sync-toggle" type="checkbox" checked />
+                <span>Live sync</span>
+              </label>
+            </div>
+            <textarea id="latex-editor" spellcheck="false" aria-label="LaTeX source"></textarea>
+          </section>
         </section>
+
+        <aside class="preview-pane" aria-label="Live PDF preview">
+          <div class="preview-header">
+            <div>
+              <p class="eyebrow">Live PDF Preview</p>
+              <h2 id="preview-title">Compiled spread</h2>
+            </div>
+            <div class="preview-controls">
+              <label class="style-picker">
+                <span class="sr-only">Document style</span>
+                <select id="document-style" aria-label="Document style">
+                  <option value="standard_article">Standard Article</option>
+                </select>
+              </label>
+              <span id="compile-state" class="compile-state">Ready</span>
+            </div>
+          </div>
+          <div class="pdf-stage" aria-label="PDF page preview">
+            <article class="pdf-page">
+              <p class="pdf-kicker">Chapter 1</p>
+              <h3 id="pdf-heading">From Static to Codynamic</h3>
+              <p id="pdf-copy">
+                Traditional static models fix the shape of a system before its interaction with the world is known. Codynamic structure instead treats form as something revised by local constraints, feedback, and intent.
+              </p>
+              <div class="equation">S(t + 1) = refine(S(t), I, E)</div>
+              <p>
+                The resulting document workflow mirrors the theory: outline, agents, dependencies, and compiled pages remain visible as one coordinated surface.
+              </p>
+            </article>
+          </div>
+          <div class="page-strip" aria-label="Preview pages">
+            <button class="thumb is-active" type="button" aria-label="Page 1"></button>
+            <button class="thumb" type="button" aria-label="Page 2"></button>
+            <button class="thumb" type="button" aria-label="Page 3"></button>
+          </div>
+        </aside>
       </main>
 
       <footer class="agent-console" aria-label="Agent console">

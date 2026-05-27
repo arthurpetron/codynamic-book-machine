@@ -1,0 +1,48 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{tex/arthur-figures}[2026/04/25 Arthur figure environments]
+
+\RequirePackage{changepage}
+\RequirePackage{caption}
+\RequirePackage{environ}
+\RequirePackage{graphicx}
+\RequirePackage{marginnote}
+
+\newlength{\arthurfullwidth}
+\setlength{\arthurfullwidth}{\dimexpr\textwidth+\marginparsep+\marginparwidth\relax}
+
+\makeatletter
+\newcommand{\arthur@reset@fullwidth}{%
+  \setlength{\arthurfullwidth}{\dimexpr\textwidth+\marginparsep+\marginparwidth\relax}%
+}
+\AtBeginDocument{\arthur@reset@fullwidth}
+
+\newenvironment{mainfigure}[1][tbp]
+  {\begin{figure}[#1]\centering\captionsetup{width=\textwidth}}
+  {\end{figure}}
+
+\newenvironment{fullfigure}[1][tbp]
+  {%
+    \begin{figure}[#1]%
+    \arthur@reset@fullwidth
+    \begin{adjustwidth}{}{-\dimexpr\marginparsep+\marginparwidth\relax}%
+    \centering
+    \captionsetup{width=\arthurfullwidth}%
+  }
+  {%
+    \end{adjustwidth}%
+    \end{figure}%
+  }
+
+\NewEnviron{marginfigure}{%
+  \marginpar{%
+    \begin{minipage}{\marginparwidth}%
+    \footnotesize
+    \captionsetup{type=figure,font=footnotesize,labelfont=bf}%
+    \centering
+    \BODY
+    \end{minipage}%
+  }%
+}
+\makeatother
+
+\endinput

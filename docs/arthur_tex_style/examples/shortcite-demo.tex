@@ -1,0 +1,13 @@
+\documentclass[wide-notes]{arthur-book}
+\usepackage[backend=biber,style=authoryear]{biblatex}
+\addbibresource{examples/references.bib}
+
+\begin{document}
+\chapter{Short Citation Demo}
+
+This sentence cites a book in the margin.\shortcite{doe2024}
+
+This sentence adds optional context around the compact margin citation.\shortcite[See also]{roe2023}[ch. 2]
+
+\printbibliography
+\end{document}
