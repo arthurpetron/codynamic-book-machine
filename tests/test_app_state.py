@@ -85,6 +85,18 @@ def test_create_section_updates_outline_and_payload(tmp_path):
     assert "\\section{New Argument}" in repository.load_section("new_argument")
 
 
+def test_create_chapter_and_update_outline_node(tmp_path):
+    repository = create_book(tmp_path)
+    app = BookAppState(repository.book_root, data_root=tmp_path / "data")
+
+    chapter = app.create_chapter("Later Material")
+    renamed = app.update_outline_node(chapter["id"], "Appendix Material")
+    state = app.snapshot("intro")
+
+    assert renamed["title"] == "Appendix Material"
+    assert state["outline"][-1]["title"] == "Appendix Material"
+
+
 def test_accept_and_reject_proposal_from_app_state(tmp_path):
     repository = create_book(tmp_path)
     app = BookAppState(repository.book_root, data_root=tmp_path / "data")
@@ -97,6 +109,18 @@ def test_accept_and_reject_proposal_from_app_state(tmp_path):
     assert accepted_payload["status"] == "accepted"
     assert rejected_payload["status"] == "rejected"
     assert repository.load_section("intro") == "Accepted body.\n"
+
+
+def test_revise_proposal_from_app_state(tmp_path):
+    repository = create_book(tmp_path)
+    app = BookAppState(repository.book_root, data_root=tmp_path / "data")
+    proposal = repository.authoring_loop().propose_section_draft("intro", "Original proposal.\n")
+
+    revised = app.revise_proposal(proposal.proposal_id, "Revised proposal.\n", note="Use this version.")
+
+    assert revised["status"] == "pending"
+    assert revised["metadata"]["revised_from"] == proposal.proposal_id
+    assert repository.proposals.load(proposal.proposal_id).status == "revised"
 
 
 def test_compile_section_returns_structured_result(tmp_path, monkeypatch):

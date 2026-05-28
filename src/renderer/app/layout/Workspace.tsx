@@ -56,7 +56,7 @@ export function Workspace({ store }: WorkspaceProps) {
         {store.activeTab === "agents" ? (
           <section className="tab-panel detail-panel" aria-label="Agent settings and proposals">
             <AgentSettingsPanel state={store.state} />
-            <ProposalReviewPanel proposals={store.state.proposals ?? []} onReview={store.reviewProposal} />
+            <ProposalReviewPanel proposals={store.state.proposals ?? []} onReview={store.reviewProposal} onRevise={store.reviseProposal} />
           </section>
         ) : null}
         {store.activeTab === "references" ? (

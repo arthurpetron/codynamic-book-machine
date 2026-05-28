@@ -79,11 +79,23 @@ export function getElectronApi(): ElectronApi {
       async createSection(_parentId, title) {
         return { ...fallbackSection, id: title.toLowerCase().replace(/[^a-z0-9]+/g, "_"), title, source: `\\section{${title}}\n\nDraft this section.\n` };
       },
+      async createChapter(title) {
+        return { id: title.toLowerCase().replace(/[^a-z0-9]+/g, "_"), title };
+      },
+      async updateOutlineNode(nodeId, title) {
+        return { id: nodeId, title };
+      },
       async acceptProposal(proposalId) {
         return { proposal_id: proposalId, agent_id: "fallback", target_path: "", status: "accepted" };
       },
       async rejectProposal(proposalId) {
         return { proposal_id: proposalId, agent_id: "fallback", target_path: "", status: "rejected" };
+      },
+      async reviseProposal(proposalId) {
+        return { proposal_id: proposalId, agent_id: "fallback", target_path: "", status: "revised" };
+      },
+      async importOutline() {
+        return null;
       },
       async library() {
         return { active: "fallback", books: [] };

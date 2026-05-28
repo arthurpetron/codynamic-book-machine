@@ -24,11 +24,21 @@ export function BookCommands({ store, onClose }: BookCommandsProps) {
     onClose();
   }
 
+  async function importOutline(mode: "current" | "new") {
+    await store.importOutline(mode);
+    onClose();
+  }
+
   return (
     <div className="command-popover" role="dialog" aria-label="Book commands">
+      <p className="eyebrow">Books</p>
       <div className="command-row">
         <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="New book title" />
-        <button className="primary-action" type="button" onClick={createBook}>New</button>
+        <button className="primary-action" type="button" onClick={createBook}>New Intake Book</button>
+      </div>
+      <div className="command-row">
+        <button className="secondary-action" type="button" onClick={() => importOutline("current")}>Import Outline Into Current</button>
+        <button className="secondary-action" type="button" onClick={() => importOutline("new")}>Import Outline As New</button>
       </div>
       <div className="command-list">
         {library.books.length === 0 ? <p className="empty-state">No registered books.</p> : null}

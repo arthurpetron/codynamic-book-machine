@@ -5,9 +5,10 @@ interface OutlineTreeProps {
   selectedId: string | null;
   filter: string;
   onSelect: (sectionId: string) => void;
+  onRename: (nodeId: string, currentTitle: string) => void;
 }
 
-export function OutlineTree({ chapters, selectedId, filter, onSelect }: OutlineTreeProps) {
+export function OutlineTree({ chapters, selectedId, filter, onSelect, onRename }: OutlineTreeProps) {
   const normalized = filter.trim().toLowerCase();
 
   return (
@@ -25,6 +26,9 @@ export function OutlineTree({ chapters, selectedId, filter, onSelect }: OutlineT
               <span>{chapter.expanded || normalized ? "v" : ">"}</span>
               <span>{chapter.chapter}: {chapter.title}</span>
             </button>
+            {chapter.id ? (
+              <button className="outline-edit" type="button" onClick={() => onRename(chapter.id!, chapter.title)}>Rename</button>
+            ) : null}
             <ul className="section-list">
               {visibleItems.map((item) => (
                 <li key={item.id}>
@@ -38,6 +42,7 @@ export function OutlineTree({ chapters, selectedId, filter, onSelect }: OutlineT
                     <span className="section-name">{item.number ? `${item.number} ` : ""}{item.title}</span>
                     <span className={`score ${item.tone ?? "idle"}`}>{item.score == null ? "--" : `${item.score}%`}</span>
                   </button>
+                  <button className="outline-edit" type="button" onClick={() => onRename(item.id, item.title)}>Rename</button>
                 </li>
               ))}
             </ul>

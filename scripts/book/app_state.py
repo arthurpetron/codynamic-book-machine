@@ -163,12 +163,68 @@ class BookAppState:
         )
         return self.section_payload(section_id)
 
+    def create_chapter(self, title: str) -> dict[str, Any]:
+        clean_title = title.strip()
+        if not clean_title:
+            raise ValueError("Chapter title is required")
+
+        book = self.repository.load_book()
+        structure = book["work"].setdefault("structure", [])
+        existing_ids = self._all_node_ids(structure)
+        chapter_id = self._unique_id(clean_title, existing_ids)
+        chapter = {
+            "id": chapter_id,
+            "type": "chapter",
+            "number": len(structure) + 1,
+            "title": clean_title,
+            "content": [],
+        }
+        structure.append(chapter)
+        self.repository.save_book(book)
+        AuthoringLoop(self.book_root).history.record_event(
+            event_type="chapter_created",
+            agent_id="desktop_app",
+            subject=chapter_id,
+            status="warn",
+            rationale=f"Created chapter '{clean_title}' from the desktop outline.",
+        )
+        return chapter
+
+    def update_outline_node(self, node_id: str, title: str) -> dict[str, Any]:
+        clean_title = title.strip()
+        if not clean_title:
+            raise ValueError("Outline title is required")
+
+        book = self.repository.load_book()
+        node = self._find_node(book["work"].get("structure", []), node_id)
+        if not node:
+            raise KeyError(f"Unknown outline node id: {node_id}")
+        node["title"] = clean_title
+        self.repository.save_book(book)
+        AuthoringLoop(self.book_root).history.record_event(
+            event_type="outline_updated",
+            agent_id="desktop_app",
+            subject=node_id,
+            status="warn",
+            rationale=f"Renamed outline node to '{clean_title}'.",
+        )
+        return node
+
     def accept_proposal(self, proposal_id: str, note: str = "") -> dict[str, Any]:
         proposal = self.repository.proposals.accept(proposal_id, reviewer="desktop_app", note=note)
         return proposal.__dict__
 
     def reject_proposal(self, proposal_id: str, note: str = "") -> dict[str, Any]:
         proposal = self.repository.proposals.reject(proposal_id, reviewer="desktop_app", note=note)
+        return proposal.__dict__
+
+    def revise_proposal(self, proposal_id: str, proposed_content: str, note: str = "") -> dict[str, Any]:
+        proposal = self.repository.proposals.revise(
+            proposal_id,
+            proposed_content=proposed_content,
+            reviewer="desktop_app",
+            note=note or "Revised from desktop proposal review.",
+        )
         return proposal.__dict__
 
     def _outline(self, nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:

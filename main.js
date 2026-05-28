@@ -116,6 +116,40 @@ async function importOutline(win) {
   }
 }
 
+async function importOutlineForMode(win, mode = 'new') {
+  const dialogOptions = {
+    title: mode === 'current' ? 'Import Outline Into Current Book' : 'Import Outline As New Book',
+    properties: ['openFile'],
+    filters: [
+      { name: 'Outlines', extensions: ['yaml', 'yml', 'json', 'md', 'markdown', 'txt'] },
+      { name: 'All Files', extensions: ['*'] }
+    ]
+  };
+  const result = win
+    ? await dialog.showOpenDialog(win, dialogOptions)
+    : await dialog.showOpenDialog(dialogOptions);
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return null;
+  }
+
+  const sourcePath = result.filePaths[0];
+  const args = [
+    path.join(__dirname, 'main.py'),
+    'import',
+    'outline',
+    sourcePath,
+    '--book-data-dir',
+    getBookDataDir(),
+    '--register'
+  ];
+  if (mode === 'current') {
+    args.push('--book-root', await getActiveBookRoot());
+  }
+  const importResult = await runPython(args);
+  return { sourcePath, output: importResult.stdout.trim() };
+}
+
 async function openBook(win) {
   const library = await runAppJson(['library']);
   const active = library.active;
@@ -331,11 +365,29 @@ app.whenReady().then(() => {
     }
     return runAppJson(args);
   });
+  ipcMain.handle('app:create-chapter', async (_event, { title }) => {
+    return runAppJson(['create-chapter', title || 'Untitled Chapter']);
+  });
+  ipcMain.handle('app:update-outline-node', async (_event, { nodeId, title }) => {
+    return runAppJson(['update-outline-node', nodeId, title]);
+  });
   ipcMain.handle('app:accept-proposal', async (_event, { proposalId, note } = {}) => {
     return runAppJson(['accept-proposal', proposalId, '--note', note || 'Accepted from desktop app.']);
   });
   ipcMain.handle('app:reject-proposal', async (_event, { proposalId, note } = {}) => {
     return runAppJson(['reject-proposal', proposalId, '--note', note || 'Rejected from desktop app.']);
+  });
+  ipcMain.handle('app:revise-proposal', async (_event, { proposalId, content, note } = {}) => {
+    const tmpPath = path.join(os.tmpdir(), `cbm-proposal-${Date.now()}.txt`);
+    fs.writeFileSync(tmpPath, content || '');
+    try {
+      return await runAppJson(['revise-proposal', proposalId, '--content-file', tmpPath, '--note', note || 'Revised from desktop app.']);
+    } finally {
+      fs.rmSync(tmpPath, { force: true });
+    }
+  });
+  ipcMain.handle('app:import-outline', async (_event, { mode } = {}) => {
+    return importOutlineForMode(BrowserWindow.getFocusedWindow(), mode || 'new');
   });
   ipcMain.handle('app:library', async () => {
     return runAppJson(['library']);

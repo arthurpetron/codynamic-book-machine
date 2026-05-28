@@ -397,10 +397,17 @@ def cmd_app(args):
             payload = app_state.request_review(subject=args.subject)
         elif args.app_command == "create-section":
             payload = app_state.create_section(args.title, parent_id=args.parent_id)
+        elif args.app_command == "create-chapter":
+            payload = app_state.create_chapter(args.title)
+        elif args.app_command == "update-outline-node":
+            payload = app_state.update_outline_node(args.node_id, args.title)
         elif args.app_command == "accept-proposal":
             payload = app_state.accept_proposal(args.proposal_id, note=args.note)
         elif args.app_command == "reject-proposal":
             payload = app_state.reject_proposal(args.proposal_id, note=args.note)
+        elif args.app_command == "revise-proposal":
+            content = Path(args.content_file).read_text()
+            payload = app_state.revise_proposal(args.proposal_id, proposed_content=content, note=args.note)
         else:
             raise ValueError(f"Unknown app command: {args.app_command}")
 
@@ -792,6 +799,15 @@ Examples:
     app_create_section.add_argument('--parent-id')
     app_create_section.set_defaults(func=cmd_app)
 
+    app_create_chapter = app_subparsers.add_parser('create-chapter', help='Create a top-level chapter')
+    app_create_chapter.add_argument('title')
+    app_create_chapter.set_defaults(func=cmd_app)
+
+    app_update_outline_node = app_subparsers.add_parser('update-outline-node', help='Rename an outline node')
+    app_update_outline_node.add_argument('node_id')
+    app_update_outline_node.add_argument('title')
+    app_update_outline_node.set_defaults(func=cmd_app)
+
     app_accept_proposal = app_subparsers.add_parser('accept-proposal', help='Accept an edit proposal')
     app_accept_proposal.add_argument('proposal_id')
     app_accept_proposal.add_argument('--note', default='')
@@ -801,6 +817,12 @@ Examples:
     app_reject_proposal.add_argument('proposal_id')
     app_reject_proposal.add_argument('--note', default='')
     app_reject_proposal.set_defaults(func=cmd_app)
+
+    app_revise_proposal = app_subparsers.add_parser('revise-proposal', help='Revise an edit proposal')
+    app_revise_proposal.add_argument('proposal_id')
+    app_revise_proposal.add_argument('--content-file', required=True)
+    app_revise_proposal.add_argument('--note', default='')
+    app_revise_proposal.set_defaults(func=cmd_app)
 
     app_library = app_subparsers.add_parser('library', help='Return registered books and active book')
     app_library.set_defaults(func=cmd_app)

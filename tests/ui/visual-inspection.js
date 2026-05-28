@@ -106,12 +106,14 @@ async function run() {
     editor: !!document.querySelector('.editor-pane'),
     preview: !!document.querySelector('.preview-pane'),
     compileBook: document.body.innerText.includes('Compile Book'),
+    compilePanel: !!document.querySelector('.compile-panel'),
     pageStrip: !!document.querySelector('.page-strip'),
     sectionMeta: !!document.querySelector('.section-meta'),
     selected: document.querySelector('.section-item.is-active')?.textContent || ''
   })`);
   assert(initial.outline && initial.editor && initial.preview, 'Initial three-pane layout did not render.');
   assert(initial.compileBook, 'PDF preview should expose a Compile Book action.');
+  assert(initial.compilePanel, 'PDF preview should expose compile status/history panel.');
   assert(!initial.pageStrip, 'PDF preview should not render the horizontal page gallery.');
   assert(initial.sectionMeta, 'Editor tab should show the current section title bar.');
   assert(initial.selected.includes('From Static'), 'Initial selected section is not visually active.');

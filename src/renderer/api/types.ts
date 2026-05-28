@@ -46,6 +46,7 @@ export interface EditProposal {
   status: "pending" | "accepted" | "rejected" | "revised" | string;
   rationale?: string;
   diff?: string;
+  proposed_content?: string;
 }
 
 export interface Artifact {
@@ -129,8 +130,12 @@ export interface ElectronApi {
     compileBook(): Promise<CompileResult>;
     requestReview(subject?: string): Promise<VerificationEvent>;
     createSection(parentId: string | undefined, title: string): Promise<SectionPayload>;
+    createChapter(title: string): Promise<Record<string, unknown>>;
+    updateOutlineNode(nodeId: string, title: string): Promise<Record<string, unknown>>;
     acceptProposal(proposalId: string, note?: string): Promise<EditProposal>;
     rejectProposal(proposalId: string, note?: string): Promise<EditProposal>;
+    reviseProposal(proposalId: string, content: string, note?: string): Promise<EditProposal>;
+    importOutline(mode: "current" | "new"): Promise<{ sourcePath: string; output: string } | null>;
     library(): Promise<BookLibraryState>;
     openBook(bookId: string): Promise<BookRecord>;
     newBook(title: string): Promise<BookRecord>;

@@ -61,11 +61,23 @@ window.cbm = {
     async createSection(_parentId, title) {
       return { ...fallbackSection, id: title.toLowerCase().replace(/[^a-z0-9]+/g, '_'), title };
     },
+    async createChapter(title) {
+      return { id: title.toLowerCase().replace(/[^a-z0-9]+/g, '_'), title };
+    },
+    async updateOutlineNode(nodeId, title) {
+      return { id: nodeId, title };
+    },
     async acceptProposal(proposalId) {
       return { proposal_id: proposalId, agent_id: 'section_agent', target_path: '', status: 'accepted' };
     },
     async rejectProposal(proposalId) {
       return { proposal_id: proposalId, agent_id: 'section_agent', target_path: '', status: 'rejected' };
+    },
+    async reviseProposal(proposalId) {
+      return { proposal_id: proposalId, agent_id: 'section_agent', target_path: '', status: 'revised' };
+    },
+    async importOutline() {
+      return { sourcePath: '/tmp/outline.yaml', output: 'Imported outline.' };
     },
     async library() {
       return { active: 'demo', books: [{ book_id: 'demo', title: 'Codynamic Theory', root: '', status: 'active' }] };

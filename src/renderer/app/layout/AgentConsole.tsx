@@ -13,6 +13,7 @@ export function AgentConsole({ store }: AgentConsoleProps) {
   const status = store.state.agentStatus;
   const messages = useMemo(() => [...store.activityMessages, ...(store.state.messages ?? [])].slice(0, 40), [store.activityMessages, store.state.messages]);
   const pending = userMessages.filter((message) => message.status === "pending");
+  const checks = (store.state.verification ?? []).slice().reverse().slice(0, 5);
 
   useEffect(() => {
     store.api.userChat?.list().then(setUserMessages).catch(() => setUserMessages([]));
@@ -81,6 +82,17 @@ export function AgentConsole({ store }: AgentConsoleProps) {
           </section>
           <section className="chat-log" aria-label="Inter-agent chat log">
             <div className="chat-title">Inter-agent chat log</div>
+            {checks.length > 0 ? (
+              <div className="check-list" aria-label="Recent review checks">
+                {checks.map((check) => (
+                  <article key={check.event_id ?? `${check.event_type}-${check.subject}`}>
+                    <strong>{check.event_type ?? "check"} · {check.status ?? "unknown"}</strong>
+                    <span>{check.subject ?? "book"}</span>
+                    <p>{check.rationale ?? "No rationale recorded."}</p>
+                  </article>
+                ))}
+              </div>
+            ) : null}
             <ol className="messages">
               {messages.map(([time, source, text], index) => (
                 <li className="message" key={`${time}-${source}-${index}`}>

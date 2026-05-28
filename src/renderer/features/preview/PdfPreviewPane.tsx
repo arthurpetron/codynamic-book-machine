@@ -23,7 +23,9 @@ export function PdfPreviewPane({ store }: PdfPreviewPaneProps) {
   const styleId = store.state.design?.style_id ?? "standard_article";
   const pdfPath = result?.pdf_path || "";
   const pdfUrl = pdfPath ? fileUrlFromPath(pdfPath) : "";
-  const compileStatus = store.isCompilingBook ? "Compiling" : result?.status ?? "Ready";
+  const isCompiling = store.isCompilingBook || store.isCompilingSection;
+  const compileStatus = isCompiling ? "Compiling" : result?.status ?? "Ready";
+  const errors = result?.errors ?? [];
 
   return (
     <aside className="preview-pane" aria-label="Live PDF preview">
@@ -46,13 +48,37 @@ export function PdfPreviewPane({ store }: PdfPreviewPaneProps) {
           <button className="secondary-action" type="button" onClick={store.compileBook} disabled={store.isCompilingBook}>
             {store.isCompilingBook ? "Compiling" : "Compile Book"}
           </button>
-          <span className="compile-state">{compileStatus}</span>
+          <span className={`compile-state ${compileStatus}`}>{compileStatus}</span>
         </div>
       </div>
+      <div className="compile-panel" aria-label="Compile status and history">
+        <div className="compile-panel-row">
+          <strong>{compileStatus}</strong>
+          <span>{pdfPath ? pdfPath.split("/").at(-1) : "No compiled PDF loaded yet"}</span>
+        </div>
+        {errors.length > 0 ? (
+          <div className="compile-error-summary">
+            <strong>{errors.length} compile issue{errors.length === 1 ? "" : "s"}</strong>
+            <span>{errors[0]}</span>
+          </div>
+        ) : null}
+        {store.compileHistory.length > 0 ? (
+          <ol className="compile-history" aria-label="Compile history">
+            {store.compileHistory.map((item) => (
+              <li key={item.id}>
+                <span>{item.createdAt}</span>
+                <strong>{item.target}</strong>
+                <em>{item.status}</em>
+                {item.errors > 0 ? <b>{item.errors} errors</b> : null}
+              </li>
+            ))}
+          </ol>
+        ) : null}
+      </div>
       <div className="pdf-stage" aria-label="Vertical PDF preview scrollbox">
-        {store.isCompilingBook ? (
+        {isCompiling ? (
           <div className="preview-placeholder">
-            <strong>Compiling book</strong>
+            <strong>Compiling {store.isCompilingBook ? "book" : "section"}</strong>
             <span>Running latexmk and refreshing the preview.</span>
           </div>
         ) : pdfUrl ? (
