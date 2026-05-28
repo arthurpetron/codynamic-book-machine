@@ -313,6 +313,19 @@ app.whenReady().then(() => {
   ipcMain.handle('app:request-review', async (_event, { subject } = {}) => {
     return runAppJson(['request-review', '--subject', subject || 'book']);
   });
+  ipcMain.handle('app:create-section', async (_event, { parentId, title }) => {
+    const args = ['create-section', title || 'Untitled Section'];
+    if (parentId) {
+      args.push('--parent-id', parentId);
+    }
+    return runAppJson(args);
+  });
+  ipcMain.handle('app:accept-proposal', async (_event, { proposalId, note } = {}) => {
+    return runAppJson(['accept-proposal', proposalId, '--note', note || 'Accepted from desktop app.']);
+  });
+  ipcMain.handle('app:reject-proposal', async (_event, { proposalId, note } = {}) => {
+    return runAppJson(['reject-proposal', proposalId, '--note', note || 'Rejected from desktop app.']);
+  });
   ipcMain.handle('app:library', async () => {
     return runAppJson(['library']);
   });

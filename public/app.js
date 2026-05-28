@@ -123,6 +123,7 @@ const fallbackUserChat = [
 const root = document.getElementById("root");
 const outlineTree = document.getElementById("outline-tree");
 const search = document.getElementById("outline-search");
+const newSectionButton = document.getElementById("new-section");
 const editor = document.getElementById("latex-editor");
 const title = document.getElementById("section-title");
 const previewTitle = document.getElementById("pdf-heading");
@@ -141,6 +142,10 @@ const userChatList = document.getElementById("user-chat-list");
 const compileSectionButton = document.getElementById("compile-section");
 const compileState = document.getElementById("compile-state");
 const documentStyle = document.getElementById("document-style");
+const agentSettings = document.getElementById("agent-settings");
+const proposalReview = document.getElementById("proposal-review");
+const referencesList = document.getElementById("references-list");
+const artifactBrowser = document.getElementById("artifact-browser");
 
 let selectedId = "ch01_sec01";
 let userChatMessages = [];
@@ -153,6 +158,19 @@ function getAllItems() {
 
 function findSelected() {
   return getAllItems().find((item) => item.id === selectedId) || sections[0]?.items?.[0];
+}
+
+function findCurrentChapter() {
+  return sections.find((chapter) => chapter.items.some((item) => item.id === selectedId)) || sections[0];
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function renderOutline(filter = "") {
@@ -296,6 +314,156 @@ function appendActivityMessage(source, text) {
   renderMessages(["now", source, text]);
 }
 
+function renderAgentPanel() {
+  if (!agentSettings || !proposalReview) {
+    return;
+  }
+
+  const status = currentAppState?.agentStatus || {};
+  const design = currentAppState?.design || {};
+  const verification = currentAppState?.verification || [];
+  const latestRationale = verification.at(-1)?.rationale || "No verification events recorded yet.";
+  agentSettings.innerHTML = `
+    <article class="detail-card">
+      <p class="eyebrow">Agent Runtime</p>
+      <h3>${status.active || 0}/${status.total || 1} active</h3>
+      <p>Pending proposals: <strong>${status.pendingProposals || 0}</strong></p>
+      <p>Confidence: <strong>${status.confidence || 0}%</strong></p>
+    </article>
+    <article class="detail-card">
+      <p class="eyebrow">Document Design</p>
+      <h3>${escapeHtml(design.style_id || design.styleId || "standard_article")}</h3>
+      <p>Page: <strong>${escapeHtml(design.page_size || "default")}</strong></p>
+      <p>Margins: <strong>${escapeHtml(design.margin || design.margins || "style default")}</strong></p>
+    </article>
+    <article class="detail-card">
+      <p class="eyebrow">Verification Memory</p>
+      <h3>${verification.length} recent events</h3>
+      <p>${escapeHtml(latestRationale)}</p>
+    </article>
+  `;
+
+  const proposals = currentAppState?.proposals || [];
+  const pending = proposals.filter((proposal) => proposal.status === "pending");
+  proposalReview.innerHTML = `<div class="detail-section-title"><p class="eyebrow">Proposal Review</p><h3>${pending.length} pending</h3></div>`;
+  if (proposals.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = "No agent proposals have been created for this book yet.";
+    proposalReview.appendChild(empty);
+    return;
+  }
+
+  proposals.slice().reverse().slice(0, 8).forEach((proposal) => {
+    const item = document.createElement("article");
+    item.className = `proposal-item ${proposal.status}`;
+    const diff = proposal.diff || "";
+    item.innerHTML = `
+      <div class="proposal-heading">
+        <div>
+          <strong>${escapeHtml(proposal.target_path)}</strong>
+          <span>${escapeHtml(proposal.agent_id)} · ${escapeHtml(proposal.status)}</span>
+        </div>
+      </div>
+      <p>${escapeHtml(proposal.rationale || "No rationale supplied.")}</p>
+      <pre>${escapeHtml(diff.slice(0, 1200) || "No textual diff available.")}</pre>
+    `;
+    if (proposal.status === "pending") {
+      const actions = document.createElement("div");
+      actions.className = "proposal-actions";
+      const accept = document.createElement("button");
+      accept.type = "button";
+      accept.className = "primary-action";
+      accept.textContent = "Accept";
+      accept.addEventListener("click", () => reviewProposal(proposal.proposal_id, "accept"));
+      const reject = document.createElement("button");
+      reject.type = "button";
+      reject.className = "secondary-action";
+      reject.textContent = "Reject";
+      reject.addEventListener("click", () => reviewProposal(proposal.proposal_id, "reject"));
+      actions.append(accept, reject);
+      item.appendChild(actions);
+    }
+    proposalReview.appendChild(item);
+  });
+}
+
+function renderReferencesPanel() {
+  if (!referencesList || !artifactBrowser) {
+    return;
+  }
+
+  const references = currentAppState?.references || [];
+  referencesList.innerHTML = `<div class="detail-section-title"><p class="eyebrow">References</p><h3>${references.length} entries</h3></div>`;
+  if (references.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = "No structured references are attached to this book yet.";
+    referencesList.appendChild(empty);
+  } else {
+    references.forEach((reference) => {
+      const item = document.createElement("article");
+      item.className = "reference-item";
+      item.innerHTML = `<strong>${escapeHtml(reference.title || reference.id || "Untitled reference")}</strong><span>${escapeHtml(reference.author || reference.year || reference.id || "")}</span>`;
+      referencesList.appendChild(item);
+    });
+  }
+
+  const artifacts = currentAppState?.artifacts || [];
+  artifactBrowser.innerHTML = `<div class="detail-section-title"><p class="eyebrow">Artifacts</p><h3>${artifacts.length} files</h3></div>`;
+  if (artifacts.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = "No compiled PDFs, media, or export artifacts are visible yet.";
+    artifactBrowser.appendChild(empty);
+    return;
+  }
+  artifacts.forEach((artifact) => {
+    const item = document.createElement("article");
+    item.className = "artifact-item";
+    item.innerHTML = `<strong>${escapeHtml(artifact.title || artifact.path)}</strong><span>${escapeHtml(artifact.kind || "artifact")} · ${escapeHtml(artifact.path)}</span>`;
+    artifactBrowser.appendChild(item);
+  });
+}
+
+async function reviewProposal(proposalId, action) {
+  if (!window.cbm || !window.cbm.app) {
+    return;
+  }
+  try {
+    if (action === "accept") {
+      await window.cbm.app.acceptProposal(proposalId, "Accepted from proposal review.");
+    } else {
+      await window.cbm.app.rejectProposal(proposalId, "Rejected from proposal review.");
+    }
+    appendActivityMessage("Proposal Review -> Book", `${action === "accept" ? "Accepted" : "Rejected"} ${proposalId}.`);
+    await loadAppState();
+  } catch (error) {
+    appendActivityMessage("Proposal Review -> Book", `Review failed: ${error.message}`);
+  }
+}
+
+async function createNewSection() {
+  const requestedTitle = window.prompt("Section title");
+  const sectionTitle = requestedTitle?.trim();
+  if (!sectionTitle) {
+    return;
+  }
+
+  const parentId = findCurrentChapter()?.id;
+  if (window.cbm && window.cbm.app) {
+    try {
+      const section = await window.cbm.app.createSection(parentId, sectionTitle);
+      selectedId = section.id;
+      appendActivityMessage("Outline -> Book", `Created ${section.title}.`);
+      await loadAppState();
+      return;
+    } catch (error) {
+      appendActivityMessage("Outline -> Book", `Create section failed: ${error.message}`);
+    }
+  }
+}
+
 async function loadAppState() {
   if (!window.cbm || !window.cbm.app) {
     renderOutline();
@@ -325,6 +493,8 @@ async function loadAppState() {
       selectSection(selectedId);
     }
     renderCompiledPreview(state.compile);
+    renderAgentPanel();
+    renderReferencesPanel();
     renderMessages();
   } catch (error) {
     appendActivityMessage("Desktop -> Book", `Failed to load app state: ${error.message}`);
@@ -517,10 +687,16 @@ async function dismissUserMessage(messageId) {
 
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => {
+    const activeTab = tab.dataset.tab;
     document.querySelectorAll(".tab").forEach((candidate) => {
       const isActive = candidate === tab;
       candidate.classList.toggle("is-active", isActive);
       candidate.setAttribute("aria-selected", String(isActive));
+    });
+    document.querySelectorAll(".tab-panel").forEach((panel) => {
+      const isActive = panel.dataset.panel === activeTab;
+      panel.classList.toggle("is-active", isActive);
+      panel.hidden = !isActive;
     });
   });
 });
@@ -533,6 +709,10 @@ document.querySelectorAll(".thumb").forEach((thumb) => {
 });
 
 search.addEventListener("input", () => renderOutline(search.value));
+
+newSectionButton.addEventListener("click", () => {
+  createNewSection();
+});
 
 toggleChat.addEventListener("click", () => {
   const next = root.dataset.chatCollapsed !== "true";

@@ -393,6 +393,12 @@ def cmd_app(args):
             payload = app_state.compile_section(args.section_id)
         elif args.app_command == "request-review":
             payload = app_state.request_review(subject=args.subject)
+        elif args.app_command == "create-section":
+            payload = app_state.create_section(args.title, parent_id=args.parent_id)
+        elif args.app_command == "accept-proposal":
+            payload = app_state.accept_proposal(args.proposal_id, note=args.note)
+        elif args.app_command == "reject-proposal":
+            payload = app_state.reject_proposal(args.proposal_id, note=args.note)
         else:
             raise ValueError(f"Unknown app command: {args.app_command}")
 
@@ -775,6 +781,21 @@ Examples:
     app_review = app_subparsers.add_parser('request-review', help='Record a full-review request')
     app_review.add_argument('--subject', default='book')
     app_review.set_defaults(func=cmd_app)
+
+    app_create_section = app_subparsers.add_parser('create-section', help='Create a section under a chapter')
+    app_create_section.add_argument('title')
+    app_create_section.add_argument('--parent-id')
+    app_create_section.set_defaults(func=cmd_app)
+
+    app_accept_proposal = app_subparsers.add_parser('accept-proposal', help='Accept an edit proposal')
+    app_accept_proposal.add_argument('proposal_id')
+    app_accept_proposal.add_argument('--note', default='')
+    app_accept_proposal.set_defaults(func=cmd_app)
+
+    app_reject_proposal = app_subparsers.add_parser('reject-proposal', help='Reject an edit proposal')
+    app_reject_proposal.add_argument('proposal_id')
+    app_reject_proposal.add_argument('--note', default='')
+    app_reject_proposal.set_defaults(func=cmd_app)
 
     app_library = app_subparsers.add_parser('library', help='Return registered books and active book')
     app_library.set_defaults(func=cmd_app)

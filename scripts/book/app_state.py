@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 from typing import Any
 
 import yaml
@@ -41,6 +42,7 @@ class BookAppState:
             "agentStatus": self._agent_status(),
             "artifacts": [artifact.__dict__ for artifact in self.repository.artifacts.discover()],
             "proposals": [proposal.__dict__ for proposal in self.repository.proposals.list()],
+            "references": self._references(work),
             "compile": self._latest_compile(),
             "verification": VerificationHistory(self.book_root).load()[-20:],
         }
@@ -97,6 +99,66 @@ class BookAppState:
             rationale="User requested full review across outline, drafts, dependencies, and compile state.",
         )
 
+    def create_section(self, title: str, parent_id: str | None = None) -> dict[str, Any]:
+        clean_title = title.strip()
+        if not clean_title:
+            raise ValueError("Section title is required")
+
+        book = self.repository.load_book()
+        structure = book["work"].setdefault("structure", [])
+        if not structure:
+            structure.append({
+                "id": "chapter_1",
+                "type": "chapter",
+                "number": 1,
+                "title": "Chapter 1",
+                "content": [],
+            })
+
+        parent = self._find_node(structure, parent_id) if parent_id else structure[0]
+        if parent is None:
+            raise KeyError(f"Unknown parent id: {parent_id}")
+
+        parent.setdefault("content", [])
+        existing_ids = self._all_node_ids(structure)
+        section_id = self._unique_id(clean_title, existing_ids)
+        parent_number = str(parent.get("number") or "")
+        child_number = len(parent["content"]) + 1
+        number = f"{parent_number}.{child_number}" if parent_number else str(child_number)
+
+        section = {
+            "id": section_id,
+            "type": "section",
+            "number": number,
+            "title": clean_title,
+            "summary": "",
+            "goal": "",
+            "prerequisites": [],
+            "dependencies": {"structural": [], "narrative": ""},
+            "key_concepts": [],
+            "citations": [],
+            "content_file": f"content/sections/{section_id}.md",
+        }
+        parent["content"].append(section)
+        self.repository.save_book(book)
+        self.repository.save_section(section_id, self._fallback_section_content(section))
+        AuthoringLoop(self.book_root).history.record_event(
+            event_type="section_created",
+            agent_id="desktop_app",
+            subject=section_id,
+            status="warn",
+            rationale=f"Created section '{clean_title}' from the desktop outline.",
+        )
+        return self.section_payload(section_id)
+
+    def accept_proposal(self, proposal_id: str, note: str = "") -> dict[str, Any]:
+        proposal = self.repository.proposals.accept(proposal_id, reviewer="desktop_app", note=note)
+        return proposal.__dict__
+
+    def reject_proposal(self, proposal_id: str, note: str = "") -> dict[str, Any]:
+        proposal = self.repository.proposals.reject(proposal_id, reviewer="desktop_app", note=note)
+        return proposal.__dict__
+
     def _outline(self, nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
         chapters = []
         for index, node in enumerate(nodes, 1):
@@ -137,6 +199,46 @@ class BookAppState:
             if chapter.get("items"):
                 return chapter["items"][0]["id"]
         return None
+
+    def _references(self, work: dict[str, Any]) -> list[dict[str, Any]]:
+        references = work.get("references") or work.get("bibliography") or []
+        if isinstance(references, list):
+            return references
+        if isinstance(references, dict):
+            entries = references.get("entries", references)
+            if isinstance(entries, dict):
+                return [{"id": key, **(value if isinstance(value, dict) else {"title": str(value)})} for key, value in entries.items()]
+            if isinstance(entries, list):
+                return entries
+        return []
+
+    def _find_node(self, nodes: list[dict[str, Any]], node_id: str | None) -> dict[str, Any] | None:
+        if not node_id:
+            return None
+        for node in nodes:
+            if node.get("id") == node_id:
+                return node
+            match = self._find_node(node.get("content") or [], node_id)
+            if match:
+                return match
+        return None
+
+    def _all_node_ids(self, nodes: list[dict[str, Any]]) -> set[str]:
+        node_ids = set()
+        for node in nodes:
+            if node.get("id"):
+                node_ids.add(node["id"])
+            node_ids.update(self._all_node_ids(node.get("content") or []))
+        return node_ids
+
+    def _unique_id(self, title: str, existing_ids: set[str]) -> str:
+        base = re.sub(r"[^a-z0-9]+", "_", title.lower()).strip("_") or "section"
+        candidate = base
+        suffix = 2
+        while candidate in existing_ids:
+            candidate = f"{base}_{suffix}"
+            suffix += 1
+        return candidate
 
     def _score_for(self, section_id: str) -> int | None:
         latest = self._latest_verification_for(section_id)

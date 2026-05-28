@@ -1,0 +1,18 @@
+books:
+- book_id: codynamic_theory_structure_is_all_you_need
+  title: 'Codynamic Theory: Structure Is All You Need'
+  root: data/book_data/codynamic_theory_book
+  outline_path: outline/codynamic_theory.yaml
+  status: active
+  last_opened: '2026-05-27T17:40:12.060122'
+  tags: []
+  metadata:
+    summary: 'This book introduces Codynamic Theory: a framework for understanding
+      learning, structure, and computation through recursive, context-aware evolution.
+      Rooted in category theory and informed by embodied cognition, it presents a
+      system of tools and structures for expressing, simulating, and iterating on
+      reality-aligned systems.
+
+      '
+    type: book
+    updated: '2025-05-26'

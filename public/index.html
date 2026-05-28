@@ -48,7 +48,7 @@
               <span class="sr-only">Search outline</span>
               <input id="outline-search" type="search" placeholder="Search outline" />
             </label>
-            <button class="primary-action" type="button">New Section</button>
+            <button id="new-section" class="primary-action" type="button">New Section</button>
           </div>
 
           <div class="outline-tree" id="outline-tree" role="tree" aria-label="Book outline"></div>
@@ -72,7 +72,7 @@
             </div>
           </div>
 
-          <section class="text-editor" aria-label="LaTeX text editor">
+          <section id="editor-panel" class="tab-panel text-editor is-active" aria-label="LaTeX text editor" data-panel="editor">
             <div class="editor-toolbar" aria-label="Editor toolbar">
               <button type="button" title="Bold">B</button>
               <button type="button" title="Italic">I</button>
@@ -85,6 +85,16 @@
               </label>
             </div>
             <textarea id="latex-editor" spellcheck="false" aria-label="LaTeX source"></textarea>
+          </section>
+
+          <section id="agents-panel" class="tab-panel detail-panel" aria-label="Agent settings and proposals" data-panel="agents" hidden>
+            <div id="agent-settings" class="detail-grid"></div>
+            <div id="proposal-review" class="proposal-review"></div>
+          </section>
+
+          <section id="references-panel" class="tab-panel detail-panel" aria-label="References and artifacts" data-panel="references" hidden>
+            <div id="references-list" class="reference-list"></div>
+            <div id="artifact-browser" class="artifact-browser"></div>
           </section>
         </section>
 

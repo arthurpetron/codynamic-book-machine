@@ -72,6 +72,33 @@ def test_request_review_is_reflected_in_state_history(tmp_path):
     assert state["verification"][-1]["event_type"] == "review_requested"
 
 
+def test_create_section_updates_outline_and_payload(tmp_path):
+    repository = create_book(tmp_path)
+    app = BookAppState(repository.book_root, data_root=tmp_path / "data")
+
+    section = app.create_section("New Argument", parent_id="ch01")
+    state = app.snapshot(section["id"])
+
+    assert section["id"] == "new_argument"
+    assert state["selectedSection"]["title"] == "New Argument"
+    assert any(item["id"] == "new_argument" for item in state["outline"][0]["items"])
+    assert "\\section{New Argument}" in repository.load_section("new_argument")
+
+
+def test_accept_and_reject_proposal_from_app_state(tmp_path):
+    repository = create_book(tmp_path)
+    app = BookAppState(repository.book_root, data_root=tmp_path / "data")
+    accepted = repository.authoring_loop().propose_section_draft("intro", "Accepted body.\n")
+    rejected = repository.authoring_loop().propose_section_draft("intro", "Rejected body.\n")
+
+    accepted_payload = app.accept_proposal(accepted.proposal_id, note="Looks good.")
+    rejected_payload = app.reject_proposal(rejected.proposal_id, note="Needs work.")
+
+    assert accepted_payload["status"] == "accepted"
+    assert rejected_payload["status"] == "rejected"
+    assert repository.load_section("intro") == "Accepted body.\n"
+
+
 def test_compile_section_returns_structured_result(tmp_path, monkeypatch):
     repository = create_book(tmp_path)
 
