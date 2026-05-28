@@ -79,12 +79,15 @@ export function useBookStore() {
 
   const compileBook = useCallback(async () => {
     setIsCompilingBook(true);
+    setCompileResult({ status: "compiling" });
+    addActivity("Typeset -> Preview", "Book compile started.");
     try {
       const result = await api.app.compileBook();
-      setCompileResult(result);
       addActivity("Typeset -> Preview", `Book compile ${result.status ?? "finished"}.`);
       await loadState(selectedId);
+      setCompileResult(result);
     } catch (error) {
+      setCompileResult({ status: "failed", errors: [(error as Error).message] });
       addActivity("Typeset -> Preview", `Book compile failed: ${(error as Error).message}`);
     } finally {
       setIsCompilingBook(false);

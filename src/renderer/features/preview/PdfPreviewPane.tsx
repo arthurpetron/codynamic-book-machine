@@ -12,12 +12,18 @@ function summarizeSource(source: string) {
     .find((line) => line && !line.startsWith("\\")) || "This section is ready for drafting.";
 }
 
+function fileUrlFromPath(filePath: string) {
+  return `file://${filePath.split("/").map((part) => encodeURIComponent(part)).join("/")}`;
+}
+
 export function PdfPreviewPane({ store }: PdfPreviewPaneProps) {
   const section = store.selectedSection;
   const result = store.compileResult;
   const styles = store.styles.length > 0 ? store.styles : store.state.styles ?? [];
   const styleId = store.state.design?.style_id ?? "standard_article";
   const pdfPath = result?.pdf_path || "";
+  const pdfUrl = pdfPath ? fileUrlFromPath(pdfPath) : "";
+  const compileStatus = store.isCompilingBook ? "Compiling" : result?.status ?? "Ready";
 
   return (
     <aside className="preview-pane" aria-label="Live PDF preview">
@@ -40,12 +46,17 @@ export function PdfPreviewPane({ store }: PdfPreviewPaneProps) {
           <button className="secondary-action" type="button" onClick={store.compileBook} disabled={store.isCompilingBook}>
             {store.isCompilingBook ? "Compiling" : "Compile Book"}
           </button>
-          <span className="compile-state">{result?.status ?? "Ready"}</span>
+          <span className="compile-state">{compileStatus}</span>
         </div>
       </div>
       <div className="pdf-stage" aria-label="Vertical PDF preview scrollbox">
-        {pdfPath ? (
-          <iframe className="pdf-frame" src={`file://${pdfPath}`} title="Compiled PDF preview" />
+        {store.isCompilingBook ? (
+          <div className="preview-placeholder">
+            <strong>Compiling book</strong>
+            <span>Running latexmk and refreshing the preview.</span>
+          </div>
+        ) : pdfUrl ? (
+          <iframe className="pdf-frame" src={pdfUrl} title="Compiled PDF preview" />
         ) : result?.errors?.length ? (
           <CompileDiagnostics errors={result.errors} />
         ) : (
