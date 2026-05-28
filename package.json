@@ -3,10 +3,24 @@
   "version": "0.1.0",
   "main": "main.js",
   "scripts": {
+    "dev:renderer": "vite --host 127.0.0.1",
+    "build": "tsc && vite build",
     "start": "electron .",
-    "web": "python3 -m http.server 4173 --directory public"
+    "web": "python3 -m http.server 4173 --directory public",
+    "pretest:ui:visual": "npm run build",
+    "test:ui:visual": "electron tests/ui/visual-inspection.js"
   },
   "devDependencies": {
     "electron": "42.2.0"
+  },
+  "dependencies": {
+    "@types/node": "^25.9.1",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.14"
   }
 }

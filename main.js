@@ -241,7 +241,15 @@ function createWindow() {
     }
   });
 
-  win.loadFile(path.join(__dirname, 'public', 'index.html'));
+  const rendererUrl = process.env.VITE_DEV_SERVER_URL;
+  const builtRenderer = path.join(__dirname, 'dist', 'renderer', 'index.html');
+  if (rendererUrl) {
+    win.loadURL(rendererUrl);
+  } else if (fs.existsSync(builtRenderer)) {
+    win.loadFile(builtRenderer);
+  } else {
+    win.loadFile(path.join(__dirname, 'public', 'index.html'));
+  }
   createAppMenu(win);
 }
 
@@ -309,6 +317,9 @@ app.whenReady().then(() => {
   });
   ipcMain.handle('app:compile-section', async (_event, { sectionId }) => {
     return runAppJson(['compile-section', sectionId]);
+  });
+  ipcMain.handle('app:compile-book', async () => {
+    return runAppJson(['compile-book']);
   });
   ipcMain.handle('app:request-review', async (_event, { subject } = {}) => {
     return runAppJson(['request-review', '--subject', subject || 'book']);

@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('cbm', {
     section: (sectionId) => ipcRenderer.invoke('app:section', { sectionId }),
     saveSection: (sectionId, content) => ipcRenderer.invoke('app:save-section', { sectionId, content }),
     compileSection: (sectionId) => ipcRenderer.invoke('app:compile-section', { sectionId }),
+    compileBook: () => ipcRenderer.invoke('app:compile-book'),
     requestReview: (subject) => ipcRenderer.invoke('app:request-review', { subject }),
     createSection: (parentId, title) => ipcRenderer.invoke('app:create-section', { parentId, title }),
     acceptProposal: (proposalId, note) => ipcRenderer.invoke('app:accept-proposal', { proposalId, note }),

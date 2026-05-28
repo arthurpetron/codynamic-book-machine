@@ -1,0 +1,13 @@
+{
+  "status": "passed",
+  "failures": [],
+  "consoleErrors": [],
+  "screenshots": [
+    "/Users/darthur/Dore Dropbox/Arthur Petron/codex/codynamic-book-machine/tests/ui/artifacts/01-initial.png",
+    "/Users/darthur/Dore Dropbox/Arthur Petron/codex/codynamic-book-machine/tests/ui/artifacts/02-primary-hover.png",
+    "/Users/darthur/Dore Dropbox/Arthur Petron/codex/codynamic-book-machine/tests/ui/artifacts/03-agent-settings.png",
+    "/Users/darthur/Dore Dropbox/Arthur Petron/codex/codynamic-book-machine/tests/ui/artifacts/04-references.png",
+    "/Users/darthur/Dore Dropbox/Arthur Petron/codex/codynamic-book-machine/tests/ui/artifacts/05-new-section-dialog.png",
+    "/Users/darthur/Dore Dropbox/Arthur Petron/codex/codynamic-book-machine/tests/ui/artifacts/06-console-collapsed.png"
+  ]
+}

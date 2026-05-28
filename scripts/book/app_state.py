@@ -90,6 +90,18 @@ class BookAppState:
         )
         return result.as_dict()
 
+    def compile_book(self) -> dict[str, Any]:
+        result = LatexBuildService(self.book_root).compile_book()
+        AuthoringLoop(self.book_root).history.record_event(
+            event_type="book_compile",
+            agent_id="desktop_app",
+            subject="book",
+            status="pass" if result.status == "passed" else "fail",
+            rationale="Full book compile requested from UI.",
+            metadata=result.as_dict(),
+        )
+        return result.as_dict()
+
     def request_review(self, subject: str = "book") -> dict[str, Any]:
         return AuthoringLoop(self.book_root).history.record_event(
             event_type="review_requested",

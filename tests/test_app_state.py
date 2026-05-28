@@ -118,3 +118,24 @@ def test_compile_section_returns_structured_result(tmp_path, monkeypatch):
 
     assert result["status"] == "passed"
     assert result["pdf_path"].endswith("intro.pdf")
+
+
+def test_compile_book_returns_structured_result(tmp_path, monkeypatch):
+    repository = create_book(tmp_path)
+
+    def fake_run(command, cwd, env, capture_output, text, timeout, check):
+        output_dir = Path(cwd) / "build" / "pdf"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        (output_dir / "desktop_book.pdf").write_text("fake pdf")
+        return SimpleNamespace(returncode=0, stdout="ok", stderr="")
+
+    monkeypatch.setattr(
+        "scripts.book.typesetting.find_latex_compiler",
+        lambda engine=None: LatexCompiler(name="latexmk", path="/usr/bin/latexmk"),
+    )
+    monkeypatch.setattr("scripts.book.typesetting.subprocess.run", fake_run)
+
+    result = BookAppState(repository.book_root, data_root=tmp_path / "data").compile_book()
+
+    assert result["status"] == "passed"
+    assert result["pdf_path"].endswith("desktop_book.pdf")

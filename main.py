@@ -391,6 +391,8 @@ def cmd_app(args):
             payload = app_state.save_section(args.section_id, content)
         elif args.app_command == "compile-section":
             payload = app_state.compile_section(args.section_id)
+        elif args.app_command == "compile-book":
+            payload = app_state.compile_book()
         elif args.app_command == "request-review":
             payload = app_state.request_review(subject=args.subject)
         elif args.app_command == "create-section":
@@ -777,6 +779,9 @@ Examples:
     app_compile = app_subparsers.add_parser('compile-section', help='Compile one section and return compile result')
     app_compile.add_argument('section_id')
     app_compile.set_defaults(func=cmd_app)
+
+    app_compile_book = app_subparsers.add_parser('compile-book', help='Compile the full book and return compile result')
+    app_compile_book.set_defaults(func=cmd_app)
 
     app_review = app_subparsers.add_parser('request-review', help='Record a full-review request')
     app_review.add_argument('--subject', default='book')
