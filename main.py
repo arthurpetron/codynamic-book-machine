@@ -486,6 +486,54 @@ def cmd_beyond(args):
         return 1
 
 
+def cmd_agents(args):
+    """Run real authoring-agent workflow actions."""
+    try:
+        from scripts.book import AuthoringAgentWorkflow
+
+        workflow = AuthoringAgentWorkflow(
+            args.book_root,
+            mode=getattr(args, "mode", "proposal"),
+            project_root=Path("."),
+        )
+
+        if args.agents_command == "graph":
+            payload = workflow.dependency_graph()
+        elif args.agents_command == "spawn":
+            payload = workflow.spawn_agents(section_ids=args.section_ids)
+        elif args.agents_command == "start":
+            payload = workflow.start_agent(args.agent_id)
+        elif args.agents_command == "stop":
+            payload = workflow.stop_agent(args.agent_id, reason=args.reason)
+        elif args.agents_command == "drift":
+            payload = workflow.summarize_drift()
+        elif args.agents_command == "draft-section":
+            payload = workflow.draft_section(args.section_id).__dict__
+        elif args.agents_command == "gardener":
+            payload = workflow.run_gardener_checks(args.section_id)
+        elif args.agents_command == "diagrams":
+            payload = workflow.fulfill_media_requests()
+        elif args.agents_command == "design":
+            compile_result = json.loads(Path(args.compile_result).read_text()) if args.compile_result else None
+            payload = workflow.review_document_design(compile_result=compile_result)
+        elif args.agents_command == "runtime":
+            payload = workflow.runtime.list()
+        elif args.agents_command == "commit-log":
+            payload = workflow.commit_log.load()
+        else:
+            raise ValueError(f"Unknown agents command: {args.agents_command}")
+
+        print(json.dumps(payload, indent=2, sort_keys=True))
+        return 0
+
+    except Exception as e:
+        print(json.dumps({"error": str(e)}))
+        if args.verbose:
+            import traceback
+            traceback.print_exc()
+        return 1
+
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -702,6 +750,67 @@ Examples:
     memory = authoring_subparsers.add_parser('memory', help='Build communication log memory')
     memory.add_argument('--data-root', default='data')
     memory.set_defaults(func=cmd_authoring)
+
+    # Real authoring-agent workflow command
+    agents_parser = subparsers.add_parser(
+        'agents',
+        help='Run hypervisor, section, gardener, diagram, and design agent workflows'
+    )
+    agents_parser.add_argument(
+        'book_root',
+        help='Book root for agent workflow actions'
+    )
+    agents_parser.add_argument(
+        '--mode',
+        choices=['proposal', 'full-auto'],
+        default='proposal',
+        help='Proposal-first or full-auto editing mode'
+    )
+    agents_subparsers = agents_parser.add_subparsers(
+        dest='agents_command',
+        help='Agent workflow action',
+        required=True,
+    )
+
+    agents_graph = agents_subparsers.add_parser('graph', help='Build dependency and blocker graph')
+    agents_graph.set_defaults(func=cmd_agents)
+
+    agents_spawn = agents_subparsers.add_parser('spawn', help='Spawn global agents and section agents')
+    agents_spawn.add_argument('section_ids', nargs='*')
+    agents_spawn.set_defaults(func=cmd_agents)
+
+    agents_start = agents_subparsers.add_parser('start', help='Start a spawned agent')
+    agents_start.add_argument('agent_id')
+    agents_start.set_defaults(func=cmd_agents)
+
+    agents_stop = agents_subparsers.add_parser('stop', help='Stop a spawned agent')
+    agents_stop.add_argument('agent_id')
+    agents_stop.add_argument('--reason', default='')
+    agents_stop.set_defaults(func=cmd_agents)
+
+    agents_drift = agents_subparsers.add_parser('drift', help='Summarize drift from verification history')
+    agents_drift.set_defaults(func=cmd_agents)
+
+    agents_draft = agents_subparsers.add_parser('draft-section', help='Draft one section into a TeX proposal')
+    agents_draft.add_argument('section_id')
+    agents_draft.set_defaults(func=cmd_agents)
+
+    agents_gardener = agents_subparsers.add_parser('gardener', help='Run real gardener checks for one section')
+    agents_gardener.add_argument('section_id')
+    agents_gardener.set_defaults(func=cmd_agents)
+
+    agents_diagrams = agents_subparsers.add_parser('diagrams', help='Fulfill pending media requests')
+    agents_diagrams.set_defaults(func=cmd_agents)
+
+    agents_design = agents_subparsers.add_parser('design', help='Inspect compile output and propose style fixes')
+    agents_design.add_argument('--compile-result')
+    agents_design.set_defaults(func=cmd_agents)
+
+    agents_runtime = agents_subparsers.add_parser('runtime', help='Show agent runtime state')
+    agents_runtime.set_defaults(func=cmd_agents)
+
+    agents_commit_log = agents_subparsers.add_parser('commit-log', help='Show agent checkpoint log')
+    agents_commit_log.set_defaults(func=cmd_agents)
 
     # Typesetting command
     typeset_parser = subparsers.add_parser(

@@ -103,13 +103,33 @@ class BookAppState:
         return result.as_dict()
 
     def request_review(self, subject: str = "book") -> dict[str, Any]:
-        return AuthoringLoop(self.book_root).history.record_event(
+        from scripts.book.agent_workflow import AuthoringAgentWorkflow
+
+        workflow = AuthoringAgentWorkflow(self.book_root)
+        graph = workflow.dependency_graph()
+        gardener_event = None
+        if subject != "book":
+            gardener_event = workflow.run_gardener_checks(subject)
+        drift = workflow.summarize_drift()
+        event = AuthoringLoop(self.book_root).history.record_event(
             event_type="review_requested",
             agent_id="desktop_app",
             subject=subject,
             status="warn",
             rationale="User requested full review across outline, drafts, dependencies, and compile state.",
+            metadata={
+                "dependency_graph": graph,
+                "gardener_event_id": gardener_event["event_id"] if gardener_event else None,
+                "drift_event_id": drift["event"]["event_id"],
+            },
         )
+        return {
+            **event,
+            "event": event,
+            "dependencyGraph": graph,
+            "gardener": gardener_event,
+            "drift": drift,
+        }
 
     def create_section(self, title: str, parent_id: str | None = None) -> dict[str, Any]:
         clean_title = title.strip()

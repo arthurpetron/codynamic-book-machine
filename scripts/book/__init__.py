@@ -1,6 +1,7 @@
 """Canonical book object APIs."""
 
 from .artifact_registry import ArtifactRegistry
+from .agent_workflow import AgentCommitLog, AgentRuntimeRegistry, AuthoringAgentWorkflow
 from .app_state import BookAppState
 from .authoring import (
     AuthoringLoop,
@@ -29,8 +30,11 @@ from .versioning import ChangeSet, ChangeSetManager
 
 __all__ = [
     "ArtifactRegistry",
+    "AgentCommitLog",
+    "AgentRuntimeRegistry",
     "ArtworkSpec",
     "AuthoringLoop",
+    "AuthoringAgentWorkflow",
     "BookAppState",
     "CommunicationMemory",
     "ChangeSet",
