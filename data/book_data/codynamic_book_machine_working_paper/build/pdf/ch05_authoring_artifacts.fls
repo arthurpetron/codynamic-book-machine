@@ -240,6 +240,9 @@ OUTPUT build/pdf/ch05_authoring_artifacts.pdf
 INPUT /usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmr12.tfm
 INPUT /usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmbx12.tfm
 INPUT /usr/local/texlive/2025/texmf-var/fonts/map/pdftex/updmap/pdftex.map
+INPUT ./media/diagrams/ch05_authoring_artifacts__media_req_4518017964f0.tikz
+INPUT ./media/diagrams/ch05_authoring_artifacts__media_req_4518017964f0.tikz
+INPUT media/diagrams/ch05_authoring_artifacts__media_req_4518017964f0.tikz
 INPUT build/pdf/ch05_authoring_artifacts.aux
 INPUT build/pdf/ch05_authoring_artifacts.out
 INPUT build/pdf/ch05_authoring_artifacts.out

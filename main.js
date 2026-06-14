@@ -16,6 +16,10 @@ function getBookDataDir() {
   return path.join(__dirname, 'data', 'book_data');
 }
 
+function getDefaultVersionOutlinePath() {
+  return path.join(__dirname, 'data', 'book_book', 'meta_book.yaml');
+}
+
 function readUserChatQueue() {
   const queuePath = getUserChatQueuePath();
   if (!fs.existsSync(queuePath)) {
@@ -201,6 +205,43 @@ async function importOutlineFromNativeMenu(win, mode = 'new') {
   }
 }
 
+async function createVersionFromOutline(win) {
+  try {
+    const result = await runAppJson([
+      'create-version-from-outline',
+      '--outline-path',
+      getDefaultVersionOutlinePath(),
+      '--force'
+    ]);
+    const bookId = result.record?.book_id;
+    win.webContents.send('app:book:changed', { bookId });
+    win.webContents.send('app:library:message', {
+      message: result.message || `Created clean version from ${getDefaultVersionOutlinePath()}.`
+    });
+    await dialog.showMessageBox(win, {
+      type: 'info',
+      title: 'Version Created',
+      message: 'Created a clean book version from the outline.',
+      detail: result.message || '',
+      buttons: ['OK']
+    });
+    return result;
+  } catch (error) {
+    const message = pythonErrorMessage(error);
+    win.webContents.send('app:library:message', {
+      message: `Version creation failed: ${message}`
+    });
+    await dialog.showMessageBox(win, {
+      type: 'error',
+      title: 'Version Creation Failed',
+      message: 'Could not create a clean version from the outline.',
+      detail: message,
+      buttons: ['OK']
+    });
+    throw error;
+  }
+}
+
 async function openBook(win) {
   const library = await runAppJson(['library']);
   const active = library.active;
@@ -275,6 +316,10 @@ function createAppMenu(win) {
       {
         label: 'Import / Translate Outline into Current Book...',
         click: () => importOutlineFromNativeMenu(win, 'current')
+      },
+      {
+        label: 'Create Version from Meta Outline...',
+        click: () => createVersionFromOutline(win)
       },
       { type: 'separator' },
       process.platform === 'darwin'
@@ -515,6 +560,23 @@ app.whenReady().then(() => {
       return {
         sourcePath: '',
         output: `Import failed: ${message}`
+      };
+    }
+  });
+  ipcMain.handle('app:create-version-from-outline', async (_event) => {
+    try {
+      const win = BrowserWindow.fromWebContents(_event.sender) || BrowserWindow.getFocusedWindow();
+      const result = await runAppJson([
+        'create-version-from-outline',
+        '--outline-path',
+        getDefaultVersionOutlinePath(),
+        '--force'
+      ]);
+      win?.webContents.send('app:book:changed', { bookId: result.record?.book_id });
+      return result;
+    } catch (error) {
+      return {
+        error: pythonErrorMessage(error)
       };
     }
   });

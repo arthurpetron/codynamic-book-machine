@@ -1,5 +1,6 @@
 """Tests for real authoring-agent workflow orchestration."""
 
+import json
 from pathlib import Path
 
 from scripts.api import LLMResponse
@@ -173,6 +174,64 @@ def test_hypervisor_runs_queued_section_task_into_proposal(tmp_path):
     assert result["task"]["task_id"] == task["task_id"]
     assert result["result"]["proposal_id"].startswith("proposal_")
     assert result["task"]["result"]["target_path"] == "content/sections/intro.tex"
+    visual_tasks = [
+        queued for queued in workflow.runtime.list()["section_agent__intro"]["task_queue"]
+        if queued["action_id"] == "propose_section_visuals"
+        and queued["status"] == "pending"
+    ]
+    assert visual_tasks
+    assert visual_tasks[0]["context"]["after_action"] == "draft_initial_section"
+    assert visual_tasks[0]["context"]["max_diagrams"] == 2
+
+
+def test_section_plan_work_sends_self_message_with_document_context(tmp_path):
+    repository = create_book(tmp_path)
+    repository.save_section("intro", "Explain this workflow with a diagram of the queue and agent loop.\n")
+    workflow = AuthoringAgentWorkflow(repository.book_root)
+    workflow.supervise_agents(section_ids=["intro"], queue_work=False)
+    task = workflow.queue_agent_task(
+        "section_agent__intro",
+        "plan_section_work",
+        {"section_id": "intro", "trigger": "manual_start_agent_button"},
+    )
+
+    result = workflow.run_agent_task("section_agent__intro")
+
+    assert result["result"]["status"] == "plan_sent_to_self"
+    assert "document_tex" in task["context"]
+    assert "book_outline" in task["context"]
+    assert "workflow with a diagram" in result["result"]["plan"]["rationale"]["manual_context"]["source_material"]
+    message_tasks = [
+        queued for queued in workflow.runtime.list()["section_agent__intro"]["task_queue"]
+        if queued["action_id"] == "process_message"
+        and queued["status"] == "pending"
+    ]
+    assert message_tasks
+    assert message_tasks[0]["context"]["message"]["subject"] == "Section action plan: intro"
+
+
+def test_section_plan_self_message_queues_concrete_tasks_and_diagrams(tmp_path):
+    repository = create_book(tmp_path)
+    repository.save_section("intro", "Explain this workflow with a diagram of the queue and agent loop.\n")
+    workflow = AuthoringAgentWorkflow(repository.book_root)
+    workflow.supervise_agents(section_ids=["intro"], queue_work=False)
+    workflow.queue_agent_task(
+        "section_agent__intro",
+        "plan_section_work",
+        {"section_id": "intro", "trigger": "manual_start_agent_button"},
+    )
+    workflow.run_agent_task("section_agent__intro")
+
+    processed = workflow.run_agent_task("section_agent__intro")
+
+    assert processed["result"]["status"] == "section_plan_tasks_queued"
+    pending_actions = [
+        queued["action_id"]
+        for queued in workflow.runtime.list()["section_agent__intro"]["task_queue"]
+        if queued["status"] == "pending"
+    ]
+    assert "draft_initial_section" in pending_actions
+    assert "propose_section_visuals" in pending_actions
 
 
 def test_task_queue_uses_message_router_for_assignment_and_gardener_feedback(tmp_path, monkeypatch):
@@ -408,11 +467,12 @@ def test_hypervisor_processes_compile_failure_message_into_repair_tasks(tmp_path
     assert result["result"]["status"] == "repair_tasks_queued"
     section_tasks = [
         task for task in workflow.runtime.list()["section_agent__intro"]["task_queue"]
-        if task["action_id"] == "revise_section_from_feedback"
+        if task["action_id"] == "fix_latex_compile_error"
     ]
     assert section_tasks
     assert section_tasks[0]["priority"] == 0
     assert "Undefined control sequence" in section_tasks[0]["context"]["feedback"]
+    assert "Undefined control sequence" in section_tasks[0]["context"]["errors"][0]
 
 
 def test_hypervisor_rejects_tasks_not_declared_by_agent_yaml(tmp_path):
@@ -511,6 +571,13 @@ def test_queued_revision_uses_specific_feedback_in_provider_prompt(tmp_path):
     assert "Draft a LaTeX section payload" not in prompt
     assert result["result"]["metadata"]["action_id"] == "revise_section_from_feedback"
     assert result["result"]["metadata"]["feedback"] == "Gardener says: define the central invariant before using it."
+    visual_tasks = [
+        queued for queued in workflow.runtime.list()["section_agent__intro"]["task_queue"]
+        if queued["action_id"] == "propose_section_visuals"
+        and queued["status"] == "pending"
+    ]
+    assert visual_tasks
+    assert visual_tasks[0]["context"]["after_action"] == "revise_section_from_feedback"
 
 
 def test_section_agent_proposal_result_can_feed_revision_task(tmp_path):
@@ -747,9 +814,213 @@ def test_section_visual_proposal_queues_diagram_and_inserts_asset(tmp_path):
     path = diagram["result"]["path"]
 
     assert path.startswith("media/diagrams/")
+    tikz = (repository.book_root / path).read_text()
+    assert "{Context}" not in tikz
+    assert "{Section}" not in tikz
+    assert "Intro" in tikz
+    memory_path = repository.book_root / "media" / "diagrams" / "diagram_agent_memory.json"
+    memory = json.loads(memory_path.read_text())
+    assert memory[-1]["path"] == path
+    assert memory[-1]["nodes"]
+    assert memory[-1]["edges"]
+    assert memory[-1]["why_distinct"]
     section_latex = repository.load_latex_section("intro")
     assert f"\\input{{{path}}}" in section_latex
     assert "A two-node flow from context to section argument" in section_latex
+
+
+def test_diagram_agent_uses_memory_to_vary_generated_diagrams(tmp_path):
+    repository = create_book(tmp_path)
+    workflow = AuthoringAgentWorkflow(repository.book_root)
+    workflow.supervise_agents(section_ids=["intro"], queue_work=False)
+    workflow.queue_agent_task(
+        "diagram_agent",
+        "create_diagram_asset",
+        {
+            "section_id": "intro",
+            "requesting_agent": "section_agent__intro",
+            "description": "Show a workflow from outline intent through task queue to LaTeX section.",
+            "media_type": "tikz",
+            "insert_into_section": False,
+        },
+    )
+    first = workflow.run_agent_task("diagram_agent")["result"]
+    workflow.queue_agent_task(
+        "diagram_agent",
+        "create_diagram_asset",
+        {
+            "section_id": "intro",
+            "requesting_agent": "section_agent__intro",
+            "description": "Show dependency edges between source section, dependency edge, target section, and narrative note.",
+            "media_type": "tikz",
+            "insert_into_section": False,
+        },
+    )
+
+    second = workflow.run_agent_task("diagram_agent")["result"]
+
+    first_tikz = (repository.book_root / first["path"]).read_text()
+    second_tikz = (repository.book_root / second["path"]).read_text()
+    assert first_tikz != second_tikz
+    assert "Queued Task" in first_tikz
+    assert "Dependency Edge" in second_tikz
+    memory = json.loads((repository.book_root / "media" / "diagrams" / "diagram_agent_memory.json").read_text())
+    assert [entry["path"] for entry in memory[-2:]] == [first["path"], second["path"]]
+
+
+def test_diagram_task_prompt_includes_memory_and_section_context(tmp_path):
+    repository = create_book(tmp_path)
+    workflow = AuthoringAgentWorkflow(repository.book_root)
+    workflow.supervise_agents(section_ids=["intro"], queue_work=False)
+    workflow.queue_agent_task(
+        "diagram_agent",
+        "create_diagram_asset",
+        {
+            "section_id": "intro",
+            "requesting_agent": "section_agent__intro",
+            "description": "Show a workflow from outline intent through task queue to LaTeX section.",
+            "media_type": "tikz",
+            "insert_into_section": False,
+        },
+    )
+    workflow.run_agent_task("diagram_agent")
+
+    task = workflow.queue_agent_task(
+        "diagram_agent",
+        "create_diagram_asset",
+        {
+            "section_id": "intro",
+            "requesting_agent": "section_agent__intro",
+            "description": "Show dependency edges between source section, dependency edge, target section, and narrative note.",
+            "media_type": "tikz",
+            "insert_into_section": False,
+        },
+    )
+
+    prompt = task["generated_prompt"]
+    assert "Prior diagram memory:" in prompt
+    assert "section_context:" in prompt
+    assert "media/diagrams/" in prompt
+    assert "Queued Task" in prompt
+    assert "Show dependency edges" in prompt
+
+
+def test_section_visual_proposal_can_decide_no_diagrams(tmp_path):
+    repository = create_book(tmp_path)
+    workflow = AuthoringAgentWorkflow(repository.book_root)
+    workflow.supervise_agents(section_ids=["intro"], queue_work=False)
+    workflow.queue_agent_task(
+        "section_agent__intro",
+        "propose_section_visuals",
+        {"section_id": "intro", "max_diagrams": 2},
+    )
+
+    proposal = workflow.run_agent_task("section_agent__intro")
+
+    assert proposal["result"]["status"] == "no_diagrams"
+    assert proposal["result"]["diagram_count"] == 0
+    diagram_tasks = [
+        task for task in workflow.runtime.list()["diagram_agent"]["task_queue"]
+        if task["action_id"] == "create_diagram_asset"
+    ]
+    assert not diagram_tasks
+
+
+def test_front_matter_section_does_not_queue_visual_decision_after_draft(tmp_path):
+    repository = create_book(tmp_path)
+    book = repository.load_book()
+    book["work"]["front_matter"] = {"abstract": {"enabled": True}}
+    book["work"]["structure"].insert(0, {
+        "id": "abstract",
+        "type": "chapter",
+        "title": "Abstract",
+        "summary": "Summarize the architecture and workflow diagrammatically.",
+        "goal": "State the paper scope.",
+        "dependencies": {"structural": [], "narrative": ""},
+        "prerequisites": [],
+        "content_file": "content/sections/abstract.md",
+    })
+    repository.save_book(book)
+    repository.save_section("abstract", "This abstract mentions a workflow diagram but is front matter.\n")
+    workflow = AuthoringAgentWorkflow(repository.book_root)
+    workflow.supervise_agents(section_ids=["abstract"], queue_work=False)
+    workflow.queue_agent_task("section_agent__abstract", "draft_initial_section", {"section_id": "abstract"})
+
+    workflow.run_agent_task("section_agent__abstract")
+
+    visual_tasks = [
+        task for task in workflow.runtime.list()["section_agent__abstract"]["task_queue"]
+        if task["action_id"] == "propose_section_visuals"
+    ]
+    assert not visual_tasks
+
+
+def test_front_matter_visual_proposal_returns_no_diagrams_even_with_explicit_request(tmp_path):
+    repository = create_book(tmp_path)
+    book = repository.load_book()
+    book["work"]["front_matter"] = {"abstract": {"enabled": True}}
+    book["work"]["structure"].insert(0, {
+        "id": "abstract",
+        "type": "chapter",
+        "title": "Abstract",
+        "summary": "Summarize the architecture.",
+        "goal": "State the paper scope.",
+        "dependencies": {"structural": [], "narrative": ""},
+        "prerequisites": [],
+        "content_file": "content/sections/abstract.md",
+    })
+    repository.save_book(book)
+    repository.save_section("abstract", "This abstract asks for a workflow diagram.\n")
+    workflow = AuthoringAgentWorkflow(repository.book_root)
+    workflow.supervise_agents(section_ids=["abstract"], queue_work=False)
+    workflow.queue_agent_task(
+        "section_agent__abstract",
+        "propose_section_visuals",
+        {
+            "section_id": "abstract",
+            "diagrams": [{"description": "An explicit abstract diagram request."}],
+        },
+    )
+
+    proposal = workflow.run_agent_task("section_agent__abstract")
+
+    assert proposal["result"]["status"] == "no_diagrams"
+    assert proposal["result"]["diagram_count"] == 0
+    diagram_tasks = [
+        task for task in workflow.runtime.list()["diagram_agent"]["task_queue"]
+        if task["action_id"] == "create_diagram_asset"
+    ]
+    assert not diagram_tasks
+
+
+def test_section_visual_proposal_caps_explicit_requests_at_two(tmp_path):
+    repository = create_book(tmp_path)
+    workflow = AuthoringAgentWorkflow(repository.book_root)
+    workflow.supervise_agents(section_ids=["intro"], queue_work=False)
+    workflow.queue_agent_task(
+        "section_agent__intro",
+        "propose_section_visuals",
+        {
+            "section_id": "intro",
+            "max_diagrams": 2,
+            "diagrams": [
+                {"description": "First visual."},
+                {"description": "Second visual."},
+                {"description": "Third visual should be ignored."},
+            ],
+        },
+    )
+
+    proposal = workflow.run_agent_task("section_agent__intro")
+
+    assert proposal["result"]["status"] == "queued"
+    assert proposal["result"]["diagram_count"] == 2
+    diagram_tasks = [
+        task for task in workflow.runtime.list()["diagram_agent"]["task_queue"]
+        if task["action_id"] == "create_diagram_asset"
+    ]
+    descriptions = [task["context"]["description"] for task in diagram_tasks]
+    assert descriptions == ["First visual.", "Second visual."]
 
 
 def test_references_agent_registers_bib_entries_and_updates_canonical_citations(tmp_path):

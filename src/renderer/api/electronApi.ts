@@ -79,8 +79,12 @@ export function getElectronApi(): ElectronApi {
         return { ...fallbackSection, source: content };
       },
       async startSectionAgent(sectionId) {
-        const section = { ...fallbackSection, id: sectionId, source: "\\section*{Draft}\\n\\nGenerated fallback LaTeX draft.\\n" };
-        return { section, event: { event_type: "section_agent_started", status: "pass" } };
+        const section = { ...fallbackSection, id: sectionId };
+        return {
+          section,
+          event: { event_type: "section_agent_planned", status: "pass" },
+          planning_result: { status: "complete" }
+        };
       },
       async runHypervisor(options) {
         if (options?.excludeSectionIds?.includes(fallbackSection.id)) {
@@ -143,6 +147,9 @@ export function getElectronApi(): ElectronApi {
       },
       async importOutline() {
         return null;
+      },
+      async createVersionFromOutline() {
+        return { message: "Fallback version created.", record: { book_id: "fallback_v0_2_0", title: "Fallback", root: "", status: "active" } };
       },
       async library() {
         return { active: "fallback", books: [] };

@@ -128,6 +128,26 @@ def test_request_review_is_reflected_in_state_history(tmp_path):
     assert state["verification"][-1]["event_type"] == "review_requested"
 
 
+def test_start_section_agent_queues_introspective_plan_without_drafting(tmp_path):
+    repository = create_book(tmp_path)
+    app = BookAppState(repository.book_root, data_root=tmp_path / "data")
+    before_latex = repository.load_latex_section("intro")
+
+    result = app.start_section_agent("intro")
+
+    assert result["event"]["event_type"] == "section_agent_planned"
+    assert result["planning_result"]["result"]["status"] == "plan_sent_to_self"
+    assert repository.load_latex_section("intro") == before_latex
+    runtime = json.loads((repository.book_root / "logs" / "agent_runtime.json").read_text())
+    message_tasks = [
+        task for task in runtime["section_agent__intro"]["task_queue"]
+        if task["action_id"] == "process_message"
+        and task["status"] == "pending"
+    ]
+    assert message_tasks
+    assert message_tasks[0]["context"]["message"]["subject"] == "Section action plan: intro"
+
+
 def test_create_section_updates_outline_and_payload(tmp_path):
     repository = create_book(tmp_path)
     app = BookAppState(repository.book_root, data_root=tmp_path / "data")
@@ -183,6 +203,78 @@ def test_hypervisor_runs_next_unscored_section_agent(tmp_path, monkeypatch):
     assert result["sectionAgent"]["gardener"]["status"] == "complete"
 
 
+def test_hypervisor_draft_cycle_creates_diagram_when_section_needs_visual(tmp_path, monkeypatch):
+    repository = create_book(tmp_path)
+    repository.save_section("intro", "Explain this workflow with a diagram of the queue and agent loop.\n")
+    app = BookAppState(repository.book_root, data_root=tmp_path / "data")
+
+    class FakeProvider:
+        def simple_prompt(self, prompt, system_prompt, temperature, max_tokens):
+            return SimpleNamespace(
+                content='{"latex_body":"Hypervisor draft.","completeness_percent":63,"completeness_rationale":"First pass."}',
+                model="fake-model",
+                provider="fake",
+            )
+
+    monkeypatch.setattr("scripts.book.app_state.get_provider_with_fallback", lambda providers: FakeProvider())
+    monkeypatch.setattr(
+        "scripts.book.agent_workflow.LatexBuildService.compile_section",
+        lambda self, section_id: SimpleNamespace(
+            status="passed",
+            errors=[],
+            as_dict=lambda: {"status": "passed", "errors": []},
+        ),
+    )
+
+    result = app.run_hypervisor_once()
+
+    assert result["sectionAgent"]["visual"]["diagram_result"]["result"]["path"].startswith("media/diagrams/")
+    assert "\\input{media/diagrams/" in repository.load_latex_section("intro")
+
+
+def test_hypervisor_draft_cycle_skips_diagram_for_front_matter(tmp_path, monkeypatch):
+    repository = create_book(tmp_path)
+    book = repository.load_book()
+    book["work"]["front_matter"] = {"abstract": {"enabled": True}}
+    book["work"]["structure"] = [{
+        "id": "abstract",
+        "type": "chapter",
+        "title": "Abstract",
+        "summary": "Summarize the workflow and architecture.",
+        "goal": "State the paper scope.",
+        "dependencies": {"structural": [], "narrative": ""},
+        "prerequisites": [],
+        "content_file": "content/sections/abstract.md",
+    }]
+    repository.save_book(book)
+    repository.save_section("abstract", "This abstract mentions a workflow diagram but is front matter.\n")
+    app = BookAppState(repository.book_root, data_root=tmp_path / "data")
+
+    class FakeProvider:
+        def simple_prompt(self, prompt, system_prompt, temperature, max_tokens):
+            return SimpleNamespace(
+                content='{"latex_body":"Abstract draft.","completeness_percent":63,"completeness_rationale":"First pass."}',
+                model="fake-model",
+                provider="fake",
+            )
+
+    monkeypatch.setattr("scripts.book.app_state.get_provider_with_fallback", lambda providers: FakeProvider())
+    monkeypatch.setattr(
+        "scripts.book.agent_workflow.LatexBuildService.compile_section",
+        lambda self, section_id: SimpleNamespace(
+            status="passed",
+            errors=[],
+            as_dict=lambda: {"status": "passed", "errors": []},
+        ),
+    )
+
+    result = app.run_hypervisor_once()
+
+    assert result["targetSectionId"] == "abstract"
+    assert "visual" not in result["sectionAgent"]
+    assert "media/diagrams/" not in repository.load_latex_section("abstract")
+
+
 def test_snapshot_exposes_active_runtime_agents_for_titlebar(tmp_path):
     repository = create_book(tmp_path)
     from scripts.book.agent_workflow import AuthoringAgentWorkflow
@@ -211,11 +303,20 @@ def test_hypervisor_returns_complete_when_all_session_sections_are_excluded(tmp_
     assert result["event"]["event_type"] == "hypervisor_idle"
 
 
-def test_run_hypervisor_once_processes_urgent_compile_failure_before_drafting(tmp_path):
+def test_run_hypervisor_once_processes_urgent_compile_failure_before_drafting(tmp_path, monkeypatch):
     repository = create_book(tmp_path)
     app = BookAppState(repository.book_root, data_root=tmp_path / "data")
     from scripts.book.agent_workflow import AuthoringAgentWorkflow
 
+    def fake_latex_pass(section_id, task_context=None):
+        repository.save_latex_section(section_id, "\\section{Introduction}\n\nRepaired compile issue.\n")
+        return {
+            "event": {"event_type": "section_agent_started", "status": "pass"},
+            "section": app.section_payload(section_id),
+            "output_path": str(repository.book_root / "tex" / "section_payloads" / f"{section_id}.tex"),
+        }
+
+    monkeypatch.setattr(app, "_run_section_latex_pass", fake_latex_pass)
     workflow = AuthoringAgentWorkflow(repository.book_root)
     workflow.supervise_agents(section_ids=["intro"], queue_work=False)
     workflow.message_router.publish({
@@ -230,12 +331,14 @@ def test_run_hypervisor_once_processes_urgent_compile_failure_before_drafting(tm
 
     assert result["phase"] == "compile_repair"
     assert result["event"]["event_type"] == "hypervisor_urgent_compile_failure_processed"
+    assert result["executedRepairs"]
     runtime = json.loads((repository.book_root / "logs" / "agent_runtime.json").read_text())
     section_tasks = [
         task for task in runtime["section_agent__intro"]["task_queue"]
-        if task["action_id"] == "revise_section_from_feedback"
+        if task["action_id"] == "fix_latex_compile_error"
     ]
     assert section_tasks
+    assert section_tasks[0]["status"] == "complete"
     assert section_tasks[0]["priority"] == 0
 
 

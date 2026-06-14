@@ -240,6 +240,9 @@ OUTPUT build/pdf/ch04_sec01_agent_roles.pdf
 INPUT /usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmr12.tfm
 INPUT /usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmbx12.tfm
 INPUT /usr/local/texlive/2025/texmf-var/fonts/map/pdftex/updmap/pdftex.map
+INPUT ./media/diagrams/ch04_sec01_agent_roles__media_req_4630b3fd76e1.tikz
+INPUT ./media/diagrams/ch04_sec01_agent_roles__media_req_4630b3fd76e1.tikz
+INPUT media/diagrams/ch04_sec01_agent_roles__media_req_4630b3fd76e1.tikz
 INPUT build/pdf/ch04_sec01_agent_roles.aux
 INPUT build/pdf/ch04_sec01_agent_roles.out
 INPUT build/pdf/ch04_sec01_agent_roles.out

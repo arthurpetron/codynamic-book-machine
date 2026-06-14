@@ -372,6 +372,22 @@ def cmd_app(args):
             print(json.dumps(payload, indent=2, sort_keys=True))
             return 0
 
+        if args.app_command == "create-version-from-outline":
+            tags = [tag.strip() for tag in (args.tags or "").split(",") if tag.strip()]
+            record, result = library.create_version_from_outline(
+                args.outline_path,
+                use_llm=args.use_llm,
+                force=args.force,
+                tags=tags or None,
+            )
+            payload = {
+                "record": record.__dict__,
+                "result": result.as_dict(),
+                "message": f"Created clean version {record.book_id} from {args.outline_path}.",
+            }
+            print(json.dumps(payload, indent=2, sort_keys=True))
+            return 0
+
         if args.app_command == "archive-book":
             payload = library.archive_book(args.book_id).__dict__
             print(json.dumps(payload, indent=2, sort_keys=True))
@@ -1044,6 +1060,29 @@ Examples:
     app_new.add_argument('--book-id')
     app_new.add_argument('--tags', default='')
     app_new.set_defaults(func=cmd_app)
+
+    app_create_version = app_subparsers.add_parser(
+        'create-version-from-outline',
+        help='Create a clean versioned book from an outline and make it active'
+    )
+    app_create_version.add_argument(
+        '--outline-path',
+        default='data/book_book/meta_book.yaml',
+        help='Outline file to use as the version seed'
+    )
+    app_create_version.add_argument(
+        '--use-llm',
+        choices=['auto', 'always', 'never'],
+        default='auto',
+        help='Whether converter may use LLM fallback for non-canonical outlines'
+    )
+    app_create_version.add_argument(
+        '--force',
+        action='store_true',
+        help='Overwrite an existing versioned root if it already exists'
+    )
+    app_create_version.add_argument('--tags', default='versioned')
+    app_create_version.set_defaults(func=cmd_app)
 
     app_archive = app_subparsers.add_parser('archive-book', help='Archive a registered book')
     app_archive.add_argument('book_id')

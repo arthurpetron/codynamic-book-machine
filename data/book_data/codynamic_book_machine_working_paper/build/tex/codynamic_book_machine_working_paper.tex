@@ -11,12 +11,6 @@
 
 \begin{document}
 
-\maketitle
-
-\tableofcontents
-
-\clearpage
-
 \section{Abstract}
 
 % CBM-SECTION-START:abstract:Abstract
@@ -48,6 +42,12 @@ The problem is not merely editorial; it is structural. A book has dependencies t
 
 The Codynamic Book Machine is designed around that reality. Rather than treating the manuscript as a static document that is occasionally edited, it treats the book as a coordinated system whose parts must evolve together. The rest of this paper explains how that coordination is represented, how work is divided among agents, and how the machine keeps the outline, artifacts, and compiled outputs in sync as the book develops.
 
+\begin{figure}[htbp]
+\centering
+\input{media/diagrams/ch01_sec01_problem__media_req_5880ed833050.tikz}
+\caption{Conceptual diagram for 'The Coordination Problem in Long-Form Writing': Explain why books are difficult to manage when outlines, drafts, citations, diagrams, reviews, and builds drift apart.}
+\end{figure}
+
 
 % CBM-SECTION-END:ch01_sec01_problem
 
@@ -66,6 +66,8 @@ This is the practical meaning of codynamic coordination. The system does not ass
 That coupling is also what makes the system resilient. If the book changes direction, the outline can be revised and the downstream work can be re-evaluated. If a section needs more evidence, the reference workflow can be brought into alignment before the prose is finalized. If a diagram or other media asset is required, the request can be routed into the same coordination fabric rather than handled as an afterthought. In each case, the machine preserves a single evolving project rather than a collection of disconnected files.
 
 A simple way to state the thesis is this: the Codynamic Book Machine works because it keeps the whole book in motion as a coordinated system. It does not merely generate text; it maintains the relationships that make the text trustworthy, buildable, and consistent with the author's intent. That is why the machine is best understood not as a pipeline with isolated stages, but as a codynamic system in which structure, labor, artifacts, and output continuously shape one another.
+
+Put another way, codynamic behavior means that no layer is treated as permanently upstream or downstream. The outline can be revised in response to drafting realities, the drafting process can expose structural gaps, and the compiled output can validate or invalidate assumptions made earlier in the workflow. The system therefore behaves less like a one-way factory and more like a managed ecology of mutually adjusting parts. That is the thesis of the machine: coordination is not a wrapper around writing; it is the condition that makes the writing possible.
 
 
 % CBM-SECTION-END:ch01_sec02_thesis
@@ -105,7 +107,7 @@ In short, schema comes first because every later step depends on it. Intent tell
 
 The recursive outline model does not need a different data structure for each level of the book. A chapter, a section, and a subsection are all instances of the same structural element, distinguished by their position in the tree rather than by special-case logic. This is the central advantage of the canonical work object: depth is represented by recursion, not by a separate schema for every tier.
 
-In practice, the same node shape can carry the fields needed at any level of the hierarchy. A chapter node may contain section nodes in its 	exttt{content} array; a section node may contain subsection nodes; and a subsection node may either continue the tree or terminate it as a leaf. The authoring system does not need one representation for ``top-level content'' and another for ``nested content.'' Instead, it applies one recursive pattern repeatedly until the outline is complete.
+In practice, the same node shape can carry the fields needed at any level of the hierarchy. A chapter node may contain section nodes in its \texttt{content} array; a section node may contain subsection nodes; and a subsection node may either continue the tree or terminate it as a leaf. The authoring system does not need one representation for ``top-level content'' and another for ``nested content.'' Instead, it applies one recursive pattern repeatedly until the outline is complete.
 
 This uniformity matters for both humans and machines. For humans, it makes the outline easier to read because every level follows the same structural grammar. For machines, it simplifies traversal, validation, and transformation. A renderer can walk the tree with the same algorithm at every depth, collecting titles, numbers, dependencies, and content files without branching into separate code paths for chapters, sections, and subsections.
 
@@ -114,6 +116,18 @@ The same design also makes the outline easier to extend. If a chapter later need
 This is why the outline can treat depth as a property of position rather than a property of type. The node at the root, the node one level down, and the node several levels down all obey the same structural contract; only their parent-child relationships differ. In other words, the model does not ask whether a node is ``really'' a chapter or a subsection. It asks where the node sits in the tree and what children it may contain.
 
 That consistency is what allows the Codynamic Book Machine to treat outline depth as a single recursive pattern from chapter to section to subsection and beyond. The result is a depth model without special cases, where hierarchy is a general property of the work rather than a set of exceptions handled one by one.
+
+In implementation terms, this also means that the same validation and rendering rules can be reused at every level. A node can be checked for required identifiers, titles, dependency metadata, and child content using one schema-driven pass, regardless of whether it appears under \texttt{work.structure} as a chapter, section, or subsection. The system therefore gains consistency not only in the outline itself but also in the code that reads, verifies, and emits it.
+
+A practical benefit of this approach is that the section model stays stable even as the manuscript grows. The same fields that describe a chapter can also describe a subsection, so the system does not need to reinterpret the meaning of a node when it moves deeper into the tree. That stability makes it easier to generate, inspect, and revise the outline because every node participates in the same structural contract.
+
+The result is a book architecture in which depth is not a special condition to be handled separately. It is simply another consequence of recursion, and recursion is the same mechanism everywhere in the outline.
+
+\begin{figure}[htbp]
+\centering
+\input{media/diagrams/ch02_sec02_sub01_depth__media_req_3c6806d58eb0.tikz}
+\caption{Conceptual diagram for 'Depth Without Special Cases': Show how the same structural element supports chapter, section, and subsection nodes.}
+\end{figure}
 
 
 % CBM-SECTION-END:ch02_sec02_sub01_depth
@@ -130,7 +144,13 @@ A simple example makes the distinction concrete. A subsection may appear inside 
 
 Narrative dependencies serve a different purpose. They are human-readable notes that explain why a section comes next, what conceptual bridge it provides, or what assumptions the reader is expected to carry forward. Where structural dependencies are optimized for machines, narrative dependencies are optimized for authors and reviewers. They help answer questions such as: What prior idea does this subsection rely on? What terminology has already been established? What transition does this section provide between two larger topics?
 
-Used together, the two forms of dependency keep the outline both precise and legible. Structural edges support automated checks, task planning, and safe generation order. Narrative notes preserve authorial intent and make the outline easier to read as a design document. The result is a dependency model that is simultaneously operational and explanatory: one layer tells the system what must happen, and the other tells the reader why the sequence makes sense.
+Used together, the two forms of dependency keep the outline both precise and legible. Structural edges support automated checks, task planning, and safe generation order. Narrative notes preserve authorial intent and make the outline easier to read as a design document. The result is a dependency model that is simultaneously operational and explanatory: one layer tells the system what must happen, and the other tells the reader why the sequence makes sense. In that sense, dependencies are not just bookkeeping; they are part of the book's control surface, linking editorial intent to executable structure.
+
+A useful implementation pattern is to keep the two dependency types distinct even when they refer to the same neighboring material. The structural edge can remain a compact machine field such as \texttt{builds\_on} or \texttt{depends\_on}, while the narrative note can explain the editorial reason in a sentence or two. That separation lets the runtime validate prerequisites without having to parse prose, while still giving human readers enough context to understand why the outline is arranged as it is.
+
+This distinction also helps during revision. If a section is moved, split, or reordered, the structural dependency graph can be updated mechanically, while the narrative note can be rewritten to preserve the authorial explanation. The machine then knows what changed in the execution model, and the reader still sees a coherent account of the section's role in the larger argument. In that way, dependency metadata supports both coordination and communication.
+
+The broader lesson is that an outline is not only a hierarchy of topics. It is also a record of constraints and transitions. Structural dependencies make those constraints explicit for the system; narrative dependencies make those transitions explicit for the author. Together they keep the manuscript both buildable and readable.
 
 
 % CBM-SECTION-END:ch02_sec02_sub02_dependencies
@@ -152,6 +172,18 @@ The question bank also separates discovery from drafting without separating them
 That dual role matters for the rest of the machine. Once the intake answers are recorded, later agents can rely on them as stable context instead of repeatedly inferring intent from free-form prose. The outline can be shaped around the stated purpose. Drafting can follow the declared voice and genre. Design and assembly can respect the artifact structure from the start. In this way, the intake stage is not merely administrative overhead; it is the point where author intent becomes operational structure.
 
 The reader takeaway from this stage is simple: before the machine can write, it must know what it is writing, for whom, and in what form. Conversational intake supplies that information in a controlled way, so the rest of the pipeline can operate on a coherent project rather than an ambiguous prompt.
+
+In the broader workflow, this section sits at the boundary between human intention and machine-readable structure. It is the first place where the system asks the author to commit to the constraints that will govern later normalization, section generation, and artifact assembly. That is why the question bank is small but specific: it captures the minimum viable brief needed to make the rest of the book process dependable.
+
+A practical intake sequence usually begins with the title and purpose, then moves to audience and reader takeaway, and finally resolves voice, genre, design specification, and artifact structure. That ordering is deliberate. Early answers establish what the project is about; later answers refine how the system should present it. If the author is uncertain about one field, the conversation can still proceed by recording a provisional answer and revisiting it after the rest of the brief is clearer. The goal is not perfection on the first pass. The goal is to collect enough structured intent to start the machine without losing the author's original direction.
+
+For that reason, the question bank is best understood as a controlled handshake between author and system. The author supplies intent in natural language, and the machine converts that intent into a stable brief that downstream agents can trust. Once that handshake is complete, the rest of the workflow can treat the project as a defined artifact rather than an open-ended conversation.
+
+\begin{figure}[htbp]
+\centering
+\input{media/diagrams/ch03_sec01_conversation__media_req_b1efeab6b5ed.tikz}
+\caption{Conceptual diagram for 'Conversational Intake': Explain the question bank: title, purpose, audience, reader takeaway, voice, genre, design spec, and artifact structure.}
+\end{figure}
 
 
 % CBM-SECTION-END:ch03_sec01_conversation
@@ -193,9 +225,9 @@ That design also keeps the rest of the pipeline simpler. Once import has produce
 
 The repository layout is the operational map of the book machine: it separates what the author intends to say from what the system generates, records, and compiles. That separation keeps the project inspectable at every stage, because each class of artifact has a predictable place and a distinct purpose.
 
-At the top level, the repository holds the canonical outline and the working content tree. The outline files describe the book structure, section order, and dependency relationships. The content files hold the prose for each section, usually as source material or normalized section notes before they are rendered into final TeX. This division matters because the outline is the control plane, while the section payloads are the writing surface.
+At the top level, the repository holds the canonical outline and the working content tree. The outline files describe the book structure, section order, and dependency relationships. The content files hold the prose for each section, usually as source material or normalized section notes before they are rendered into final \LaTeX{}. This division matters because the outline is the control plane, while the section payloads are the writing surface.
 
-Section drafts are stored as TeX payloads in per-section files. Each payload corresponds to one section identifier, which makes it possible to regenerate or revise a single section without rewriting the entire book. In practice, this means the authoring system can route work to a section agent, receive a LaTeX body, and write that body to the section payload path associated with the section id. The payloads are therefore the durable draft layer of the repository.
+Section drafts are stored as \LaTeX{} payloads in per-section files. Each payload corresponds to one section identifier, which makes it possible to regenerate or revise a single section without rewriting the entire book. In practice, this means the authoring system can route work to a section agent, receive a \LaTeX{} body, and write that body to the section payload path associated with the section id. The payloads are therefore the durable draft layer of the repository.
 
 The repository also contains logs and runtime traces. These records capture intake events, normalization steps, agent prompts, task assignments, and revision history. Logs are not part of the prose itself, but they are essential for understanding how a draft came to exist. They provide the audit trail that lets the system explain why a section changed, which agent touched it, and what dependency or blocker shaped the work.
 
@@ -203,9 +235,15 @@ Build artifacts occupy a separate area of the repository. These include compiled
 
 Media requests are tracked as first-class artifacts rather than informal notes. When a section needs a figure, diagram, or other visual asset, the request is recorded with enough structure for another agent to fulfill it. The section agent does not invent a file path or silently embed a missing asset; instead, it requests the media through the coordination layer and waits for a returned path and inclusion hint. This keeps visuals synchronized with the text and prevents broken references.
 
-An artifact registry ties these pieces together. It records the generated outputs, their locations, and the relationships among source files, section payloads, media assets, and compiled deliverables. The registry gives the system a single place to answer questions such as which section produced a given TeX file, which diagram belongs to which request, or which build artifact corresponds to a particular revision. In that sense, the registry is the repository's index of durable work.
+An artifact registry ties these pieces together. It records the generated outputs, their locations, and the relationships among source files, section payloads, media assets, and compiled deliverables. The registry gives the system a single place to answer questions such as which section produced a given \LaTeX{} file, which diagram belongs to which request, or which build artifact corresponds to a particular revision. In that sense, the registry is the repository's index of durable work.
 
-Taken together, the outline files, content sections, TeX payloads, logs, build artifacts, media requests, and artifact registry form a layered repository architecture. Each layer has a narrow role, but the layers remain linked through identifiers and recorded events. That structure is what allows the Codynamic Book Machine to treat a book not as a single monolithic file, but as a coordinated set of evolving artifacts.
+Taken together, the outline files, content sections, \LaTeX{} payloads, logs, build artifacts, media requests, and artifact registry form a layered repository architecture. Each layer has a narrow role, but the layers remain linked through identifiers and recorded events. That structure is what allows the Codynamic Book Machine to treat a book not as a single monolithic file, but as a coordinated set of evolving artifacts.
+
+\begin{figure}[htbp]
+\centering
+\input{media/diagrams/ch03_sec03_repository__media_req_22731fb7c078.tikz}
+\caption{Conceptual diagram for 'Book Repository Layout': Describe outline files, content sections, TeX payloads, logs, build artifacts, media requests, and artifact registry.}
+\end{figure}
 
 
 % CBM-SECTION-END:ch03_sec03_repository
@@ -222,11 +260,11 @@ At the center of the system is the hypervisor. The hypervisor does not write pro
 
 The outlining agent turns author intent and imported material into a structured book plan. Its job is to shape the canonical outline, organize chapters and sections, and preserve the dependencies that make later drafting possible. Where the hypervisor manages the run, the outlining agent manages the structure of the work itself. It establishes the sequence of topics and the relationships among them so that downstream agents can draft against a stable scaffold.
 
-Section drafting agents are responsible for producing the LaTeX body of individual sections. Each section agent works within a bounded payload and converts outline intent, imported notes, and coordination feedback into prose. This division keeps drafting local and incremental: a section agent does not need to solve the whole book, only the section it owns. That constraint makes revision easier and allows the system to parallelize work across multiple sections when needed.
+Section drafting agents are responsible for producing the \\LaTeX{} body of individual sections. Each section agent works within a bounded payload and converts outline intent, imported notes, and coordination feedback into prose. This division keeps drafting local and incremental: a section agent does not need to solve the whole book, only the section it owns. That constraint makes revision easier and allows the system to parallelize work across multiple sections when needed.
 
 The gardener agent performs cleanup and consistency work. It responds to structural or stylistic issues that emerge after drafting, such as uneven transitions, duplicated ideas, missing connective tissue, or mismatches between neighboring sections. Rather than introducing new subject matter, the gardener refines what is already present so the manuscript reads as a coherent whole. In this sense, gardening is the maintenance layer of the writing process.
 
-Diagram agents handle visual assets when a figure, chart, or schematic would materially improve understanding. Their role is to create or retrieve the media needed to support the text and to return a usable path and inclusion hint for the LaTeX source. This keeps visual production separate from prose drafting while still allowing the section to request a diagram when the argument benefits from one.
+Diagram agents handle visual assets when a figure, chart, or schematic would materially improve understanding. Their role is to create or retrieve the media needed to support the text and to return a usable path and inclusion hint for the \\LaTeX{} source. This keeps visual production separate from prose drafting while still allowing the section to request a diagram when the argument benefits from one.
 
 The design agent manages presentation-level concerns that affect the appearance and layout of the book. It is concerned with how the manuscript is rendered, how structural choices interact with the document format, and how the visual system supports readability. Where the diagram agent supplies content-specific visuals, the design agent helps ensure that the broader document design remains consistent.
 
@@ -237,6 +275,12 @@ Finally, the assembly agent compiles the finished manuscript into publication ar
 Taken together, these roles form a pipeline with explicit boundaries: hypervision coordinates the run, outlining defines structure, section agents draft content, gardening improves coherence, diagram and design agents support presentation, the references agent controls source registration, and assembly produces the final output. The system is deliberately modular, but the modules are not independent. Each role exists to reduce ambiguity for the next role, so that the book can advance through a disciplined sequence of transformations rather than a loose collection of edits.
 
 This division of labor also clarifies how the machine should be extended. New capabilities are added by assigning them to a role with a well-defined responsibility, rather than by expanding every agent's scope at once. That keeps the workflow legible: each agent knows what it owns, what it may request from others, and when its work is complete. In a long-form authoring system, that clarity is not just an implementation detail; it is what makes coordinated writing possible.
+
+\begin{figure}[htbp]
+\centering
+\input{media/diagrams/ch04_sec01_agent_roles__media_req_4630b3fd76e1.tikz}
+\caption{Conceptual diagram for 'Agent Roles': Map the major agents to their responsibilities: hypervision, outlining, section drafting, gardening, diagrams, design, references, and assembly.}
+\end{figure}
 
 
 % CBM-SECTION-END:ch04_sec01_agent_roles
@@ -251,7 +295,7 @@ A \emph{WorkManager} coordinates these items across the system. Its role is not 
 
 A useful way to understand this layer is to follow a WorkItem through its lifecycle. An item may be created from an outline requirement, a revision request, or a coordination need. It enters the queue with a priority and a dependency set, becomes active when capacity is available, and either advances to completion or pauses in a blocked state if it cannot proceed. At each meaningful boundary, the item can be checkpointed so that its current state is preserved without forcing the agent to repeat earlier reasoning.
 
-Checkpoints are the mechanism that makes long-running work resumable. A checkpoint captures the current state of a WorkItem at a meaningful boundary: what has been completed, what remains, what assumptions were made, and what external inputs are still pending. For section drafting, a checkpoint may include the current LaTeX body, unresolved citation needs, open diagram requests, and any editorial constraints inherited from the outline. For coordination tasks, a checkpoint may record the last known message state or the latest decision from the hypervisor. Checkpoints reduce the cost of interruption and make it possible to hand work between agents without losing continuity.
+Checkpoints are the mechanism that makes long-running work resumable. A checkpoint captures the current state of a WorkItem at a meaningful boundary: what has been completed, what remains, what assumptions were made, and what external inputs are still pending. For section drafting, a checkpoint may include the current \LaTeX{} body, unresolved citation needs, open diagram requests, and any editorial constraints inherited from the outline. For coordination tasks, a checkpoint may record the last known message state or the latest decision from the hypervisor. Checkpoints reduce the cost of interruption and make it possible to hand work between agents without losing continuity.
 
 Capacity reports provide the system with a simple but important form of self-observation. A capacity report summarizes how much work an agent or queue can reasonably accept at a given moment, how many items are active, what kinds of tasks are consuming attention, and whether the current load is sustainable. This is especially important in a multi-agent environment, where the appearance of parallelism can hide a practical bottleneck. If one agent is overloaded with high-priority items, the report should make that visible before the queue becomes unstable.
 
@@ -262,6 +306,12 @@ Overcommitment is the failure mode that queue discipline is designed to prevent.
 Queue discipline is the rule set that keeps this from happening. Items should enter the queue with explicit priority and dependency information, should move forward only when their prerequisites are satisfied, and should be marked blocked rather than silently stalled. The queue should prefer small, finishable units of work over broad, ambiguous ones, because smaller items are easier to checkpoint, easier to review, and easier to reassign. In practice, this means the system favors a steady flow of completed WorkItems over a large backlog of partially addressed ones.
 
 Taken together, WorkItem, WorkManager, checkpoints, capacity reports, blockers, overcommitment, and queue discipline define the operational grammar of the machine. They ensure that authoring is not just a sequence of text generations, but a managed process in which progress is visible, interruptions are survivable, and coordination remains bounded by explicit state. In the next section, that operational grammar extends into the message layer, where routed prompts, durable logs, and runtime memory make the coordination records themselves persistent.
+
+\begin{figure}[htbp]
+\centering
+\input{media/diagrams/ch04_sec02_work_manager__media_req_7a661ac0fdc9.tikz}
+\caption{Conceptual diagram for 'Work Management': Explain WorkItem, WorkManager, checkpoints, capacity reports, blockers, overcommitment, and queue discipline.}
+\end{figure}
 
 
 % CBM-SECTION-END:ch04_sec02_work_manager
@@ -286,6 +336,12 @@ Coordination records tie the messaging layer back to the book itself. These reco
 
 Taken together, routed messages, subscriptions, durable logs, task prompts, the agent runtime registry, and coordination records form the machine's working memory. They let the system distribute labor without losing accountability. They also make the authoring process legible: every important transition can be traced from intent to prompt, from prompt to response, and from response to durable record. That traceability is what allows the Codynamic Book Machine to behave less like a black box and more like a disciplined collaborative system.
 
+\begin{figure}[htbp]
+\centering
+\input{media/diagrams/ch04_sec03_messages__media_req_e612c9613878.tikz}
+\caption{Conceptual diagram for 'Messaging and Runtime Memory': Explain routed messages, subscriptions, durable logs, task prompts, agent runtime registry, and coordination records.}
+\end{figure}
+
 
 % CBM-SECTION-END:ch04_sec03_messages
 
@@ -306,6 +362,18 @@ Artifacts are the durable outputs of that coordination. The section payload file
 A useful way to think about the lifecycle is as a boundary crossing. Before review, a section is a proposal: it may be incomplete, provisional, or dependent on unresolved tasks. After review and artifact generation, it becomes a record that other agents and human readers can rely on. That record is not immutable in the absolute sense; it can still be revised. But revisions happen against a stable baseline, with the previous state preserved in files, logs, or version control rather than lost inside an agent's transient context.
 
 This chapter therefore focuses on the transition from mutable work to stable record. Drafts are meant to change; artifacts are meant to persist. The machine succeeds when it can move content across that boundary without losing traceability, without breaking compilation, and without severing the relationship between the prose a reader sees and the structured work that produced it.
+
+A practical implication of this design is that review is not a separate after-the-fact reading pass. It is part of the same workflow that creates the draft in the first place. The section agent writes a draft, the surrounding coordination layer checks whether the draft satisfies the outline and the current dependency state, and any unresolved issues are pushed back into the queue as explicit work. That makes the section payload a living artifact: it can be inspected, revised, and compared, but it is always tied to a specific state of the project.
+
+The same principle applies to compilation. A successful build is not just a convenience; it is evidence that the manuscript has reached a coherent state. If the source compiles, the system has at least verified that the section structure, included assets, and registered references are mutually compatible at that moment. If the build fails, the failure is itself an artifact, because it records a mismatch that must be resolved before the work can be treated as durable.
+
+Seen this way, the chapter's subject is not only writing, but stabilization. The machine drafts to discover what the section should say, reviews to test whether it says it correctly, and emits artifacts so that the result can survive beyond the current agent run. That progression is what turns generated prose into book infrastructure.
+
+\begin{figure}[htbp]
+\centering
+\input{media/diagrams/ch05_authoring_artifacts__media_req_4518017964f0.tikz}
+\caption{Conceptual diagram for 'Drafting, Review, and Artifacts': Explain how generated work becomes reviewable and durable.}
+\end{figure}
 
 
 % CBM-SECTION-END:ch05_authoring_artifacts

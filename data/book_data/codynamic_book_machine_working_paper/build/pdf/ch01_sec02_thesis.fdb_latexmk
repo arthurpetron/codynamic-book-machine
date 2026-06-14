@@ -1,5 +1,5 @@
 # Fdb version 4
-["pdflatex"] 1781391196.1003 "build/sections/ch01_sec02_thesis.tex" "build/pdf/ch01_sec02_thesis.pdf" "ch01_sec02_thesis" 1781391196.53729 0
+["pdflatex"] 1781471751.31065 "build/sections/ch01_sec02_thesis.tex" "build/pdf/ch01_sec02_thesis.pdf" "ch01_sec02_thesis" 1781471751.74887 0
   "/usr/local/texlive/2025/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmbx12.tfm" 1136768653 1324 c910af8c371558dc20f2d7822f66fe64 ""
   "/usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmr10.tfm" 1136768653 1296 45809c5a464d5f32c8f98ba97c1bb47f ""
@@ -131,9 +131,9 @@
   "/usr/local/texlive/2025/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1746653532 5467155 19efa205003f9ecad95fbbaa6ff24da1 ""
   "/usr/local/texlive/2025/texmf-var/web2c/pdftex/pdflatex.fmt" 1741450574 3345740 46b66fdb0378f7bf5921b5eabf1762b8 ""
   "/usr/local/texlive/2025/texmf.cnf" 1741450484 577 418a7058ec8e006d8704f60ecd22c938 ""
-  "build/pdf/ch01_sec02_thesis.aux" 1781391196.4957 162 55205a9e8a8eca30d36afb389b0617bf "pdflatex"
-  "build/pdf/ch01_sec02_thesis.out" 1781391196.39616 0 d41d8cd98f00b204e9800998ecf8427e "pdflatex"
-  "build/sections/ch01_sec02_thesis.tex" 1781391196.03509 3654 018bb1771f628dc296841fff03b5c265 ""
+  "build/pdf/ch01_sec02_thesis.aux" 1781471751.70643 162 55205a9e8a8eca30d36afb389b0617bf "pdflatex"
+  "build/pdf/ch01_sec02_thesis.out" 1781471751.60796 0 d41d8cd98f00b204e9800998ecf8427e "pdflatex"
+  "build/sections/ch01_sec02_thesis.tex" 1781471751.2486 4217 33046bbfd40807b7f42cbe5c05b88e4c ""
   (generated)
   "build/pdf/ch01_sec02_thesis.aux"
   "build/pdf/ch01_sec02_thesis.log"

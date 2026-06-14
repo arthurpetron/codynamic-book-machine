@@ -239,9 +239,14 @@ OUTPUT build/pdf/ch02_sec02_sub01_depth.out
 OUTPUT build/pdf/ch02_sec02_sub01_depth.pdf
 INPUT /usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmr12.tfm
 INPUT /usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmbx12.tfm
+INPUT /usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmtt10.tfm
+INPUT ./media/diagrams/ch02_sec02_sub01_depth__media_req_3c6806d58eb0.tikz
+INPUT ./media/diagrams/ch02_sec02_sub01_depth__media_req_3c6806d58eb0.tikz
+INPUT media/diagrams/ch02_sec02_sub01_depth__media_req_3c6806d58eb0.tikz
 INPUT /usr/local/texlive/2025/texmf-var/fonts/map/pdftex/updmap/pdftex.map
 INPUT build/pdf/ch02_sec02_sub01_depth.aux
 INPUT build/pdf/ch02_sec02_sub01_depth.out
 INPUT build/pdf/ch02_sec02_sub01_depth.out
 INPUT /usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb
 INPUT /usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb
+INPUT /usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb

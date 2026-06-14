@@ -1,5 +1,5 @@
 # Fdb version 4
-["pdflatex"] 1781391138.28404 "build/sections/ch05_authoring_artifacts.tex" "build/pdf/ch05_authoring_artifacts.pdf" "ch05_authoring_artifacts" 1781391138.71776 0
+["pdflatex"] 1781472426.11173 "build/sections/ch05_authoring_artifacts.tex" "build/pdf/ch05_authoring_artifacts.pdf" "ch05_authoring_artifacts" 1781472426.57096 0
   "/usr/local/texlive/2025/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmbx12.tfm" 1136768653 1324 c910af8c371558dc20f2d7822f66fe64 ""
   "/usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmr10.tfm" 1136768653 1296 45809c5a464d5f32c8f98ba97c1bb47f ""
@@ -129,9 +129,10 @@
   "/usr/local/texlive/2025/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1746653532 5467155 19efa205003f9ecad95fbbaa6ff24da1 ""
   "/usr/local/texlive/2025/texmf-var/web2c/pdftex/pdflatex.fmt" 1741450574 3345740 46b66fdb0378f7bf5921b5eabf1762b8 ""
   "/usr/local/texlive/2025/texmf.cnf" 1741450484 577 418a7058ec8e006d8704f60ecd22c938 ""
-  "build/pdf/ch05_authoring_artifacts.aux" 1781391138.67784 162 55205a9e8a8eca30d36afb389b0617bf "pdflatex"
-  "build/pdf/ch05_authoring_artifacts.out" 1781391138.57803 0 d41d8cd98f00b204e9800998ecf8427e "pdflatex"
-  "build/sections/ch05_authoring_artifacts.tex" 1781391138.22103 3908 5c6f8431b736569472fab2e566067d62 ""
+  "build/pdf/ch05_authoring_artifacts.aux" 1781472426.52789 391 449518351f2a06ad3a8d7cde922d5c76 "pdflatex"
+  "build/pdf/ch05_authoring_artifacts.out" 1781472426.41725 0 d41d8cd98f00b204e9800998ecf8427e "pdflatex"
+  "build/sections/ch05_authoring_artifacts.tex" 1781472425.576 5525 fdce6f15ce83e93fcc0f35293edff400 ""
+  "media/diagrams/ch05_authoring_artifacts__media_req_4518017964f0.tikz" 1781471830.33892 369 3a0d28980e80960904e90b000200cc0a ""
   (generated)
   "build/pdf/ch05_authoring_artifacts.aux"
   "build/pdf/ch05_authoring_artifacts.log"

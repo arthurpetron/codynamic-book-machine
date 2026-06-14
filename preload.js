@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('cbm', {
     rejectProposal: (proposalId, note) => ipcRenderer.invoke('app:reject-proposal', { proposalId, note }),
     reviseProposal: (proposalId, content, note) => ipcRenderer.invoke('app:revise-proposal', { proposalId, content, note }),
     importOutline: (mode) => ipcRenderer.invoke('app:import-outline', { mode }),
+    createVersionFromOutline: () => ipcRenderer.invoke('app:create-version-from-outline'),
     library: () => ipcRenderer.invoke('app:library'),
     openBook: (bookId) => ipcRenderer.invoke('app:open-book', { bookId }),
     newBook: (title) => ipcRenderer.invoke('app:new-book', { title }),

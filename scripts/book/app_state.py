@@ -83,6 +83,48 @@ class BookAppState:
         return self.section_payload(section_id)
 
     def start_section_agent(self, section_id: str, task_context: dict[str, Any] | None = None) -> dict[str, Any]:
+        from scripts.book.agent_workflow import AGENT_IDS, AuthoringAgentWorkflow
+
+        node = self.repository.outline_service().get_node(section_id)
+        if not node:
+            raise KeyError(f"Unknown section id: {section_id}")
+        workflow = AuthoringAgentWorkflow(self.book_root, project_root=Path("."))
+        workflow.supervise_agents(section_ids=[section_id], queue_work=False)
+        agent_id = f"{AGENT_IDS['section']}__{section_id}"
+        task = workflow.queue_agent_task(
+            agent_id,
+            "plan_section_work",
+            {
+                "section_id": section_id,
+                "trigger": "manual_start_agent_button",
+                "instruction": (
+                    "Review the full document, this section, and the outline. "
+                    "Send yourself a structured action plan message so the plan enters your task queue."
+                ),
+                **(task_context or {}),
+            },
+            priority=5,
+        )
+        result = workflow.run_agent_task(agent_id)
+        event = AuthoringLoop(self.book_root).history.record_event(
+            event_type="section_agent_planned",
+            agent_id=agent_id,
+            subject=section_id,
+            status="pass",
+            rationale="Section agent reviewed context and sent itself an action plan.",
+            metadata={
+                "task": result.get("task"),
+                "result": result.get("result"),
+            },
+        )
+        return {
+            "event": event,
+            "section": self.section_payload(section_id),
+            "planning_task": task,
+            "planning_result": result,
+        }
+
+    def _run_section_latex_pass(self, section_id: str, task_context: dict[str, Any] | None = None) -> dict[str, Any]:
         book = self.repository.load_book()
         node = self.repository.outline_service().get_node(section_id)
         if not node:
@@ -210,22 +252,84 @@ class BookAppState:
         if task.get("priority", 50) > 0 or not str(message.get("subject", "")).startswith("LaTeX compile failed:"):
             return None
         result = workflow.run_agent_task(AGENT_IDS["hypervisor"])
+        urgent_result = result.get("result") or {}
+        queued_repairs = urgent_result.get("queued_repairs") or []
+        executed_repairs = []
+        for repair_task in queued_repairs:
+            repair_agent_id = repair_task.get("agent_id")
+            if not repair_agent_id:
+                repair_section_id = (repair_task.get("context") or {}).get("section_id")
+                repair_agent_id = f"{AGENT_IDS['section']}__{repair_section_id}" if repair_section_id else ""
+            if not repair_agent_id:
+                continue
+            latest_task = self._runtime_task_by_id(workflow, repair_agent_id, repair_task.get("task_id")) or repair_task
+            if latest_task.get("status") != "pending":
+                continue
+            executed_repairs.append(
+                self._run_existing_workflow_task(
+                    workflow,
+                    repair_agent_id,
+                    latest_task,
+                    execute_latex=True,
+                )
+            )
+        retry = self._retry_compile_after_urgent_repair(message, executed_repairs)
         event = AuthoringLoop(self.book_root).history.record_event(
             event_type="hypervisor_urgent_compile_failure_processed",
             agent_id=AGENT_IDS["hypervisor"],
             subject="book",
             status="warn",
             rationale="Processed top-priority LaTeX compile failure before normal hypervisor work.",
-            metadata={"task": result.get("task"), "result": result.get("result")},
+            metadata={
+                "task": result.get("task"),
+                "result": result.get("result"),
+                "executed_repairs": executed_repairs,
+                "retry_compile": retry,
+            },
         )
         return {
             "event": event,
             "targetSectionId": None,
-            "sectionAgent": None,
-            "complete": False,
+            "sectionAgent": executed_repairs[0] if executed_repairs else None,
+            "complete": bool(retry and retry.get("status") == "passed"),
             "phase": "compile_repair",
             "urgent": result,
+            "executedRepairs": executed_repairs,
+            "retryCompile": retry,
         }
+
+    def _runtime_task_by_id(
+        self,
+        workflow: Any,
+        agent_id: str,
+        task_id: str | None,
+    ) -> dict[str, Any] | None:
+        if not task_id:
+            return None
+        for task in workflow.runtime.list().get(agent_id, {}).get("task_queue", []):
+            if task.get("task_id") == task_id:
+                return task
+        return None
+
+    def _retry_compile_after_urgent_repair(
+        self,
+        message: dict[str, Any],
+        executed_repairs: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
+        if not executed_repairs:
+            return None
+        try:
+            payload = yaml.safe_load(message.get("body") or "") or {}
+        except yaml.YAMLError:
+            payload = {}
+        scope = payload.get("scope") or str(message.get("subject") or "").split(":", 1)[-1].strip()
+        target_ids = payload.get("responsible_section_ids") or payload.get("target_section_ids") or []
+        builder = LatexBuildService(self.book_root)
+        if scope == "section" and len(target_ids) == 1:
+            return builder.compile_section(target_ids[0]).as_dict()
+        if scope == "book":
+            return builder.compile_book().as_dict()
+        return None
 
     def review_document_for_revision_subset(self, limit: int = 5) -> dict[str, Any]:
         """Read the assembled document and choose sections for a second revision pass."""
@@ -496,11 +600,15 @@ class BookAppState:
         for section_id in target_section_ids:
             workflow.queue_agent_task(
                 f"{AGENT_IDS['section']}__{section_id}",
-                "revise_section_from_feedback",
+                "fix_latex_compile_error",
                 {
                     "section_id": section_id,
                     "phase": "compile_repair",
                     "feedback": feedback,
+                    "diagnostic_summary": compile_result.get("diagnostic_summary", ""),
+                    "errors": compile_result.get("errors") or [],
+                    "log_path": compile_result.get("log_path"),
+                    "tex_path": compile_result.get("tex_path"),
                 },
                 priority=0,
             )
@@ -708,54 +816,233 @@ class BookAppState:
         )
 
     def _run_draft_cycle_via_task_queue(self, section_id: str) -> dict[str, Any]:
-        result = self._run_section_agent_task(
-            section_id,
-            "draft_initial_section",
-            {
-                "section_id": section_id,
-                "phase": "draft",
-                "instruction": "Generate one initial LaTeX pass for this section.",
-            },
-            execute_latex=True,
-        )
+        result = self._run_introspective_section_cycle(section_id, phase="draft")
         result["gardener"] = self._run_gardener_task(section_id)
         return result
 
     def _run_revision_cycle_via_task_queue(self, section_id: str) -> dict[str, Any]:
-        sibling_context = self._sibling_context(self.repository.load_book()["work"].get("structure", []), section_id)
-        self._run_section_agent_task(
-            section_id,
-            "coordinate_with_sibling_sections",
-            {
-                "section_id": section_id,
-                "phase": "revision",
-                "sibling_context": sibling_context,
-            },
-            execute_latex=False,
-        )
-        proposal = self._run_section_agent_task(
-            section_id,
-            "propose_section_improvements",
-            {
-                "section_id": section_id,
-                "phase": "revision",
-                "instruction": "Propose one concrete revision plan from the assembled manuscript context.",
-            },
-            execute_latex=False,
-        )
-        result = self._run_section_agent_task(
-            section_id,
-            "revise_section_from_feedback",
-            {
-                "section_id": section_id,
-                "phase": "revision",
-                "feedback": "Use the section agent's own proposed improvements as feedback.",
-                "proposal_task": proposal.get("task", {}),
-            },
-            execute_latex=True,
-        )
+        result = self._run_introspective_section_cycle(section_id, phase="revision")
         result["gardener"] = self._run_gardener_task(section_id)
         return result
+
+    def _run_introspective_section_cycle(self, section_id: str, phase: str) -> dict[str, Any]:
+        from scripts.book.agent_workflow import AGENT_IDS, AuthoringAgentWorkflow
+
+        planning = self.start_section_agent(section_id, task_context={
+            "trigger": f"hypervisor_{phase}_cycle",
+            "requested_phase": phase,
+        })
+        workflow = AuthoringAgentWorkflow(self.book_root, project_root=Path("."))
+        workflow.supervise_agents(section_ids=[section_id], queue_work=False)
+        agent_id = f"{AGENT_IDS['section']}__{section_id}"
+        completed_tasks = []
+        diagram_results = []
+        latex_result = None
+        visual_result = None
+        for _ in range(12):
+            task = workflow.runtime.next_task(agent_id)
+            if not task:
+                break
+            action_id = task.get("action_id")
+            if action_id in {"draft_initial_section", "revise_section_from_feedback", "fix_latex_compile_error"}:
+                task_result = self._run_existing_workflow_task(workflow, agent_id, task, execute_latex=True)
+                latex_result = task_result.get("result") or latex_result
+            else:
+                task_result = workflow.run_agent_task(agent_id)
+            completed_tasks.append(task_result)
+            if action_id == "propose_section_visuals":
+                visual_result = task_result
+                diagram_count = int((task_result.get("result") or {}).get("diagram_count") or 0)
+                for _diagram_index in range(diagram_count):
+                    diagram = workflow.run_agent_task(AGENT_IDS["diagram"])
+                    if diagram.get("task"):
+                        diagram_results.append(diagram)
+                break
+        event = (latex_result or {}).get("event") or planning.get("event")
+        result = {
+            "event": event,
+            "section": self.section_payload(section_id),
+            "planning": planning,
+            "completedTasks": completed_tasks,
+            "diagram_results": diagram_results,
+            "diagram_result": diagram_results[0] if diagram_results else None,
+        }
+        if (latex_result or {}).get("output_path"):
+            result["output_path"] = latex_result["output_path"]
+        if visual_result:
+            result["visual"] = {
+                "proposal_result": visual_result,
+                "diagram_results": diagram_results,
+                "diagram_result": diagram_results[0] if diagram_results else None,
+            }
+        return result
+
+    def _run_existing_workflow_task(
+        self,
+        workflow: Any,
+        agent_id: str,
+        task: dict[str, Any],
+        execute_latex: bool,
+    ) -> dict[str, Any]:
+        workflow.runtime.mark_task(agent_id, task["task_id"], "running")
+        if execute_latex:
+            section_id = (task.get("context") or {}).get("section_id") or agent_id.split("__", 1)[1]
+            result = self._run_section_latex_pass(
+                section_id,
+                task_context={"action_id": task.get("action_id"), **(task.get("context") or {})},
+            )
+        else:
+            result = {
+                "section_id": (task.get("context") or {}).get("section_id"),
+                "action_id": task.get("action_id"),
+                "status": "complete",
+                "context": task.get("context") or {},
+            }
+        completed = workflow.runtime.mark_task(agent_id, task["task_id"], "complete", result=result)
+        workflow._publish_task_completion(agent_id, task, result)
+        completed_summary = {key: value for key, value in completed.items() if key != "result"}
+        return {**result, "task": completed_summary, "result": result}
+
+    def _run_pending_section_visual_task(self, section_id: str) -> dict[str, Any] | None:
+        node = self.repository.outline_service().get_node(section_id) or {}
+        if self._is_front_matter_node(section_id, node):
+            return None
+        from scripts.book.agent_workflow import AGENT_IDS, AuthoringAgentWorkflow
+
+        workflow = AuthoringAgentWorkflow(self.book_root, project_root=Path("."))
+        workflow.supervise_agents(section_ids=[section_id], queue_work=False)
+        agent_id = f"{AGENT_IDS['section']}__{section_id}"
+        proposal_task = self._pending_section_visual_task(workflow, agent_id, section_id)
+        if not proposal_task:
+            if not self._section_should_propose_visual(section_id):
+                return None
+            node = self.repository.outline_service().get_node(section_id) or {}
+            proposal_task = workflow.queue_agent_task(
+                agent_id,
+                "propose_section_visuals",
+                {
+                    "section_id": section_id,
+                    "phase": "post_section_pass_visual_decision",
+                    "max_diagrams": 2,
+                    "description": self._section_visual_description(section_id, node),
+                    "media_type": "tikz",
+                    "priority": 4,
+                },
+                priority=4,
+            )
+        proposal_result = workflow.run_agent_task(agent_id)
+        diagram_results = []
+        diagram_count = int((proposal_result.get("result") or {}).get("diagram_count") or 0)
+        for _index in range(diagram_count):
+            diagram = workflow.run_agent_task(AGENT_IDS["diagram"])
+            if diagram.get("task"):
+                diagram_results.append(diagram)
+        return {
+            "section_id": section_id,
+            "proposal_task": proposal_task,
+            "proposal_result": proposal_result,
+            "diagram_results": diagram_results,
+            "diagram_result": diagram_results[0] if diagram_results else None,
+        }
+
+    def _pending_section_visual_task(
+        self,
+        workflow: Any,
+        agent_id: str,
+        section_id: str,
+    ) -> dict[str, Any] | None:
+        for task in workflow.runtime.list().get(agent_id, {}).get("task_queue", []):
+            if task.get("status") != "pending":
+                continue
+            if task.get("action_id") != "propose_section_visuals":
+                continue
+            if (task.get("context") or {}).get("section_id") == section_id:
+                return task
+        return None
+
+    def _section_should_propose_visual(self, section_id: str) -> bool:
+        node = self.repository.outline_service().get_node(section_id) or {}
+        if self._is_front_matter_node(section_id, node):
+            return False
+        existing_latex = self.repository.load_latex_section(section_id)
+        if "media/diagrams/" in existing_latex or "\\includegraphics" in existing_latex or "\\input{media/diagrams/" in existing_latex:
+            return False
+        loop = AuthoringLoop(self.book_root)
+        if any(request.get("section_id") == section_id for request in loop.media.load_requests()):
+            return False
+        source = self.repository.load_section(section_id)
+        text = " ".join(str(value or "") for value in [
+            node.get("title"),
+            node.get("summary"),
+            node.get("goal"),
+            source,
+        ]).lower()
+        visual_terms = [
+            "diagram",
+            "figure",
+            "schema",
+            "architecture",
+            "workflow",
+            "message flow",
+            "lifecycle",
+            "runtime",
+            "graph",
+            "coordination",
+            "pipeline",
+            "queue",
+        ]
+        return any(term in text for term in visual_terms)
+
+    def _is_front_matter_node(self, section_id: str, node: dict[str, Any]) -> bool:
+        matter = str(node.get("matter") or node.get("section_matter") or "").lower()
+        if matter in {"main", "main_matter", "back", "back_matter", "appendix", "appendices"}:
+            return False
+        if matter in {"front", "front_matter"}:
+            return True
+        front_ids = self._front_matter_ids()
+        if section_id in front_ids or node.get("id") in front_ids:
+            return True
+        content_file = str(node.get("content_file") or "").lower()
+        if "/front_matter/" in content_file or content_file.startswith("front_matter/"):
+            return True
+        title = str(node.get("title") or section_id).strip().lower().replace("-", "_").replace(" ", "_")
+        conventional_front = {
+            "abstract",
+            "title_page",
+            "table_of_contents",
+            "toc",
+            "dedication",
+            "epigraph",
+            "foreword",
+            "preface",
+            "acknowledgements",
+            "acknowledgments",
+        }
+        return section_id in conventional_front or title in conventional_front
+
+    def _front_matter_ids(self) -> set[str]:
+        front = self.repository.outline_service().work.get("front_matter") or {}
+        ids: set[str] = set()
+        if isinstance(front, list):
+            for item in front:
+                if isinstance(item, str):
+                    ids.add(item)
+                elif isinstance(item, dict):
+                    ids.update(str(value) for key, value in item.items() if key in {"id", "section_id"} and value)
+        elif isinstance(front, dict):
+            for key, value in front.items():
+                ids.add(str(key))
+                if isinstance(value, dict):
+                    ids.update(str(value[item_key]) for item_key in {"id", "section_id"} if value.get(item_key))
+        return ids
+
+    def _section_visual_description(self, section_id: str, node: dict[str, Any]) -> str:
+        title = node.get("title", section_id)
+        summary = node.get("summary") or node.get("goal") or self.repository.load_section(section_id)[:240]
+        return (
+            f"Create a concise TikZ diagram for section '{title}'. "
+            f"Show the main structure, workflow, or relationship described here: {summary}"
+        )
 
     def _run_gardener_task(self, section_id: str) -> dict[str, Any]:
         from scripts.book.agent_workflow import AGENT_IDS, AuthoringAgentWorkflow
@@ -811,7 +1098,7 @@ class BookAppState:
         task = workflow.queue_agent_task(agent_id, action_id, context=context, priority=priority)
         workflow.runtime.mark_task(agent_id, task["task_id"], "running")
         if execute_latex:
-            result = self.start_section_agent(section_id, task_context={"action_id": action_id, **context})
+            result = self._run_section_latex_pass(section_id, task_context={"action_id": action_id, **context})
         else:
             result = {
                 "section_id": section_id,

@@ -4,11 +4,11 @@ At the center of the system is the hypervisor. The hypervisor does not write pro
 
 The outlining agent turns author intent and imported material into a structured book plan. Its job is to shape the canonical outline, organize chapters and sections, and preserve the dependencies that make later drafting possible. Where the hypervisor manages the run, the outlining agent manages the structure of the work itself. It establishes the sequence of topics and the relationships among them so that downstream agents can draft against a stable scaffold.
 
-Section drafting agents are responsible for producing the LaTeX body of individual sections. Each section agent works within a bounded payload and converts outline intent, imported notes, and coordination feedback into prose. This division keeps drafting local and incremental: a section agent does not need to solve the whole book, only the section it owns. That constraint makes revision easier and allows the system to parallelize work across multiple sections when needed.
+Section drafting agents are responsible for producing the \LaTeX{} body of individual sections. Each section agent works within a bounded payload and converts outline intent, imported notes, and coordination feedback into prose. This division keeps drafting local and incremental: a section agent does not need to solve the whole book, only the section it owns. That constraint makes revision easier and allows the system to parallelize work across multiple sections when needed.
 
 The gardener agent performs cleanup and consistency work. It responds to structural or stylistic issues that emerge after drafting, such as uneven transitions, duplicated ideas, missing connective tissue, or mismatches between neighboring sections. Rather than introducing new subject matter, the gardener refines what is already present so the manuscript reads as a coherent whole. In this sense, gardening is the maintenance layer of the writing process.
 
-Diagram agents handle visual assets when a figure, chart, or schematic would materially improve understanding. Their role is to create or retrieve the media needed to support the text and to return a usable path and inclusion hint for the LaTeX source. This keeps visual production separate from prose drafting while still allowing the section to request a diagram when the argument benefits from one.
+Diagram agents handle visual assets when a figure, chart, or schematic would materially improve understanding. Their role is to create or retrieve the media needed to support the text and to return a usable path and inclusion hint for the \LaTeX{} source. This keeps visual production separate from prose drafting while still allowing the section to request a diagram when the argument benefits from one.
 
 The design agent manages presentation-level concerns that affect the appearance and layout of the book. It is concerned with how the manuscript is rendered, how structural choices interact with the document format, and how the visual system supports readability. Where the diagram agent supplies content-specific visuals, the design agent helps ensure that the broader document design remains consistent.
 
@@ -19,3 +19,18 @@ Finally, the assembly agent compiles the finished manuscript into publication ar
 Taken together, these roles form a pipeline with explicit boundaries: hypervision coordinates the run, outlining defines structure, section agents draft content, gardening improves coherence, diagram and design agents support presentation, the references agent controls source registration, and assembly produces the final output. The system is deliberately modular, but the modules are not independent. Each role exists to reduce ambiguity for the next role, so that the book can advance through a disciplined sequence of transformations rather than a loose collection of edits.
 
 This division of labor also clarifies how the machine should be extended. New capabilities are added by assigning them to a role with a well-defined responsibility, rather than by expanding every agent's scope at once. That keeps the workflow legible: each agent knows what it owns, what it may request from others, and when its work is complete. In a long-form authoring system, that clarity is not just an implementation detail; it is what makes coordinated writing possible.
+
+The role map can be summarized as a chain of responsibility. Hypervision coordinates the run, outlining establishes the scaffold, section drafting turns scaffold into prose, gardening smooths the prose, diagram and design agents support presentation, references preserve source integrity, and assembly turns the accumulated work into a release-ready artifact. Each step narrows the gap between intent and publication while preserving a clear handoff to the next step.
+
+That separation is especially important because the agents do not all operate at the same level of abstraction. Some roles are structural, some are editorial, and some are operational. The hypervisor and assembly agent sit at the edges of the workflow, one managing entry and progress, the other producing the final artifact. The outlining and section drafting agents do the core content work. The gardener, diagram, design, and references agents provide targeted support where the draft needs repair, illustration, presentation control, or source validation. By keeping those concerns distinct, the system avoids conflating authorship, maintenance, and production.
+
+The result is a workflow that is easier to reason about and easier to revise. If a section is weak, the section agent revises it. If the structure is wrong, the outlining agent adjusts it. If the prose is coherent but awkwardly connected, the gardener improves it. If a figure is needed, the diagram agent supplies it. If a citation is missing, the references agent registers it. If the manuscript is ready to ship, the assembly agent compiles it. The machine therefore behaves less like a single author and more like a disciplined editorial organization.
+
+Figure~\ref{fig:ch04_sec01_agent_roles} summarizes the role map and shows how the major agents relate to one another in the workflow.
+
+\begin{figure}[htbp]
+\centering
+\input{media/diagrams/ch04_sec01_agent_roles__media_req_4630b3fd76e1.tikz}
+\caption{Conceptual diagram for ``Agent Roles'': map the major agents to their responsibilities: hypervision, outlining, section drafting, gardening, diagrams, design, references, and assembly.}
+\label{fig:ch04_sec01_agent_roles}
+\end{figure}

@@ -37,7 +37,12 @@ export function useBookStore() {
   const isHypervisorWorkingRef = useRef(false);
 
   const addActivity = useCallback((source: string, text: string) => {
-    const nextMessage = `${source} --> book: ${text}`;
+    const normalized = source.includes("->")
+      ? source.split("->").map((part) => part.trim()).filter(Boolean)
+      : [];
+    const fromAgent = normalized[0] || source.trim() || "desktop_app";
+    const toAgent = normalized[1] || "book";
+    const nextMessage = `${fromAgent} --> ${toAgent}: ${text}`;
     setActivityMessages((messages) => [...messages, nextMessage].slice(-20));
   }, []);
 
@@ -112,12 +117,12 @@ export function useBookStore() {
     }
     setSectionAgentRunState((states) => ({ ...states, [targetId]: "working" }));
     try {
-      addActivity("Section Agent -> Book", `Starting initial LaTeX pass for ${targetId}.`);
+      addActivity("Section Agent -> Book", `Planning next tasks for ${targetId}.`);
       const result = await api.app.startSectionAgent(targetId);
       if (targetId === selectedId) {
         setSelectedSection(result.section);
       }
-      addActivity("Section Agent -> Book", `Generated LaTeX draft for ${targetId}.`);
+      addActivity("Section Agent -> Book", `Queued an introspective action plan for ${targetId}.`);
       setSectionAgentRunState((states) => ({ ...states, [targetId]: "idle" }));
       await loadState(targetId);
     } catch (error) {
@@ -185,7 +190,15 @@ export function useBookStore() {
 
         if (result.phase === "compile_repair") {
           setSectionAgentRunState((states) => ({ ...states, [targetId as string]: "idle" }));
-          addActivity("Hypervisor -> Typeset", "Processed urgent compile failure and queued section repair work.");
+          const repairCount = result.executedRepairs?.length ?? 0;
+          const retryStatus = result.retryCompile?.status;
+          const responsible = result.retryCompile?.responsible_section_titles?.length
+            ? result.retryCompile.responsible_section_titles.join(", ")
+            : result.retryCompile?.responsible_section_ids?.join(", ");
+          const repairMessage = repairCount > 0
+            ? `Processed urgent compile failure, ran ${repairCount} repair task(s)${retryStatus ? `, retry ${retryStatus}` : ""}${responsible ? `; responsible section(s): ${responsible}` : ""}.`
+            : "Processed urgent compile failure, but no responsible section repair task was available.";
+          addActivity("Hypervisor -> Typeset", repairMessage);
           await loadState(selectedId);
           continue;
         }
@@ -277,6 +290,20 @@ export function useBookStore() {
       }
     } catch (error) {
       addActivity("Importer -> Outline", `Import failed: ${(error as Error).message}`);
+    }
+  }, [api, loadState, addActivity]);
+
+  const createVersionFromOutline = useCallback(async () => {
+    try {
+      const result = await api.app.createVersionFromOutline();
+      if (result.error) {
+        addActivity("Library -> Book", `Version creation failed: ${result.error}`);
+        return;
+      }
+      addActivity("Library -> Book", result.message || `Created clean version ${result.record?.book_id ?? ""} from outline.`);
+      await loadState(null);
+    } catch (error) {
+      addActivity("Library -> Book", `Version creation failed: ${(error as Error).message}`);
     }
   }, [api, loadState, addActivity]);
 
@@ -407,6 +434,7 @@ export function useBookStore() {
     createChapter,
     updateOutlineNode,
     importOutline,
+    createVersionFromOutline,
     compileSection,
     compileBook,
     requestReview,

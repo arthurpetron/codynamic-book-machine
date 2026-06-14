@@ -29,6 +29,11 @@ export function BookCommands({ store, onClose }: BookCommandsProps) {
     onClose();
   }
 
+  async function createVersionFromOutline() {
+    await store.createVersionFromOutline();
+    onClose();
+  }
+
   return (
     <div className="command-popover" role="dialog" aria-label="Book commands">
       <p className="eyebrow">Books</p>
@@ -40,6 +45,9 @@ export function BookCommands({ store, onClose }: BookCommandsProps) {
         <button className="secondary-action" type="button" onClick={() => importOutline("current")}>Import Outline Into Current</button>
         <button className="secondary-action" type="button" onClick={() => importOutline("new")}>Import Outline As New</button>
       </div>
+      <div className="command-row">
+        <button className="primary-action" type="button" onClick={createVersionFromOutline}>Create Version From Meta Outline</button>
+      </div>
       <div className="command-list">
         {library.books.length === 0 ? <p className="empty-state">No registered books.</p> : null}
         {library.books.map((book) => (
@@ -50,7 +58,10 @@ export function BookCommands({ store, onClose }: BookCommandsProps) {
             onClick={() => chooseBook(book.book_id)}
           >
             <span>{book.title}</span>
-            <small>{book.status}</small>
+            <small>
+              {book.metadata?.version ? `v${String(book.metadata.version)} · ` : ""}
+              {book.status}
+            </small>
           </button>
         ))}
       </div>

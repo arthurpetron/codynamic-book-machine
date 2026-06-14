@@ -1405,10 +1405,7 @@ textarea {
 }
 
 .message {
-  display: grid;
-  grid-template-columns: 44px minmax(130px, 190px) minmax(0, 1fr);
-  gap: 8px;
-  align-items: start;
+  display: block;
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 7px 8px;
@@ -1433,8 +1430,10 @@ textarea {
 }
 
 .message-text {
-  overflow-wrap: anywhere;
-  white-space: normal;
+  display: block;
+  overflow-wrap: break-word;
+  word-break: normal;
+  white-space: pre-wrap;
 }
 
 .user-chat-item,
@@ -1565,10 +1564,6 @@ textarea {
     flex: 1;
   }
 
-  .message {
-    grid-template-columns: 52px minmax(0, 1fr);
-  }
-
   .chat-panels {
     grid-template-columns: 1fr;
     height: 320px;
@@ -1583,7 +1578,4 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .message-text {
-    grid-column: 1 / -1;
-  }
 }

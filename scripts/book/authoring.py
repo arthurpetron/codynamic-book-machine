@@ -251,6 +251,7 @@ class MediaRequestRegistry:
         requesting_agent: str,
         description: str,
         media_type: str = "tikz",
+        diagram_spec: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         request = {
             "request_id": f"media_req_{uuid4().hex[:12]}",
@@ -261,6 +262,8 @@ class MediaRequestRegistry:
             "status": "pending",
             "created_at": datetime.now().isoformat(),
         }
+        if diagram_spec:
+            request["diagram_spec"] = diagram_spec
         requests = self.load_requests()
         requests.append(request)
         self._save_requests(requests)

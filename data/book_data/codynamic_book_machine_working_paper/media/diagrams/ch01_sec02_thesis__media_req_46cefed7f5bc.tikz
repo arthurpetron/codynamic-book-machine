@@ -1,0 +1,6 @@
+\begin{tikzpicture}[node distance=3cm,>=stealth]
+\node[draw, rounded corners] (a) {Context};
+\node[draw, rounded corners, right of=a] (b) {Section};
+\draw[->] (a) -- node[above] {request} (b);
+\node[below=1cm of a, text width=8cm] {Conceptual diagram for 'The Machine as a Codynamic System': Define the central thesis: the system works by keeping outline, agents, dependencies, artifacts, and compiled outputs evolving together.};
+\end{tikzpicture}

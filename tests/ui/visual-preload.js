@@ -94,6 +94,12 @@ window.cbm = {
     async importOutline() {
       return { sourcePath: '/tmp/outline.yaml', output: 'Imported outline.' };
     },
+    async createVersionFromOutline() {
+      return {
+        message: 'Created clean version demo__v0_2_0 from outline.',
+        record: { book_id: 'demo__v0_2_0', title: 'Codynamic Theory', root: '', status: 'active' }
+      };
+    },
     async library() {
       return { active: 'demo', books: [{ book_id: 'demo', title: 'Codynamic Theory', root: '', status: 'active' }] };
     },

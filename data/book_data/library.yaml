@@ -15,6 +15,8 @@ books:
 
       '
     type: book
+    version: '0.1'
+    version_family_id: null
     updated: '2025-05-26'
 - book_id: functional_gui_test_book
   title: Functional GUI Test Book
@@ -26,22 +28,69 @@ books:
   metadata:
     summary: ''
     type: book
+    version: 0.1.0
+    version_family_id: null
     updated: '2026-06-12'
 - book_id: codynamic_book_machine_working_paper
   title: How the Codynamic Book Machine Works
   root: /Users/darthur/Dore Dropbox/Arthur Petron/codex/codynamic-book-machine/data/book_data/codynamic_book_machine_working_paper
   outline_path: outline/codynamic_book_machine_working_paper.yaml
   status: active
-  last_opened: '2026-06-13T23:48:21.981152'
+  last_opened: '2026-06-14T23:12:04.555969'
   tags: []
   metadata:
-    summary: This paper explains the Codynamic Book Machine as both a writing tool
-      and a working example of codynamic architecture. It describes how a book begins
-      as intent and outline data, becomes a canonical work object, is decomposed into
-      section-level work, coordinated through agents and messages, revised through
-      proposals and verification, and finally compiled into publication artifacts.
+    summary: 'This paper explains the Codynamic Book Machine as both a writing tool
+      and a working example of codynamic architecture. It describes how authorial
+      intent becomes a canonical work object, how that object is decomposed into section-level
+      responsibilities, how agents coordinate through task queues and append-only
+      messages, how editorial gardening keeps the manuscript coherent, how references
+      and diagrams are routed through specialist agents, and how durable artifacts
+      become a compiled paper.
+
+
+      The target length is approximately twenty pages. The paper should be explanatory,
+      technical, and concrete, using the current repository as the primary case study
+      and treating the running system as the evidence base.'
     type: paper
-    updated: '2026-06-13'
+    version: 0.2.0
+    version_family_id: null
+    updated: '2026-06-14'
+- book_id: codynamic_book_machine_working_paper__v0_2_0
+  title: How the Codynamic Book Machine Works
+  root: data/book_data/codynamic_book_machine_working_paper__v0_2_0
+  outline_path: outline/codynamic_book_machine_working_paper__v0_2_0.yaml
+  status: active
+  last_opened: '2026-06-14T23:19:04.157516'
+  tags:
+  - versioned
+  metadata:
+    summary: 'This paper explains the Codynamic Book Machine as both a writing tool
+      and
+
+      a working example of codynamic architecture. It describes how authorial
+
+      intent becomes a canonical work object, how that object is decomposed into
+
+      section-level responsibilities, how agents coordinate through task queues
+
+      and append-only messages, how editorial gardening keeps the manuscript
+
+      coherent, how references and diagrams are routed through specialist agents,
+
+      and how durable artifacts become a compiled paper.
+
+
+      The target length is approximately twenty pages. The paper should be
+
+      explanatory, technical, and concrete, using the current repository as the
+
+      primary case study and treating the running system as the evidence base.
+
+      '
+    type: paper
+    version: 0.2.0
+    version_family_id: codynamic_book_machine_working_paper
+    updated: '2026-06-14'
 - book_id: closure_of_compositional_hierarchies_in_digital_symmetries
   title: On the Closure of Compositional Hierarchies in Digital Symmetries
   root: /Users/darthur/Dore Dropbox/Arthur Petron/codex/codynamic-book-machine/data/book_data/closure_of_compositional_hierarchies_in_digital_symmetries
@@ -57,6 +106,8 @@ books:
       artifacts, reproducibility, and chapter-specific error metrics for multi-resolution
       analysis.
     type: book
+    version: 0.1.0
+    version_family_id: null
     updated: '2026-06-12'
 - book_id: on_the_closure_of_compositional_hierarchies_in_digital_symmetries
   title: On the Closure of Compositional Hierarchies in Digital Symmetries
@@ -72,6 +123,8 @@ books:
       learning. It emphasizes rigorous methods, executable artifacts, reproducibility,
       and multi-resolution error metrics across chapters.
     type: book
+    version: 0.1.0
+    version_family_id: null
     updated: '2026-06-12'
 - book_id: resonant_bioharmonic_medicine
   title: 'Resonant Bioharmonic Medicine: Using Targeted Frequencies to Modulate Cellular
@@ -88,4 +141,6 @@ books:
       pathways across biological scales, and outlines prototype devices and an experimental
       roadmap for frequency-based interventions.
     type: paper
+    version: 0.1.0
+    version_family_id: null
     updated: '2026-06-12'

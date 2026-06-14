@@ -9,11 +9,18 @@ prompt_header: |
   - Treat the tasks list as your operating modes: drafting/revising, sibling coordination, gardener/design feedback response, diagram requests, reference research, and reference-registration handoff.
   - If a queued task is a callback message, process the message as work rather than waiting in-place. A callback may become a revise_section_from_feedback task, a do_research_on_the_web task, a sibling coordination task, or an acknowledgement.
   - If a queued task lacks a prerequisite, queue or request the prerequisite work instead of fabricating missing citations, definitions, or file paths.
+  - When manually started by the operator, first run plan_section_work: inspect the full document, this section, the outline, registered references, and diagram opportunities, then send yourself a structured plan message so the plan enters your task queue.
 
   Diagram workflow:
+  - After every draft_initial_section or revise_section_from_feedback pass, run propose_section_visuals for this section.
+  - In propose_section_visuals, decide on a set of 0, 1, or 2 diagrams that would materially help the current section content.
+  - Do not request diagrams for front matter such as the title page, abstract, dedication, foreword, preface, table of contents, or acknowledgements.
+  - Main content and back matter may request diagrams when useful.
+  - If no diagram would materially help, return that decision explicitly and do not queue diagram work.
   - If a figure would materially improve the section, do not invent a diagram path.
   - Send a structured request to diagram_agent or ask Hypervisor to queue diagram_agent:create_diagram_asset.
-  - Include section_id, requesting_agent, media_type, and a concrete description.
+  - Include section_id, requesting_agent, media_type, a concrete description, and when possible a diagram_spec with purpose, 3-5 node labels, 2-5 labeled edges, and a suggested layout.
+  - Diagram descriptions and specs must use section-specific concepts rather than generic labels such as Context, Section, Input, or Output unless those words are genuinely the subject.
   - diagram_agent responds by sending a callback message that appears as a process_message task in your queue, with a media/diagrams path and LaTeX inclusion hint.
   - Process that callback and revise or verify the section before inserting \input or \includegraphics.
 
@@ -27,6 +34,7 @@ prompt_header: |
   - After references_agent confirms registered keys, verify each key exists in references/references.bib, then revise the section using those keys with \cite{key} or the house citation command.
 
 tasks:
+  - Review the full document, outline, and owned section to plan the next concrete work
   - Interpret and fulfill the intent of a specific outline section
   - Draft or revise LaTeX code for that section
   - Use the entire book outline as context when drafting a section
@@ -61,6 +69,35 @@ outputs:
   - reference-registration requests to references_agent via the task/message queue
 
 actions:
+  - id: plan_section_work
+    description: Inspect the full document, outline, owned section, references, and diagram opportunities, then send yourself a queued action plan.
+    prompt_template: |
+      Review the document as a whole, the contents of section {section_id}, and the full outline.
+      Propose a specific plan of action for this section, including whether 0, 1, or 2 diagrams should be considered.
+
+      Full Document TeX:
+      {document_tex}
+
+      Current Section LaTeX:
+      {existing_latex}
+
+      Section Source Material:
+      {source_material}
+
+      Selected Section Outline:
+      {section_outline}
+
+      Full Book Outline:
+      {book_outline}
+
+      Return a structured plan and send it to yourself as a process_message task.
+      The self-message should include:
+      - section_id
+      - plan_summary
+      - rationale grounded in the document, section, and outline
+      - recommended_tasks using declared action ids
+      - diagram_recommendations with 0-2 concrete diagram descriptions, excluding front matter
+
   - id: draft_initial_section
     description: Generate the first draft of a section in LaTeX
     prompt_template: |
@@ -231,16 +268,27 @@ actions:
       Then send the candidate entries to references_agent using add_bib_entries. Do not edit references/references.bib directly.
     
   - id: propose_section_visuals
-    description: Suggest visuals or diagrams to enhance the section
+    description: Decide whether 0-2 visuals or diagrams would enhance the current section, then queue diagram requests when useful
     prompt_template: |
-      Based on the content of section {section_id}, propose one or two visuals that would enhance understanding.
-      Describe the visual and how it relates to the section content.
+      Based on the current content of section {section_id}, decide whether 0, 1, or 2 visuals would materially enhance understanding.
+      This task should run after each draft_initial_section or revise_section_from_feedback pass.
+
+      If the section is front matter such as a title page, abstract, dedication, foreword, preface, table of contents, or acknowledgements, return no_diagrams.
+      Return no_diagrams if the section is already clear without a visual, already has sufficient diagrams, or the possible visual would be decorative.
+      If one or two visuals would help, describe each visual and how it relates to the current section content.
 
       If a visual is needed, ask Hypervisor to queue diagram_agent:create_diagram_asset or send diagram_agent a structured request containing:
       - section_id
       - requesting_agent
       - media_type, usually tikz
       - description
+      - diagram_spec with:
+        - purpose grounded in the section's actual argument
+        - nodes: 3-5 specific labels from this section
+        - edges: labeled relationships between those nodes
+        - layout: flow, diamond, stack, or cycle
+
+      Avoid vague reusable diagrams. Do not request generic Context -> Section or Input -> Output figures unless the section is explicitly about that abstraction.
 
       diagram_agent will respond through your task/message queue with the generated media/diagrams file path. Do not write placeholder diagram paths into LaTeX.
 

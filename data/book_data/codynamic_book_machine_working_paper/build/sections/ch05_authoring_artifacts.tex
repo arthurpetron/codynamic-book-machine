@@ -27,5 +27,17 @@ A useful way to think about the lifecycle is as a boundary crossing. Before revi
 
 This chapter therefore focuses on the transition from mutable work to stable record. Drafts are meant to change; artifacts are meant to persist. The machine succeeds when it can move content across that boundary without losing traceability, without breaking compilation, and without severing the relationship between the prose a reader sees and the structured work that produced it.
 
+A practical implication of this design is that review is not a separate after-the-fact reading pass. It is part of the same workflow that creates the draft in the first place. The section agent writes a draft, the surrounding coordination layer checks whether the draft satisfies the outline and the current dependency state, and any unresolved issues are pushed back into the queue as explicit work. That makes the section payload a living artifact: it can be inspected, revised, and compared, but it is always tied to a specific state of the project.
+
+The same principle applies to compilation. A successful build is not just a convenience; it is evidence that the manuscript has reached a coherent state. If the source compiles, the system has at least verified that the section structure, included assets, and registered references are mutually compatible at that moment. If the build fails, the failure is itself an artifact, because it records a mismatch that must be resolved before the work can be treated as durable.
+
+Seen this way, the chapter's subject is not only writing, but stabilization. The machine drafts to discover what the section should say, reviews to test whether it says it correctly, and emits artifacts so that the result can survive beyond the current agent run. That progression is what turns generated prose into book infrastructure.
+
+\begin{figure}[htbp]
+\centering
+\input{media/diagrams/ch05_authoring_artifacts__media_req_4518017964f0.tikz}
+\caption{Conceptual diagram for ``Drafting, Review, and Artifacts'': Explain how generated work becomes reviewable and durable.}
+\end{figure}
+
 
 \end{document}

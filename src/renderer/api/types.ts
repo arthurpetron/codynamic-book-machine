@@ -156,6 +156,7 @@ export interface BookRecord {
   title: string;
   root: string;
   status: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface BookLibraryState {
@@ -168,7 +169,13 @@ export interface ElectronApi {
     state(selectedId?: string | null): Promise<BookAppState>;
     section(sectionId: string): Promise<SectionPayload>;
     saveSection(sectionId: string, content: string): Promise<SectionPayload>;
-    startSectionAgent(sectionId: string): Promise<{ section: SectionPayload; event?: VerificationEvent; output_path?: string }>;
+    startSectionAgent(sectionId: string): Promise<{
+      section: SectionPayload;
+      event?: VerificationEvent;
+      output_path?: string;
+      planning_task?: unknown;
+      planning_result?: unknown;
+    }>;
     runHypervisor(options?: {
       excludeSectionIds?: string[];
       includeSectionIds?: string[];
@@ -179,6 +186,8 @@ export interface ElectronApi {
       phase?: HypervisorPhase;
       event?: VerificationEvent;
       sectionAgent?: { section: SectionPayload; event?: VerificationEvent; output_path?: string } | null;
+      executedRepairs?: unknown[];
+      retryCompile?: CompileResult | null;
     }>;
     reviewHypervisorDocument(limit?: number): Promise<{
       selectedSectionIds: string[];
@@ -198,6 +207,12 @@ export interface ElectronApi {
     rejectProposal(proposalId: string, note?: string): Promise<EditProposal>;
     reviseProposal(proposalId: string, content: string, note?: string): Promise<EditProposal>;
     importOutline(mode: "current" | "new"): Promise<{ sourcePath: string; output: string } | null>;
+    createVersionFromOutline(): Promise<{
+      record?: BookRecord;
+      result?: Record<string, string>;
+      message?: string;
+      error?: string;
+    }>;
     library(): Promise<BookLibraryState>;
     openBook(bookId: string): Promise<BookRecord>;
     newBook(title: string): Promise<BookRecord>;

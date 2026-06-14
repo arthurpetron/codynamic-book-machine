@@ -129,6 +129,26 @@ class BookLibrary:
         self.register(record)
         return self.open_book(record.book_id), result
 
+    def create_version_from_outline(
+        self,
+        outline_path: Path | str,
+        use_llm: str | bool = "auto",
+        force: bool = False,
+        tags: list[str] | None = None,
+    ) -> tuple[BookRecord, ImportResult]:
+        """Create, register, and open a clean versioned book from an outline."""
+        result = BookImporter(self.book_data_dir).import_versioned_outline(
+            outline_path,
+            use_llm=use_llm,
+            force=force,
+        )
+        record = self._record_from_repository(
+            BookRepository(result.book_root),
+            tags=tags or ["versioned"],
+        )
+        self.register(record)
+        return self.open_book(record.book_id), result
+
     def archive_book(self, book_id: str) -> BookRecord:
         record = self.get(book_id)
         archived = BookRecord(**{**asdict(record), "status": "archived"})
@@ -175,6 +195,8 @@ class BookLibrary:
             metadata={
                 "summary": work.get("summary", ""),
                 "type": work.get("type", "book"),
+                "version": work.get("metadata", {}).get("version"),
+                "version_family_id": work.get("metadata", {}).get("version_family_id"),
                 "updated": work.get("metadata", {}).get("updated"),
             },
         )

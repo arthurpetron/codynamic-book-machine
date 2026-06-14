@@ -19,7 +19,7 @@ A \emph{WorkManager} coordinates these items across the system. Its role is not 
 
 A useful way to understand this layer is to follow a WorkItem through its lifecycle. An item may be created from an outline requirement, a revision request, or a coordination need. It enters the queue with a priority and a dependency set, becomes active when capacity is available, and either advances to completion or pauses in a blocked state if it cannot proceed. At each meaningful boundary, the item can be checkpointed so that its current state is preserved without forcing the agent to repeat earlier reasoning.
 
-Checkpoints are the mechanism that makes long-running work resumable. A checkpoint captures the current state of a WorkItem at a meaningful boundary: what has been completed, what remains, what assumptions were made, and what external inputs are still pending. For section drafting, a checkpoint may include the current LaTeX body, unresolved citation needs, open diagram requests, and any editorial constraints inherited from the outline. For coordination tasks, a checkpoint may record the last known message state or the latest decision from the hypervisor. Checkpoints reduce the cost of interruption and make it possible to hand work between agents without losing continuity.
+Checkpoints are the mechanism that makes long-running work resumable. A checkpoint captures the current state of a WorkItem at a meaningful boundary: what has been completed, what remains, what assumptions were made, and what external inputs are still pending. For section drafting, a checkpoint may include the current \LaTeX{} body, unresolved citation needs, open diagram requests, and any editorial constraints inherited from the outline. For coordination tasks, a checkpoint may record the last known message state or the latest decision from the hypervisor. Checkpoints reduce the cost of interruption and make it possible to hand work between agents without losing continuity.
 
 Capacity reports provide the system with a simple but important form of self-observation. A capacity report summarizes how much work an agent or queue can reasonably accept at a given moment, how many items are active, what kinds of tasks are consuming attention, and whether the current load is sustainable. This is especially important in a multi-agent environment, where the appearance of parallelism can hide a practical bottleneck. If one agent is overloaded with high-priority items, the report should make that visible before the queue becomes unstable.
 
@@ -29,7 +29,13 @@ Overcommitment is the failure mode that queue discipline is designed to prevent.
 
 Queue discipline is the rule set that keeps this from happening. Items should enter the queue with explicit priority and dependency information, should move forward only when their prerequisites are satisfied, and should be marked blocked rather than silently stalled. The queue should prefer small, finishable units of work over broad, ambiguous ones, because smaller items are easier to checkpoint, easier to review, and easier to reassign. In practice, this means the system favors a steady flow of completed WorkItems over a large backlog of partially addressed ones.
 
-Taken together, WorkItem, WorkManager, checkpoints, capacity reports, blockers, overcommitment, and queue discipline define the operational grammar of the machine. They ensure that authoring is not just a sequence of text generations, but a managed process in which progress is visible, interruptions are survivable, and coordination remains bounded by explicit state.
+Taken together, WorkItem, WorkManager, checkpoints, capacity reports, blockers, overcommitment, and queue discipline define the operational grammar of the machine. They ensure that authoring is not just a sequence of text generations, but a managed process in which progress is visible, interruptions are survivable, and coordination remains bounded by explicit state. In the next section, that operational grammar extends into the message layer, where routed prompts, durable logs, and runtime memory make the coordination records themselves persistent.
+
+\begin{figure}[htbp]
+\centering
+\input{media/diagrams/ch04_sec02_work_manager__media_req_7a661ac0fdc9.tikz}
+\caption{Conceptual diagram for 'Work Management': Explain WorkItem, WorkManager, checkpoints, capacity reports, blockers, overcommitment, and queue discipline.}
+\end{figure}
 
 
 \end{document}

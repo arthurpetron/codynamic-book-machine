@@ -240,6 +240,9 @@ OUTPUT build/pdf/ch04_sec03_messages.pdf
 INPUT /usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmr12.tfm
 INPUT /usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmbx12.tfm
 INPUT /usr/local/texlive/2025/texmf-var/fonts/map/pdftex/updmap/pdftex.map
+INPUT ./media/diagrams/ch04_sec03_messages__media_req_e612c9613878.tikz
+INPUT ./media/diagrams/ch04_sec03_messages__media_req_e612c9613878.tikz
+INPUT media/diagrams/ch04_sec03_messages__media_req_e612c9613878.tikz
 INPUT build/pdf/ch04_sec03_messages.aux
 INPUT build/pdf/ch04_sec03_messages.out
 INPUT build/pdf/ch04_sec03_messages.out

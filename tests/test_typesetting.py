@@ -266,6 +266,42 @@ def test_compile_maps_book_error_line_to_responsible_section(tmp_path, monkeypat
     assert result.diagnostic_summary.startswith("Compile failed in Introduction:")
 
 
+def test_compile_maps_tex_capacity_error_to_responsible_section(tmp_path, monkeypatch):
+    repository = create_book(tmp_path)
+    assembled = repository.latex_builder().assembler.assemble_book()
+    error_line = next(
+        index
+        for index, line in enumerate(assembled.splitlines(), start=1)
+        if "This is section text" in line
+    )
+
+    def fake_run(command, cwd, env, capture_output, text, timeout, check):
+        return SimpleNamespace(
+            returncode=1,
+            stdout=(
+                f"./build/tex/typeset_book.tex:{error_line}: TeX capacity \n"
+                "exceeded, sorry [input stack size=10000].\n"
+                "\\curr@fontshape ->\\f@encoding\n"
+                f"l.{error_line} ... \\texttt{{\\cite\\{{...\\}}}}\n"
+                "./build/tex/typeset_book.tex:132:  ==> Fatal er\n"
+                "ror occurred, no output PDF file produced!\n"
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr(
+        "scripts.book.typesetting.find_latex_compiler",
+        lambda engine=None: LatexCompiler(name="latexmk", path="/usr/bin/latexmk"),
+    )
+    monkeypatch.setattr("scripts.book.typesetting.subprocess.run", fake_run)
+
+    result = repository.latex_builder().compile_book()
+
+    assert "TeX capacity exceeded" in result.errors[0]
+    assert result.responsible_section_ids == ["intro"]
+    assert result.responsible_section_titles == ["Introduction"]
+
+
 def test_compile_extracts_wrapped_latexmk_file_line_errors(tmp_path, monkeypatch):
     repository = create_book(tmp_path)
     assembled = repository.latex_builder().assembler.assemble_book()

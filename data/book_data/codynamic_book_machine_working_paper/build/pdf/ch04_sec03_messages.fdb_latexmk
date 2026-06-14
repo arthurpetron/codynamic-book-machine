@@ -1,5 +1,5 @@
 # Fdb version 4
-["pdflatex"] 1781391188.76422 "build/sections/ch04_sec03_messages.tex" "build/pdf/ch04_sec03_messages.pdf" "ch04_sec03_messages" 1781391189.201 0
+["pdflatex"] 1781471939.48234 "build/sections/ch04_sec03_messages.tex" "build/pdf/ch04_sec03_messages.pdf" "ch04_sec03_messages" 1781471939.93901 0
   "/usr/local/texlive/2025/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmbx12.tfm" 1136768653 1324 c910af8c371558dc20f2d7822f66fe64 ""
   "/usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmr10.tfm" 1136768653 1296 45809c5a464d5f32c8f98ba97c1bb47f ""
@@ -129,9 +129,10 @@
   "/usr/local/texlive/2025/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1746653532 5467155 19efa205003f9ecad95fbbaa6ff24da1 ""
   "/usr/local/texlive/2025/texmf-var/web2c/pdftex/pdflatex.fmt" 1741450574 3345740 46b66fdb0378f7bf5921b5eabf1762b8 ""
   "/usr/local/texlive/2025/texmf.cnf" 1741450484 577 418a7058ec8e006d8704f60ecd22c938 ""
-  "build/pdf/ch04_sec03_messages.aux" 1781391189.16214 162 87159b23cce7c2b923b11c85495bbd6d "pdflatex"
-  "build/pdf/ch04_sec03_messages.out" 1781391189.06385 0 d41d8cd98f00b204e9800998ecf8427e "pdflatex"
-  "build/sections/ch04_sec03_messages.tex" 1781391188.70282 5198 700b6ae00197957c588fd9d7dcb5a8c4 ""
+  "build/pdf/ch04_sec03_messages.aux" 1781471939.89579 445 a59330599550697c7c513267a2901a7a "pdflatex"
+  "build/pdf/ch04_sec03_messages.out" 1781471939.78381 0 d41d8cd98f00b204e9800998ecf8427e "pdflatex"
+  "build/sections/ch04_sec03_messages.tex" 1781471938.95919 5499 aac4e0b6c0643a1bad4e41394060aaa2 ""
+  "media/diagrams/ch04_sec03_messages__media_req_e612c9613878.tikz" 1781471933.27569 425 cc52355838cc5ccc16cb13d7d7567b56 ""
   (generated)
   "build/pdf/ch04_sec03_messages.aux"
   "build/pdf/ch04_sec03_messages.log"

@@ -5,29 +5,30 @@ work:
   subtitle: "A Structured Authoring System for Agent-Coordinated Books"
   summary: |
     This paper explains the Codynamic Book Machine as both a writing tool and
-    a working example of codynamic architecture. It describes how a book begins
-    as intent and outline data, becomes a canonical work object, is decomposed
-    into section-level work, coordinated through agents and messages, revised
-    through proposals and verification, and finally compiled into publication
-    artifacts.
+    a working example of codynamic architecture. It describes how authorial
+    intent becomes a canonical work object, how that object is decomposed into
+    section-level responsibilities, how agents coordinate through task queues
+    and append-only messages, how editorial gardening keeps the manuscript
+    coherent, how references and diagrams are routed through specialist agents,
+    and how durable artifacts become a compiled paper.
 
     The target length is approximately twenty pages. The paper should be
     explanatory, technical, and concrete, using the current repository as the
-    primary case study.
+    primary case study and treating the running system as the evidence base.
   intent:
     audience: "Researchers, tool builders, authors, and software engineers interested in agentic authoring systems."
-    writing_style: "Clear technical exposition with architectural explanation and concrete workflow examples."
+    writing_style: "Clear technical exposition with architectural explanation, concrete workflow examples, and implementation-level specificity."
     author_persona: "System designer explaining the machine from the inside."
-    reader_takeaway: "Readers should understand the data model, intake path, agent workflow, artifact lifecycle, and design philosophy of the Codynamic Book Machine."
+    reader_takeaway: "Readers should understand the canonical data model, the task/message runtime, agent responsibilities, editorial maintenance cycle, reference and diagram handoffs, artifact lifecycle, and the design philosophy of the Codynamic Book Machine."
     genre: "Technical paper"
-    epistemology: "Constructive systems explanation grounded in working software."
+    epistemology: "Constructive systems explanation grounded in working software, durable logs, and generated artifacts."
   authors:
     - name: "Arthur Petron"
       role: author
   metadata:
-    version: "0.1.0"
+    version: "0.2.0"
     created: "2026-06-13"
-    updated: "2026-06-13"
+    updated: "2026-06-14"
     maintained_by: "author"
     language: "en"
     status: draft
@@ -41,8 +42,8 @@ work:
       id: abstract
       number: 0
       title: "Abstract"
-      goal: "State the paper's claim and scope in one page or less."
-      summary: "Approx. 0.5 pages. Present the Codynamic Book Machine as an intent-driven, schema-backed, multi-agent authoring system."
+      goal: "State the paper's claim, scope, and contribution in one page or less."
+      summary: "Approx. 0.5 pages. Present the Codynamic Book Machine as a schema-backed, message-coordinated, multi-agent authoring system that treats books as living technical objects."
       content_file: "content/sections/abstract.md"
 
     - type: chapter
@@ -50,7 +51,14 @@ work:
       number: 1
       title: "Introduction"
       goal: "Explain why a book machine is needed and what makes this one codynamic."
-      summary: "Approx. 2 pages. Frame the problem of long-form writing as coordination among intent, structure, drafts, review, artifacts, and compilation."
+      summary: "Approx. 2 pages. Frame long-form writing as a coordination problem among intent, outline, section drafts, citations, diagrams, reviews, task queues, runtime memory, and compiled artifacts."
+      key_concepts:
+        - id: coordination_problem
+          term: "Coordination Problem"
+          definition: "The tendency for outlines, prose, citations, diagrams, reviews, and builds to drift when they are managed as separate artifacts."
+        - id: codynamic_system
+          term: "Codynamic System"
+          definition: "A system in which code, content, agents, logs, and artifacts evolve together through explicit feedback loops."
       content:
         - type: section
           id: ch01_sec01_problem
@@ -62,15 +70,21 @@ work:
           id: ch01_sec02_thesis
           number: "1.2"
           title: "The Machine as a Codynamic System"
-          summary: "Define the central thesis: the system works by keeping outline, agents, dependencies, artifacts, and compiled outputs evolving together."
+          summary: "Define the central thesis: the system works by keeping outline, agents, task queues, dependencies, artifacts, and compiled outputs evolving together."
           content_file: "content/sections/ch01_sec02_thesis.md"
+        - type: section
+          id: ch01_sec03_case_study
+          number: "1.3"
+          title: "The Repository as the Case Study"
+          summary: "Explain that the paper is grounded in the current repository, its YAML outlines, agent definitions, runtime logs, generated diagrams, and compiled LaTeX artifacts."
+          content_file: "content/sections/ch01_sec03_case_study.md"
 
     - type: chapter
       id: ch02_canonical_work_object
       number: 2
       title: "The Canonical Work Object"
-      goal: "Describe the schema-first representation that all paths normalize into."
-      summary: "Approx. 3 pages. Explain Work Outline Schema v2.1, recursive structure, intent fields, metadata, dependencies, citations, diagrams, media, and compilation settings."
+      goal: "Describe the schema-first representation that all authoring paths normalize into."
+      summary: "Approx. 3 pages. Explain the work root, recursive structure, intent fields, metadata, dependencies, citations, diagrams, media, and compilation settings."
       dependencies:
         structural:
           - section_id: ch01_introduction
@@ -88,7 +102,7 @@ work:
           id: ch02_sec01_schema
           number: "2.1"
           title: "Schema, Intent, and Metadata"
-          summary: "Explain why the system captures purpose, audience, authorial voice, metadata, and publication information before generation."
+          summary: "Explain why the system captures purpose, audience, authorial voice, metadata, publication settings, and epistemic stance before generation."
           content_file: "content/sections/ch02_sec01_schema.md"
         - type: section
           id: ch02_sec02_tree
@@ -108,13 +122,19 @@ work:
               title: "Structural and Narrative Dependencies"
               summary: "Describe machine-readable dependency edges and human-readable narrative dependency notes."
               content_file: "content/sections/ch02_sec02_sub02_dependencies.md"
+        - type: section
+          id: ch02_sec03_state_surfaces
+          number: "2.3"
+          title: "State Surfaces: Source, TeX, Logs, and Artifacts"
+          summary: "Distinguish imported source material, generated section payloads, build outputs, runtime logs, media requests, and diagram memory as separate but coordinated state surfaces."
+          content_file: "content/sections/ch02_sec03_state_surfaces.md"
 
     - type: chapter
       id: ch03_intake_and_import
       number: 3
       title: "From Intake to Outline"
       goal: "Explain how raw author intent becomes a valid book project."
-      summary: "Approx. 3 pages. Cover conversational intake, required questions, legacy outline import, normalization, migration reports, and book repository layout."
+      summary: "Approx. 2.5 pages. Cover conversational intake, required questions, legacy outline import, normalization, migration reports, and repository layout."
       dependencies:
         structural:
           - section_id: ch02_canonical_work_object
@@ -141,15 +161,15 @@ work:
           id: ch03_sec03_repository
           number: "3.3"
           title: "Book Repository Layout"
-          summary: "Describe outline files, content sections, TeX payloads, logs, build artifacts, media requests, and artifact registry."
+          summary: "Describe outline files, source sections, TeX payloads, references, logs, build artifacts, media requests, diagram memory, and artifact registries."
           content_file: "content/sections/ch03_sec03_repository.md"
 
     - type: chapter
-      id: ch04_agents_and_work
+      id: ch04_agents_and_runtime
       number: 4
-      title: "Agents, Work, and Coordination"
-      goal: "Explain how the machine decomposes authoring into disciplined agent work."
-      summary: "Approx. 4 pages. Describe hypervisor, outline, section, gardener, diagram, design, references, and document assembly roles; then explain work items, checkpoints, capacity, blockers, messages, and lifecycle states."
+      title: "Agents, Tasks, and Runtime Memory"
+      goal: "Explain how the machine decomposes authoring into durable, inspectable agent work."
+      summary: "Approx. 4 pages. Describe the hypervisor, section agents, gardener, references agent, diagram agent, document design agent, task queues, current prompts, append-only chat logs, and completion callbacks."
       dependencies:
         structural:
           - section_id: ch03_intake_and_import
@@ -159,32 +179,182 @@ work:
         - id: agent_runtime
           term: "Agent Runtime"
           definition: "The lifecycle-aware system that spawns agents, queues tasks, records prompts, and coordinates action."
-        - id: work_item
-          term: "Work Item"
-          definition: "The atomic scheduled unit of agent labor with status, dependencies, blockers, effort, priority, and checkpoint context."
+        - id: task_queue
+          term: "Task Queue"
+          definition: "The durable ordered list of work assigned to an agent, including action id, context, priority, status, prompt, and result."
+        - id: append_only_chat_log
+          term: "Append-Only Chat Log"
+          definition: "The readable inter-agent message stream rendered as from_agent --> to_agent: message."
       content:
         - type: section
           id: ch04_sec01_agent_roles
           number: "4.1"
           title: "Agent Roles"
-          summary: "Map the major agents to their responsibilities: hypervision, outlining, section drafting, gardening, diagrams, design, references, and assembly."
+          summary: "Map the major agents to their responsibilities: hypervision, outlining, section drafting, gardening, references, diagrams, design, and assembly."
           content_file: "content/sections/ch04_sec01_agent_roles.md"
         - type: section
-          id: ch04_sec02_work_manager
+          id: ch04_sec02_task_queues
           number: "4.2"
-          title: "Work Management"
-          summary: "Explain WorkItem, WorkManager, checkpoints, capacity reports, blockers, overcommitment, and queue discipline."
-          content_file: "content/sections/ch04_sec02_work_manager.md"
+          title: "Task Queues and Action Selection"
+          summary: "Explain queued tasks, action ids, task context, priorities, generated prompts, status transitions, and how section agents choose which declared task to run."
+          content_file: "content/sections/ch04_sec02_task_queues.md"
         - type: section
           id: ch04_sec03_messages
           number: "4.3"
-          title: "Messaging and Runtime Memory"
-          summary: "Explain routed messages, subscriptions, durable logs, task prompts, agent runtime registry, and coordination records."
+          title: "Messages, Callbacks, and the Inter-Agent Chat Log"
+          summary: "Explain routed messages, process_message callbacks, self-messages, the readable chat log format, and the hypervisor's access to unprocessed chat lines."
           content_file: "content/sections/ch04_sec03_messages.md"
+        - type: section
+          id: ch04_sec04_introspective_start
+          number: "4.4"
+          title: "Introspective Starts"
+          summary: "Describe how starting a section agent asks it to inspect the whole document, its section, the outline, references, and diagram opportunities, then queue a self-addressed plan."
+          content_file: "content/sections/ch04_sec04_introspective_start.md"
 
     - type: chapter
-      id: ch05_authoring_artifacts
+      id: ch05_gardening_and_editorial_control
       number: 5
+      title: "Gardening as Editorial Control"
+      goal: "Explain how the gardener agent acts as a proactive editor of the manuscript rather than a passive validator."
+      summary: "Approx. 3 pages. Cover maintenance cycles, local and global coherence checks, repeated claims, transitions, unresolved definitions, unsupported assertions, reference-agent escalation, and hypervisor-directed section revisions."
+      dependencies:
+        structural:
+          - section_id: ch04_agents_and_runtime
+            dependency_type: builds_on
+            required: true
+      key_concepts:
+        - id: gardening_cycle
+          term: "Gardening Cycle"
+          definition: "A repeating editorial maintenance process triggered by changed lines, section-agent runs, time, or accumulated drift."
+        - id: global_drift
+          term: "Global Drift"
+          definition: "A manuscript-level mismatch that affects multiple sections and must be escalated to the hypervisor with affected section agents."
+      content:
+        - type: section
+          id: ch05_sec01_maintenance_cycle
+          number: "5.1"
+          title: "The Maintenance Cycle"
+          summary: "Describe the gardener's recurring task set: inspect changes, compare sections against parent/siblings/dependencies/downstream uses, and queue targeted editorial work."
+          content_file: "content/sections/ch05_sec01_maintenance_cycle.md"
+        - type: section
+          id: ch05_sec02_editorial_checks
+          number: "5.2"
+          title: "Editorial Checks and Revision Requests"
+          summary: "Separate repeated claims and thin transitions from missing definitions and unsupported assertions, and explain how each category routes to section agents or references_agent."
+          content_file: "content/sections/ch05_sec02_editorial_checks.md"
+        - type: section
+          id: ch05_sec03_global_drift
+          number: "5.3"
+          title: "Global Drift and Hypervisor Escalation"
+          summary: "Explain how the gardener sends the hypervisor a list of affected section agents so the hypervisor can direct coordinated revisions."
+          content_file: "content/sections/ch05_sec03_global_drift.md"
+
+    - type: chapter
+      id: ch06_references_and_diagrams
+      number: 6
+      title: "Specialist Handoffs: References and Diagrams"
+      goal: "Explain why citations, definitions, and diagrams are routed through specialist agents."
+      summary: "Approx. 3 pages. Cover reference ownership of the shared bibliography, section-agent citation verification, references-agent requests for citation or definition support, diagram requests, diagram callbacks, and diagram-agent memory."
+      dependencies:
+        structural:
+          - section_id: ch04_agents_and_runtime
+            dependency_type: builds_on
+            required: true
+          - section_id: ch05_gardening_and_editorial_control
+            dependency_type: builds_on
+            required: false
+      key_concepts:
+        - id: reference_handoff
+          term: "Reference Handoff"
+          definition: "A structured request in which unsupported claims or missing definitions are sent to references_agent, which then notifies the relevant section agent with citation or definition context."
+        - id: diagram_memory
+          term: "Diagram Memory"
+          definition: "The diagram agent's durable record of generated diagram purpose, layout, nodes, edges, path, and distinctness rationale."
+      content:
+        - type: section
+          id: ch06_sec01_references
+          number: "6.1"
+          title: "Reference Ownership and Citation Support"
+          summary: "Explain why references_agent owns references/references.bib, how section agents verify registered keys, and how missing support is routed."
+          content_file: "content/sections/ch06_sec01_references.md"
+        - type: section
+          id: ch06_sec02_diagram_requests
+          number: "6.2"
+          title: "Diagram Requests and Callbacks"
+          summary: "Explain how section agents propose 0-2 diagrams after revision passes, exclude front matter, queue create_diagram_asset, and wait for callback tasks before inserting paths."
+          content_file: "content/sections/ch06_sec02_diagram_requests.md"
+        - type: section
+          id: ch06_sec03_diagram_memory
+          number: "6.3"
+          title: "Diagram Agent Memory"
+          summary: "Explain why the diagram agent receives prior diagram context in its prompt and records each diagram's purpose, nodes, edges, layout, path, and distinctness rationale."
+          content_file: "content/sections/ch06_sec03_diagram_memory.md"
+
+    - type: chapter
+      id: ch07_artifacts_and_compilation
+      number: 7
       title: "Drafting, Review, and Artifacts"
-      goal: "Explain how generated work becomes reviewable and durable."
-     
+      goal: "Explain how generated work becomes reviewable, durable, and compilable."
+      summary: "Approx. 2.5 pages. Cover imported source material, generated LaTeX section payloads, proposal records, diffs, build artifacts, compile repair tasks, and document-design review."
+      dependencies:
+        structural:
+          - section_id: ch06_references_and_diagrams
+            dependency_type: builds_on
+            required: true
+      key_concepts:
+        - id: section_payload
+          term: "Section Payload"
+          definition: "Generated LaTeX body content for a single section, stored separately from imported source material."
+        - id: artifact_lifecycle
+          term: "Artifact Lifecycle"
+          definition: "The path from source notes to section payloads, proposals, compiled TeX, PDFs, logs, and reviewable UI state."
+      content:
+        - type: section
+          id: ch07_sec01_section_payloads
+          number: "7.1"
+          title: "Source Material and Section Payloads"
+          summary: "Distinguish imported markdown source from generated LaTeX payloads and explain why section agents write only to section-specific TeX files."
+          content_file: "content/sections/ch07_sec01_section_payloads.md"
+        - type: section
+          id: ch07_sec02_proposals_and_diffs
+          number: "7.2"
+          title: "Proposals, Diffs, and Review"
+          summary: "Explain how agent-authored edits become proposals, metadata, diffs, checkpoints, and reviewable changes instead of invisible mutations."
+          content_file: "content/sections/ch07_sec02_proposals_and_diffs.md"
+        - type: section
+          id: ch07_sec03_compilation
+          number: "7.3"
+          title: "Compilation and Repair Loops"
+          summary: "Explain LaTeX assembly, build logs, compile diagnostics, section attribution, minimal repair tasks, and document-design feedback."
+          content_file: "content/sections/ch07_sec03_compilation.md"
+
+    - type: chapter
+      id: ch08_implications
+      number: 8
+      title: "Implications and Open Questions"
+      goal: "Close by explaining what this architecture makes possible and what remains unresolved."
+      summary: "Approx. 2 pages. Discuss inspectability, authorship, provenance, agent autonomy, limits of deterministic scaffolding, UI observability, and future improvements."
+      dependencies:
+        structural:
+          - section_id: ch07_artifacts_and_compilation
+            dependency_type: builds_on
+            required: true
+      content:
+        - type: section
+          id: ch08_sec01_design_principles
+          number: "8.1"
+          title: "Design Principles"
+          summary: "Summarize the architecture's principles: durable state, explicit queues, specialist ownership, reversible edits, visible messages, and schema-first authoring."
+          content_file: "content/sections/ch08_sec01_design_principles.md"
+        - type: section
+          id: ch08_sec02_limits
+          number: "8.2"
+          title: "Limits and Failure Modes"
+          summary: "Discuss repeated generic outputs, stale memories, over-eager diagrams, unsupported claims, prompt/context size, and the need for human review."
+          content_file: "content/sections/ch08_sec02_limits.md"
+        - type: section
+          id: ch08_sec03_future_work
+          number: "8.3"
+          title: "Future Work"
+          summary: "Identify improvements such as richer diagram planning, better global revision scheduling, stronger reference retrieval, UI observability, and more formal evaluation."
+          content_file: "content/sections/ch08_sec03_future_work.md"
