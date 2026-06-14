@@ -88,6 +88,43 @@ def test_library_import_outline_registers_and_opens(tmp_path):
     assert library.active().book_id == "imported_library_book"
 
 
+def test_library_import_outline_can_force_versioned_from_scratch(tmp_path):
+    source = tmp_path / "meta_book.yaml"
+    source.write_text(
+        yaml.safe_dump({
+            "work": {
+                "id": "sample_work",
+                "type": "paper",
+                "title": "Sample Work",
+                "summary": "Versioned sample.",
+                "metadata": {"version": "0.2.0", "updated": "2026-06-14"},
+                "structure": [
+                    {
+                        "id": "intro",
+                        "type": "chapter",
+                        "title": "Intro",
+                        "content_file": "content/sections/intro.md",
+                    }
+                ],
+            }
+        }, sort_keys=False)
+    )
+    library = BookLibrary(tmp_path / "book_data")
+    record, result = library.import_outline(source, use_llm="never", force_versioned=True)
+    generated = result.book_root / "tex" / "section_payloads" / "intro.tex"
+    generated.parent.mkdir(parents=True)
+    generated.write_text("old generated text\n")
+
+    recreated, recreated_result = library.import_outline(source, use_llm="never", force_versioned=True)
+
+    assert record.book_id == "sample_work__v0_2_0"
+    assert recreated.book_id == "sample_work__v0_2_0"
+    assert recreated_result.kind == "versioned_outline"
+    assert library.active().book_id == "sample_work__v0_2_0"
+    assert not generated.exists()
+    assert not (recreated_result.book_root / "tex").exists()
+
+
 def test_library_create_version_from_outline_starts_clean_project(tmp_path):
     source = tmp_path / "meta_book.yaml"
     source.write_text(

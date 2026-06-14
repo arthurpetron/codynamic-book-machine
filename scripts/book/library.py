@@ -119,7 +119,20 @@ class BookLibrary:
         book_root: Path | str | None = None,
         use_llm: str | bool = "auto",
         tags: list[str] | None = None,
+        force_versioned: bool = False,
     ) -> tuple[BookRecord, ImportResult]:
+        if (
+            force_versioned
+            and book_root is None
+            and BookImporter.has_version_metadata(outline_path)
+        ):
+            return self.create_version_from_outline(
+                outline_path,
+                use_llm=use_llm,
+                force=True,
+                tags=tags or ["versioned"],
+            )
+
         result = BookImporter(self.book_data_dir).import_outline(
             outline_path,
             book_root=book_root,

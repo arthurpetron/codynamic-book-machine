@@ -173,6 +173,18 @@ class BookImporter:
         return yaml.safe_load(canonical_yaml)
 
     @staticmethod
+    def has_version_metadata(source_path: Path | str) -> bool:
+        """Return true when a canonical outline declares a version."""
+        try:
+            raw = yaml.safe_load(Path(source_path).read_text())
+        except Exception:
+            return False
+        if not isinstance(raw, dict) or not isinstance(raw.get("work"), dict):
+            return False
+        metadata = raw["work"].get("metadata") or {}
+        return bool(metadata.get("version"))
+
+    @staticmethod
     def versioned_work_id(family_id: str, version: str) -> str:
         version_slug = re.sub(r"[^A-Za-z0-9]+", "_", version).strip("_").lower()
         if not version_slug:

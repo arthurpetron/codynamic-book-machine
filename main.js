@@ -159,6 +159,8 @@ async function importOutlineForMode(win, mode = 'new') {
   ];
   if (mode === 'current') {
     args.push('--book-root', await getActiveBookRoot());
+  } else {
+    args.push('--versioned-from-scratch');
   }
   const importResult = await runPython(args);
   const output = importResult.stdout.trim();

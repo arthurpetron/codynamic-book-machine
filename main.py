@@ -177,6 +177,7 @@ def cmd_import(args):
                     args.input,
                     book_root=args.book_root,
                     use_llm=args.use_llm,
+                    force_versioned=args.versioned_from_scratch,
                 )
                 print(f"Imported outline: {result.title} ({record.book_id})")
                 print(f"Book root: {result.book_root}")
@@ -736,6 +737,11 @@ Examples:
         '--register',
         action='store_true',
         help='Register imported outline in the book library and make it active'
+    )
+    import_outline.add_argument(
+        '--versioned-from-scratch',
+        action='store_true',
+        help='For canonical outlines with metadata.version, recreate a clean versioned book and make it active'
     )
     import_outline.set_defaults(func=cmd_import)
 
