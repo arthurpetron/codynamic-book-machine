@@ -46,9 +46,19 @@ function updateUserChatMessage(messageId, updates) {
   return message;
 }
 
+function getPythonExecutable() {
+  // Use venv python if available, fallback to system python3
+  const venvPython = path.join(__dirname, '.venv', 'bin', 'python3');
+  if (fs.existsSync(venvPython)) {
+    return venvPython;
+  }
+  return 'python3';
+}
+
 function runPython(args) {
   return new Promise((resolve, reject) => {
-    execFile('python3', args, { cwd: __dirname }, (error, stdout, stderr) => {
+    const pythonExe = getPythonExecutable();
+    execFile(pythonExe, args, { cwd: __dirname, maxBuffer: 16 * 1024 * 1024 }, (error, stdout, stderr) => {
       if (error) {
         error.stdout = stdout;
         error.stderr = stderr;
@@ -60,6 +70,12 @@ function runPython(args) {
   });
 }
 
+function pythonErrorMessage(error) {
+  const stderr = (error && error.stderr) ? String(error.stderr).trim() : '';
+  const stdout = (error && error.stdout) ? String(error.stdout).trim() : '';
+  return stderr || stdout || (error && error.message) || 'Unknown Python command error';
+}
+
 async function runAppJson(args) {
   const result = await runPython([
     path.join(__dirname, 'main.py'),
@@ -68,7 +84,28 @@ async function runAppJson(args) {
     getBookDataDir(),
     ...args
   ]);
-  return JSON.parse(result.stdout);
+  return parseJsonFromStdout(result.stdout);
+}
+
+function parseJsonFromStdout(stdout) {
+  const text = String(stdout || '').trim();
+  try {
+    return JSON.parse(text);
+  } catch (_error) {
+    const objectStart = text.lastIndexOf('\n{');
+    const arrayStart = text.lastIndexOf('\n[');
+    const start = Math.max(objectStart, arrayStart);
+    if (start >= 0) {
+      return JSON.parse(text.slice(start + 1));
+    }
+    const firstObject = text.indexOf('{');
+    const firstArray = text.indexOf('[');
+    const fallbackStart = [firstObject, firstArray].filter((index) => index >= 0).sort((a, b) => a - b)[0];
+    if (fallbackStart != null) {
+      return JSON.parse(text.slice(fallbackStart));
+    }
+    throw _error;
+  }
 }
 
 async function getActiveBookRoot() {
@@ -77,51 +114,20 @@ async function getActiveBookRoot() {
   return active?.root || getDefaultBookRoot();
 }
 
-async function importOutline(win) {
-  const result = await dialog.showOpenDialog(win, {
-    title: 'Import Outline',
-    properties: ['openFile'],
-    filters: [
-      { name: 'Outlines', extensions: ['yaml', 'yml', 'json', 'md', 'markdown', 'txt'] },
-      { name: 'All Files', extensions: ['*'] }
-    ]
-  });
-
-  if (result.canceled || result.filePaths.length === 0) {
-    return;
-  }
-
-  const sourcePath = result.filePaths[0];
-  win.webContents.send('import:outline:started', { sourcePath });
-
-  try {
-    const importResult = await runPython([
-      path.join(__dirname, 'main.py'),
-      'import',
-      'outline',
-      sourcePath,
-      '--book-data-dir',
-      getBookDataDir(),
-      '--register'
-    ]);
-    win.webContents.send('import:outline:completed', {
-      sourcePath,
-      output: importResult.stdout.trim()
-    });
-  } catch (error) {
-    win.webContents.send('import:outline:failed', {
-      sourcePath,
-      message: error.stderr || error.stdout || error.message
-    });
-  }
-}
-
 async function importOutlineForMode(win, mode = 'new') {
   const dialogOptions = {
     title: mode === 'current' ? 'Import Outline Into Current Book' : 'Import Outline As New Book',
     properties: ['openFile'],
     filters: [
-      { name: 'Outlines', extensions: ['yaml', 'yml', 'json', 'md', 'markdown', 'txt'] },
+      {
+        name: 'Outline-like text sources',
+        extensions: [
+          'yaml', 'yml', 'json',
+          'md', 'markdown', 'txt', 'text',
+          'tex', 'latex', 'rst', 'adoc', 'org',
+          'opml', 'xml', 'html', 'htm'
+        ]
+      },
       { name: 'All Files', extensions: ['*'] }
     ]
   };
@@ -130,10 +136,12 @@ async function importOutlineForMode(win, mode = 'new') {
     : await dialog.showOpenDialog(dialogOptions);
 
   if (result.canceled || result.filePaths.length === 0) {
+    console.log(`[Import] ${mode} import canceled.`);
     return null;
   }
 
   const sourcePath = result.filePaths[0];
+  console.log(`[Import] Starting ${mode} outline import: ${sourcePath}`);
   const args = [
     path.join(__dirname, 'main.py'),
     'import',
@@ -141,13 +149,56 @@ async function importOutlineForMode(win, mode = 'new') {
     sourcePath,
     '--book-data-dir',
     getBookDataDir(),
+    '--use-llm',
+    'auto',
     '--register'
   ];
   if (mode === 'current') {
     args.push('--book-root', await getActiveBookRoot());
   }
   const importResult = await runPython(args);
-  return { sourcePath, output: importResult.stdout.trim() };
+  const output = importResult.stdout.trim();
+  console.log(`[Import] Completed ${mode} outline import: ${output || sourcePath}`);
+  return { sourcePath, output };
+}
+
+function importedBookIdFromOutput(output) {
+  const match = String(output || '').match(/\(([^()\s]+)\)\s*$/m);
+  return match ? match[1] : null;
+}
+
+async function importOutlineFromNativeMenu(win, mode = 'new') {
+  try {
+    const result = await importOutlineForMode(win, mode);
+    if (!result) {
+      return;
+    }
+    const bookId = importedBookIdFromOutput(result.output);
+    win.webContents.send('app:book:changed', { bookId });
+    win.webContents.send('app:library:message', {
+      message: result.output || `Imported outline from ${result.sourcePath}.`
+    });
+    await dialog.showMessageBox(win, {
+      type: 'info',
+      title: 'Outline Imported',
+      message: mode === 'current' ? 'Imported outline into the current book.' : 'Imported outline as a new book.',
+      detail: result.output || result.sourcePath,
+      buttons: ['OK']
+    });
+  } catch (error) {
+    const message = pythonErrorMessage(error);
+    console.error(`[Import] Failed ${mode} outline import: ${message}`);
+    win.webContents.send('app:library:message', {
+      message: `Import failed: ${message}`
+    });
+    await dialog.showMessageBox(win, {
+      type: 'error',
+      title: 'Import Failed',
+      message: 'Outline import failed.',
+      detail: message,
+      buttons: ['OK']
+    });
+  }
 }
 
 async function openBook(win) {
@@ -202,37 +253,54 @@ function parseStyles(stdout) {
 }
 
 function createAppMenu(win) {
+  const fileMenu = {
+    label: 'File',
+    submenu: [
+      {
+        label: 'New Book...',
+        accelerator: 'CmdOrCtrl+N',
+        click: () => newBook(win)
+      },
+      {
+        label: 'Open Book...',
+        accelerator: 'CmdOrCtrl+O',
+        click: () => openBook(win)
+      },
+      { type: 'separator' },
+      {
+        label: 'Import / Translate Outline as New Book...',
+        accelerator: 'CmdOrCtrl+Shift+O',
+        click: () => importOutlineFromNativeMenu(win, 'new')
+      },
+      {
+        label: 'Import / Translate Outline into Current Book...',
+        click: () => importOutlineFromNativeMenu(win, 'current')
+      },
+      { type: 'separator' },
+      process.platform === 'darwin'
+        ? { role: 'close' }
+        : { role: 'quit' }
+    ]
+  };
+
   const template = [
-    {
-      label: 'File',
-      submenu: [
-        {
-          label: 'New Book...',
-          accelerator: 'CmdOrCtrl+N',
-          click: () => newBook(win)
-        },
-        {
-          label: 'Open Book...',
-          accelerator: 'CmdOrCtrl+O',
-          click: () => openBook(win)
-        },
-        { type: 'separator' },
-        {
-          label: 'Import',
+    ...(process.platform === 'darwin'
+      ? [{
+          label: app.name,
           submenu: [
-            {
-              label: 'Outline...',
-              accelerator: 'CmdOrCtrl+Shift+O',
-              click: () => importOutline(win)
-            }
+            { role: 'about' },
+            { type: 'separator' },
+            { role: 'services' },
+            { type: 'separator' },
+            { role: 'hide' },
+            { role: 'hideOthers' },
+            { role: 'unhide' },
+            { type: 'separator' },
+            { role: 'quit' }
           ]
-        },
-        { type: 'separator' },
-        process.platform === 'darwin'
-          ? { role: 'close' }
-          : { role: 'quit' }
-      ]
-    },
+        }]
+      : []),
+    fileMenu,
     {
       label: 'Edit',
       submenu: [
@@ -277,6 +345,7 @@ function createWindow() {
 
   const rendererUrl = process.env.VITE_DEV_SERVER_URL;
   const builtRenderer = path.join(__dirname, 'dist', 'renderer', 'index.html');
+
   if (rendererUrl) {
     win.loadURL(rendererUrl);
   } else if (fs.existsSync(builtRenderer)) {
@@ -284,6 +353,7 @@ function createWindow() {
   } else {
     win.loadFile(path.join(__dirname, 'public', 'index.html'));
   }
+
   createAppMenu(win);
 }
 
@@ -335,7 +405,15 @@ app.whenReady().then(() => {
     if (selectedId) {
       args.push('--selected-id', selectedId);
     }
-    return runAppJson(args);
+    try {
+      return await runAppJson(args);
+    } catch (error) {
+      const stdout = (error && error.stdout) ? String(error.stdout) : '';
+      if (selectedId && stdout.includes('Unknown section id')) {
+        return runAppJson(['state']);
+      }
+      throw error;
+    }
   });
   ipcMain.handle('app:section', async (_event, { sectionId }) => {
     return runAppJson(['section', sectionId]);
@@ -349,11 +427,49 @@ app.whenReady().then(() => {
       fs.rmSync(tmpPath, { force: true });
     }
   });
+  ipcMain.handle('app:start-section-agent', async (_event, { sectionId }) => {
+    return runAppJson(['start-section-agent', sectionId]);
+  });
+  ipcMain.handle('app:run-hypervisor', async (_event, { excludeSectionIds, includeSectionIds, phase } = {}) => {
+    const args = ['run-hypervisor'];
+    if (Array.isArray(excludeSectionIds) && excludeSectionIds.length > 0) {
+      args.push('--exclude-json', JSON.stringify(excludeSectionIds));
+    }
+    if (Array.isArray(includeSectionIds) && includeSectionIds.length > 0) {
+      args.push('--include-json', JSON.stringify(includeSectionIds));
+    }
+    if (phase) {
+      args.push('--phase', phase);
+    }
+    return runAppJson(args);
+  });
+  ipcMain.handle('app:review-hypervisor-document', async (_event, { limit } = {}) => {
+    const args = ['review-hypervisor-document'];
+    if (limit) {
+      args.push('--limit', String(limit));
+    }
+    return runAppJson(args);
+  });
   ipcMain.handle('app:compile-section', async (_event, { sectionId }) => {
     return runAppJson(['compile-section', sectionId]);
   });
   ipcMain.handle('app:compile-book', async () => {
     return runAppJson(['compile-book']);
+  });
+  ipcMain.handle('app:update-design-settings', async (_event, { updates } = {}) => {
+    return runAppJson(['update-design-settings', JSON.stringify(updates || {})]);
+  });
+  ipcMain.handle('app:pdf-data-url', async (_event, { pdfPath }) => {
+    if (!pdfPath) {
+      throw new Error('PDF path is required');
+    }
+    const resolved = path.resolve(pdfPath);
+    const bookRoot = path.resolve(await getActiveBookRoot());
+    if (!resolved.startsWith(`${bookRoot}${path.sep}`)) {
+      throw new Error('PDF path is outside the active book root.');
+    }
+    const bytes = fs.readFileSync(resolved);
+    return `data:application/pdf;base64,${bytes.toString('base64')}`;
   });
   ipcMain.handle('app:request-review', async (_event, { subject } = {}) => {
     return runAppJson(['request-review', '--subject', subject || 'book']);
@@ -387,7 +503,20 @@ app.whenReady().then(() => {
     }
   });
   ipcMain.handle('app:import-outline', async (_event, { mode } = {}) => {
-    return importOutlineForMode(BrowserWindow.getFocusedWindow(), mode || 'new');
+    try {
+      const win = BrowserWindow.fromWebContents(_event.sender) || BrowserWindow.getFocusedWindow();
+      const result = await importOutlineForMode(win, mode || 'new');
+      if (result) {
+        win?.webContents.send('app:book:changed', { bookId: importedBookIdFromOutput(result.output) });
+      }
+      return result;
+    } catch (error) {
+      const message = pythonErrorMessage(error);
+      return {
+        sourcePath: '',
+        output: `Import failed: ${message}`
+      };
+    }
   });
   ipcMain.handle('app:library', async () => {
     return runAppJson(['library']);

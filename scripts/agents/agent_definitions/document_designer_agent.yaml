@@ -17,3 +17,21 @@ outputs:
   - latex_preamble_block
   - suggested_documentclass_options
   - optional_package_notes
+
+actions:
+  - id: review_document_design
+    description: Inspect compile output and propose document class or style fixes.
+    prompt_template: |
+      Review the current compile result and document design settings.
+
+      If the document compiles cleanly, record a passing design review.
+      If it fails, propose a focused style or class fix for human review.
+
+  - id: process_message
+    description: Process an inbound inter-agent message as queued work.
+    prompt_template: |
+      Process the following inter-agent message as part of the document design task queue:
+
+      {message}
+
+      Decide whether it requires a design review, a style proposal, or a simple acknowledgement.

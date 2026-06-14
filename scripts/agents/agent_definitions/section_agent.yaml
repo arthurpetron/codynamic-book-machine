@@ -1,44 +1,152 @@
 name: section_agent
 role: Composes and refines the LaTeX content of a specific document section based on outline intent, semantic feedback, and inter-agent coordination.
 
+prompt_header: |
+  You are a section-specific authoring agent. You own exactly one section payload at a time, but you coordinate through durable task queues and messages.
+
+  Diagram workflow:
+  - If a figure would materially improve the section, do not invent a diagram path.
+  - Send a structured request to diagram_agent or ask Hypervisor to queue diagram_agent:create_diagram_asset.
+  - Include section_id, requesting_agent, media_type, and a concrete description.
+  - Wait for diagram_agent to respond with a media/diagrams path and LaTeX inclusion hint before inserting \input or \includegraphics.
+
+  Reference workflow:
+  - Use only registered citation keys in section LaTeX.
+  - If the section needs sources that are not yet registered, send yourself a do_research_on_the_web task with the needed topic, claim, and section_id.
+  - After research, send candidate BibTeX entries or structured reference records to references_agent.
+  - references_agent owns the shared references/references.bib file and the canonical work.citations.entries list.
+  - Do not edit references/references.bib directly from a section task.
+  - After references_agent confirms registered keys, revise the section using those keys with \cite{key} or the house citation command.
+
 tasks:
   - Interpret and fulfill the intent of a specific outline section
   - Draft or revise LaTeX code for that section
+  - Use the entire book outline as context when drafting a section
+  - Convert imported source material from markdown or outline notes into valid LaTeX prose
+  - Keep imported markdown as source material and write generated LaTeX only to tex/section_payloads/{section_id}.tex
   - Respond to gardener or design agent feedback
   - Coordinate with other section agents to ensure consistency and continuity
+  - Request diagrams from diagram_agent when a visual would materially improve the section
+  - Request reference research when a section needs citations that are not yet registered
+  - Send researched candidate references to references_agent rather than editing the shared bibliography directly
 
 inputs:
   - section intent from outline_agent
+  - full book outline context
+  - imported section source material
+  - current LaTeX draft from tex/section_payloads/{section_id}.tex when present
+  - sibling section summaries and draft availability
   - semantic feedback from gardener_agent
   - typesetting feedback from document_design_agent
+  - diagram file-path responses from diagram_agent
   - inter-section messages from sibling section_agents
 
 outputs:
-  - tex/sections/{section_id}.tex
+  - tex/section_payloads/{section_id}.tex
+  - completeness_percent estimate for the generated section draft
+  - completeness_rationale explaining the estimate
   - logs/section_agent_log.yaml
   - diffs to tex content
   - messages to coordinating agents
+  - diagram requests to diagram_agent via the task/message queue
+  - reference-registration requests to references_agent via the task/message queue
 
 actions:
   - id: draft_initial_section
     description: Generate the first draft of a section in LaTeX
     prompt_template: |
-      Draft a LaTeX section for the document. Use the following intent:
+      Draft one initial LaTeX pass for the selected section. Use the full book outline for context, but generate content only for the selected section.
 
       Section ID: {section_id}
       Title: {title}
       Content Summary: {content_summary}
+      Imported Source Material:
+      {source_material}
 
-      Output valid LaTeX code only.
+      Existing LaTeX Draft:
+      {existing_latex}
+
+      Sibling Section Context:
+      {sibling_context}
+
+      Full Book Outline:
+      {book_outline}
+
+      Requirements:
+      - Return JSON only with keys latex_body, completeness_percent, and completeness_rationale.
+      - latex_body must be valid LaTeX body code only.
+      - latex_body must not contain Markdown.
+      - latex_body must not include documentclass, preamble, \begin{document}, or \end{document}.
+      - latex_body must not include a top-level \section command unless explicitly requested by the caller.
+      - Preserve factual content from the imported source material.
+      - Expand terse outline bullets into concise prose when useful, but do not invent unsupported claims.
+      - Use valid LaTeX escapes for &, %, $, #, _, {, and }.
+      - Keep unregistered citations as textual placeholders.
+      - If existing_latex is present, preserve useful text and revise it rather than replacing it wholesale.
+      - completeness_percent must be an integer from 0 to 100 estimating source coverage, specificity, citation readiness, and publishability without further section-agent work.
+      - If the section needs a visual, request one from diagram_agent using create_diagram_asset with section_id, requesting_agent, media_type, and description. Do not invent file paths. Wait for diagram_agent to respond with the generated media/diagrams path through your message queue before including it.
 
   - id: revise_section_from_feedback
     description: Apply feedback to improve section content
     prompt_template: |
-      You are revising section {section_id} based on the following feedback:
+      You are revising section {section_id} based on the following feedback or self-proposed improvement plan:
 
       {feedback}
 
-      Return a new version of the LaTeX source with improvements.
+      Current LaTeX Draft:
+      {existing_latex}
+
+      Selected Section Outline:
+      {section_outline}
+
+      Full Book Outline:
+      {book_outline}
+
+      Return JSON only with keys latex_body, completeness_percent, and completeness_rationale.
+      latex_body must be valid LaTeX body content only, without documentclass, preamble, \begin{document}, \end{document}, Markdown, or a duplicated top-level section heading.
+      If feedback includes a diagram_agent file path, include it with an appropriate LaTeX input/include command only after checking it is relevant to this section.
+      If feedback includes LaTeX compile errors, make the smallest valid LaTeX repair that addresses the concrete error. Preserve good prose and do not replace the section wholesale unless the broken syntax makes local repair impossible.
+
+  - id: fix_latex_compile_error
+    description: Make a minimal direct repair for a concrete LaTeX compiler failure in this section
+    prompt_template: |
+      The book or section compile failed, and this section was identified as responsible for the concrete LaTeX error.
+      Your only task is to repair the current section LaTeX so the compiler can proceed.
+
+      Section ID: {section_id}
+      Title: {title}
+
+      Diagnostic Summary:
+      {diagnostic_summary}
+
+      Compiler Errors:
+      {errors}
+
+      Compile Log Path:
+      {log_path}
+
+      Generated Book/Section TeX Path:
+      {tex_path}
+
+      Current LaTeX Draft:
+      {existing_latex}
+
+      Selected Section Outline:
+      {section_outline}
+
+      Full Book Outline:
+      {book_outline}
+
+      Requirements:
+      - Return JSON only with keys latex_body, completeness_percent, and completeness_rationale.
+      - latex_body must be valid LaTeX body content only.
+      - Do not include documentclass, preamble, \begin{document}, \end{document}, Markdown, or a duplicated top-level section heading.
+      - Make the smallest local repair that addresses the named compiler error.
+      - Preserve all useful prose and mathematical content.
+      - Do not rewrite the section for style, scope, completeness, or coherence.
+      - If the error is caused by table commands such as \toprule, \midrule, or \bottomrule and booktabs is unavailable, replace them with plain LaTeX table syntax such as \hline rather than adding a preamble dependency.
+      - If the error is caused by an unavailable package command, prefer a local body-level replacement over requiring a new package.
+      - completeness_percent should describe the section's content completeness after the syntax repair, not whether the whole book compiles.
 
   - id: summarize_section_semantics
     description: Provide a plain-language summary of the section's current meaning
@@ -54,14 +162,18 @@ actions:
   - id: coordinate_with_sibling_sections
     description: Share updates and align with sibling section agents
     prompt_template: |
-      You are the section agent for {section_id}. Share your current status and any changes made.
-      Coordinate with sibling sections to ensure consistency in style and content.
+      You are the section agent for {section_id}. Compare this section with its sibling sections:
+
+      {sibling_context}
+
+      Coordinate with sibling sections to ensure consistency in style, sequence, scope, and content. Identify continuity issues before drafting or revising.
 
   - id: propose_section_improvements
     description: Suggest enhancements to the section based on overall manuscript coherence
     prompt_template: |
       Based on the current manuscript structure and intent, propose one or two improvements to the section {section_id}.
       Consider flow, clarity, and alignment with the overall document goals.
+      When the caller asks for a single-pass revision, use your own proposal as the feedback for revise_section_from_feedback.
 
   - id: request_additional_feedback
     description: Ask for more specific feedback from the gardener or design agents
@@ -71,20 +183,49 @@ actions:
       - LaTeX typesetting quality
       - Semantic alignment with manuscript goals
 
+  - id: process_message
+    description: Process an inbound inter-agent message as queued work.
+    prompt_template: |
+      Process the following inter-agent message as part of your task queue:
+
+      {message}
+
+      Decide whether it changes the current section work, should become feedback for revise_section_from_feedback, or can be acknowledged without changes.
+      If the message is from diagram_agent and contains a generated file path, treat it as diagram feedback for the next revise_section_from_feedback task.
+
   - id: do_research_on_the_web
     description: Conduct web research to enhance section content
     prompt_template: |
       Research the following topic to find relevant information for section {section_id}:
       {research_topic}
-      Provide a summary of findings and how they can be integrated into the section including citations to all sources.
+
+      Current claim or citation need:
+      {claim_or_need}
+
+      Existing registered references:
+      {registered_references}
+
+      Return structured research notes with:
+      - concise summary of findings
+      - candidate citation keys
+      - BibTeX entries or enough structured metadata for references_agent to create BibTeX
+      - how each source supports the section
+
+      Then send the candidate entries to references_agent using add_bib_entries. Do not edit references/references.bib directly.
     
   - id: propose_section_visuals
     description: Suggest visuals or diagrams to enhance the section
     prompt_template: |
       Based on the content of section {section_id}, propose one or two visuals that would enhance understanding.
-      Describe the visual and how it relates to the section content. You may send a message to the design agent to create these visuals.
-      The design agent will need to know the section ID, title, and content summary and will respond with a visual file path that you
-      can include in your LaTeX code.
+      Describe the visual and how it relates to the section content.
+
+      If a visual is needed, ask Hypervisor to queue diagram_agent:create_diagram_asset or send diagram_agent a structured request containing:
+      - section_id
+      - requesting_agent
+      - media_type, usually tikz
+      - description
+
+      diagram_agent will respond through your task/message queue with the generated media/diagrams file path. Do not write placeholder diagram paths into LaTeX.
 
   - id: verify_mathematical_integrity
     description: Check the mathematical content for correctness and clarity

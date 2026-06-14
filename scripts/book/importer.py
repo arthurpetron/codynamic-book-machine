@@ -65,6 +65,9 @@ class BookImporter:
         target_root = Path(book_root) if book_root else self.book_data_dir / work["id"]
         repository = BookRepository(target_root)
         repository.save_book(canonical)
+        self._write_imported_section_payloads(repository, work.get("structure", []))
+        self._strip_inline_section_payloads(work.get("structure", []))
+        repository.save_book(canonical)
 
         report_path = target_root / "outline" / "reports" / f"{work['id']}_import.md"
         converter.write_report(report_path)
@@ -78,3 +81,23 @@ class BookImporter:
             work_id=work["id"],
             title=work["title"],
         )
+
+    def _write_imported_section_payloads(
+        self,
+        repository: BookRepository,
+        nodes: list[dict[str, Any]],
+    ) -> None:
+        """Persist imported inline leaf body text to canonical section files."""
+        for node in nodes:
+            content = node.get("content_text")
+            if content:
+                repository.save_section(node["id"], f"{content.strip()}\n")
+            children = node.get("content") or []
+            if children:
+                self._write_imported_section_payloads(repository, children)
+
+    def _strip_inline_section_payloads(self, nodes: list[dict[str, Any]]) -> None:
+        """Keep the saved outline structural by moving bodies to content files."""
+        for node in nodes:
+            node.pop("content_text", None)
+            self._strip_inline_section_payloads(node.get("content") or [])

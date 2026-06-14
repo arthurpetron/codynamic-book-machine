@@ -1,15 +1,77 @@
+import { useState } from "react";
 import type { OutlineChapter } from "../../api/types";
+import type { SectionAgentRunState } from "../../state/bookStore";
 
 interface OutlineTreeProps {
   chapters: OutlineChapter[];
   selectedId: string | null;
   filter: string;
+  agentRunState: Record<string, SectionAgentRunState>;
   onSelect: (sectionId: string) => void;
-  onRename: (nodeId: string, currentTitle: string) => void;
+  onStartAgent: (sectionId: string) => Promise<void>;
+  onRename: (nodeId: string, currentTitle: string) => void | Promise<void>;
 }
 
-export function OutlineTree({ chapters, selectedId, filter, onSelect, onRename }: OutlineTreeProps) {
+export function OutlineTree({ chapters, selectedId, filter, agentRunState, onSelect, onStartAgent, onRename }: OutlineTreeProps) {
   const normalized = filter.trim().toLowerCase();
+  const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
+
+  async function commitEdit() {
+    if (!editing) {
+      return;
+    }
+    const nextTitle = editing.value.trim();
+    const nodeId = editing.id;
+    setEditing(null);
+    if (nextTitle) {
+      await onRename(nodeId, nextTitle);
+    }
+  }
+
+  function titleEditor(nodeId: string, title: string, className: string) {
+    if (editing?.id === nodeId) {
+      return (
+        <input
+          className={`${className} inline-title-input`}
+          value={editing.value}
+          autoFocus
+          onChange={(event) => setEditing({ id: nodeId, value: event.target.value })}
+          onBlur={commitEdit}
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              commitEdit();
+            }
+            if (event.key === "Escape") {
+              event.preventDefault();
+              setEditing(null);
+            }
+          }}
+        />
+      );
+    }
+    return (
+      <span
+        className={className}
+        role="button"
+        tabIndex={0}
+        title="Click to rename"
+        onClick={(event) => {
+          event.stopPropagation();
+          setEditing({ id: nodeId, value: title });
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            setEditing({ id: nodeId, value: title });
+          }
+        }}
+      >
+        {title}
+      </span>
+    );
+  }
 
   return (
     <div className="outline-tree" role="tree" aria-label="Book outline">
@@ -24,14 +86,16 @@ export function OutlineTree({ chapters, selectedId, filter, onSelect, onRename }
           <section className="chapter" key={chapter.id ?? chapter.title}>
             <button className="chapter-toggle" type="button">
               <span>{chapter.expanded || normalized ? "v" : ">"}</span>
-              <span>{chapter.chapter}: {chapter.title}</span>
+              {chapter.id ? titleEditor(chapter.id, chapter.title, "chapter-title") : <span>{chapter.chapter}: {chapter.title}</span>}
             </button>
-            {chapter.id ? (
-              <button className="outline-edit" type="button" onClick={() => onRename(chapter.id!, chapter.title)}>Rename</button>
-            ) : null}
             <ul className="section-list">
               {visibleItems.map((item) => (
                 <li key={item.id}>
+                  {(() => {
+                    const runState = agentRunState[item.id] ?? "not-started";
+                    const scoreLabel = runState === "working" ? "Running" : item.score == null ? "--" : `${item.score}%`;
+                    return (
+                      <>
                   <button
                     type="button"
                     className={`section-item ${item.id === selectedId ? "is-active" : ""}`}
@@ -39,10 +103,32 @@ export function OutlineTree({ chapters, selectedId, filter, onSelect, onRename }
                     aria-selected={item.id === selectedId}
                     onClick={() => onSelect(item.id)}
                   >
-                    <span className="section-name">{item.number ? `${item.number} ` : ""}{item.title}</span>
-                    <span className={`score ${item.tone ?? "idle"}`}>{item.score == null ? "--" : `${item.score}%`}</span>
+                    <span className="section-name-prefix">{item.number ? `${item.number} ` : ""}</span>
+                    {titleEditor(item.id, item.title, "section-name")}
                   </button>
-                  <button className="outline-edit" type="button" onClick={() => onRename(item.id, item.title)}>Rename</button>
+                  <span
+                    className={`score agent-state ${runState}`}
+                    title={`Agent state: ${runState}`}
+                    aria-label={`Agent state: ${runState}`}
+                  >
+                    {scoreLabel}
+                  </span>
+                  <div className="outline-row-menu">
+                    <button type="button" className="outline-menu-button" aria-label={`Actions for ${item.title}`} title="Section actions">...</button>
+                    <div className="outline-row-menu-panel" role="menu">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        disabled={agentRunState[item.id] === "working"}
+                        onClick={() => onStartAgent(item.id)}
+                      >
+                        {runState === "working" ? "Working" : "Start Agent"}
+                      </button>
+                    </div>
+                  </div>
+                      </>
+                    );
+                  })()}
                 </li>
               ))}
             </ul>

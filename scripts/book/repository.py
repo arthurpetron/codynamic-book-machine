@@ -44,20 +44,29 @@ class BookRepository:
         return OutlineService(self.load_book())
 
     def load_section(self, section_id: str) -> str:
-        """Load section content by canonical content_file or legacy TeX payload."""
+        """Load imported source content by canonical content_file."""
         node = self.outline_service().get_node(section_id)
         if not node:
             raise KeyError(f"Unknown section id: {section_id}")
 
         content_file = node.get("content_file")
-        candidates = []
         if content_file:
-            candidates.append(self.book_root / content_file)
-        candidates.append(self.book_root / "tex" / "section_payloads" / f"{section_id}.tex")
-
-        for path in candidates:
+            path = self.book_root / content_file
             if path.exists():
                 return path.read_text()
+        if node.get("content_text"):
+            return node["content_text"]
+        return ""
+
+    def load_latex_section(self, section_id: str) -> str:
+        """Load generated LaTeX for a section, falling back to an empty draft."""
+        node = self.outline_service().get_node(section_id)
+        if not node:
+            raise KeyError(f"Unknown section id: {section_id}")
+
+        path = self.book_root / "tex" / "section_payloads" / f"{section_id}.tex"
+        if path.exists():
+            return path.read_text()
         return ""
 
     def save_section(self, section_id: str, content: str) -> Path:
@@ -69,6 +78,15 @@ class BookRepository:
 
         content_file = node.get("content_file") or f"content/sections/{section_id}.md"
         path = self.book_root / content_file
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content)
+        return path
+
+    def save_latex_section(self, section_id: str, content: str) -> Path:
+        """Save generated LaTeX for a section."""
+        if not self.outline_service().get_node(section_id):
+            raise KeyError(f"Unknown section id: {section_id}")
+        path = self.book_root / "tex" / "section_payloads" / f"{section_id}.tex"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content)
         return path

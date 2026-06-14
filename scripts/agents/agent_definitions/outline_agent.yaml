@@ -1,23 +1,158 @@
 name: outline_agent
-role: Maintains and validates the structural integrity and completeness of the manuscript outline.
+role: Maintains, imports, normalizes, and validates the structural integrity and completeness of manuscript outlines.
 
 tasks:
   - actively maintains the outline to ensure it is true to the intent and structure of the manuscript
+  - convert full imported outline/source text into canonical Work Outline Schema v2.1 YAML
+  - preserve source hierarchy recursively, including nested sections, lettered subsections, bullets, numbered lists, and tables
+  - preserve source body text as section content_text and never drop imported prose into non-schema keys
   - check presence of required keys
-  - verify chapter and section structure
+  - verify chapter, section, subsection, and content_file structure
   - log errors and inconsistencies
   - notify gardener_agent if outline changes or is incomplete
 
 inputs:
-  - outline/codynamic_theory.yaml
+  - outline
+  - full imported source text
+  - manuscript title
+  - manuscript summary
+  - manuscript intent
+
 outputs:
   - logs/outline_agent_log.txt
   - proposals/outline_proposal.yaml
+  - canonical Work Outline Schema v2.1 YAML
 
 dependencies:
   - gardener_agent (to act on structural problems)
 
+canonical_output_contract: |
+  The outline agent must output canonical Work Outline Schema v2.1 YAML unless the caller explicitly requests JSON.
+  The YAML root must be exactly:
+
+  work:
+    id: lowercase_snake_case_work_id
+    type: book|paper|monograph|essay|article|thesis
+    title: Source title
+    subtitle: ""
+    summary: Source-derived summary
+    intent:
+      audience: ""
+      writing_style: ""
+      author_persona: ""
+      reader_takeaway: ""
+      genre: nonfiction
+    authors:
+      - name: ""
+        role: author
+    metadata:
+      version: "0.1.0"
+      created: YYYY-MM-DD
+      updated: YYYY-MM-DD
+      maintained_by: author
+      language: en
+      license: CC-BY-4.0
+      status: draft
+    front_matter:
+      title_page:
+        enabled: true
+      table_of_contents:
+        enabled: true
+        depth: 3
+    structure:
+      - type: chapter|section|subsection|subsubsection|subsubsubsection
+        id: lowercase_snake_case_node_id
+        number: 1
+        title: Source heading title
+        goal: ""
+        summary: Source-derived summary
+        prerequisites: []
+        dependencies:
+          structural: []
+          narrative: ""
+        key_concepts: []
+        citations: []
+        content_file: content/sections/lowercase_snake_case_node_id.md
+        content_text: |
+          Preserve every source paragraph, bullet list, numbered list, and table that belongs directly to this node.
+        content:
+          - type: section
+            id: child_node_id
+            title: Child source heading title
+            goal: ""
+            summary: ""
+            prerequisites: []
+            dependencies:
+              structural: []
+              narrative: ""
+            key_concepts: []
+            citations: []
+            content_file: content/sections/child_node_id.md
+            content_text: |
+              Preserve every source paragraph, bullet list, numbered list, and table that belongs directly to this child node.
+    citations:
+      entries: []
+    diagrams: []
+    media: []
+    back_matter: {}
+    compilation:
+      output_formats:
+        - pdf
+      latex:
+        document_class: book
+        paper_size: letter
+
+  Recursive structure rules:
+  - Use structure for top-level manuscript nodes.
+  - Use content for nested child nodes.
+  - A node may have both content_text and content when it has introductory text plus child sections.
+  - Every node with content_text must also have content_file.
+  - Leaf nodes must have content_file and may have content_text.
+  - Do not use non-schema keys such as children, bullets, rows, table, outline, or sections.
+  - Convert bullets, numbered lists, and tables into markdown inside content_text.
+  - Preserve lettered source subsections such as "A. Vagal Patch" as child nodes, not as flattened bullets.
+  - Do not create generic wrapper nodes like "Outline" when the source contains real sections below that heading.
+  - Use lowercase snake_case ids matching ^[a-z0-9_]+$ and keep ids unique across the whole work.
+
 actions:
+  - id: import_full_text_outline
+    description: Convert full imported outline/source text into canonical Work Outline Schema v2.1 YAML.
+    prompt_template: |
+      You are the outline agent responsible for translating imported source text into the Codynamic Book Machine canonical outline.
+
+      You are given the full imported outline/source text below. Use all of it.
+      Do not summarize away structure or content.
+      Preserve every heading, nested heading, lettered subsection, bullet list, numbered list, table, and paragraph.
+
+      Full imported outline/source text:
+      {source_text}
+
+      Required YAML output format:
+      {canonical_output_contract}
+
+      Output canonical YAML only.
+
+  - id: create_outline
+    description: Generate a new outline based on the manuscript title, summary, and intent.
+    prompt_template: |
+      You are the outline agent responsible for creating a coherent manuscript outline.
+      Based on the following manuscript title, summary, and intent:
+
+      Title: {title}
+      Summary: {summary}
+      Intent: {intent}
+
+      Required YAML output format:
+      {canonical_output_contract}
+
+      Please generate a structured outline with:
+      - Title and summary
+      - Intent with audience, style, persona, takeaway, and genre
+      - Chapters, sections, subsections, and deeper nested nodes as needed
+      - id, title, goal, summary, content_file, and content_text for any source-provided body content
+
+      Output canonical YAML only.
+
   - id: propose_mid_document_insert
     description: Suggest a chapter that bridges a gap in the manuscript structure.
     prompt_template: |
@@ -27,13 +162,15 @@ actions:
       {chapter_list}
 
       Please propose a new chapter to insert after chapter ID `{insert_after_id}`.
-      Include: id, title, goal, summary, and 2–3 section entries with id, title, and content_summary.
+      Include id, title, goal, summary, and 2-3 section entries with id, title, summary, content_file, and content_text when applicable.
+      Output only the YAML fragment for the proposed chapter.
 
   - id: propose_conclusion
     description: Propose a final synthesis chapter for the manuscript.
     prompt_template: |
-      You are the outline agent. Propose a final chapter that concludes the book.
+      You are the outline agent. Propose a final chapter that concludes the work.
       It should synthesize the themes and suggest forward-looking applications.
+      Output only the YAML fragment for the proposed chapter.
 
   - id: validate_outline_structure
     description: Ensure the outline meets structural requirements.
@@ -41,17 +178,23 @@ actions:
       Validate the following outline structure:
       {outline}
 
+      Required YAML output format:
+      {canonical_output_contract}
+
       Ensure it has:
-      - Title and summary
-      - Intent with audience, style, persona, takeaway, and genre
-      - At least 3 chapters with sections
-      Report any structural issues or confirm validity.
+      - work.id, work.type, work.title, work.metadata, and non-empty work.structure
+      - recursive structure/content nesting
+      - content_text for imported prose, bullets, numbered lists, and tables
+      - content_file for every node that has content_text
+      - no non-schema keys such as children, bullets, rows, table, outline, or sections
+
+      Report structural issues or confirm validity.
 
   - id: analyze_outline_context_flow
     description: Analyze the logical flow and coherence of the outline.
     prompt_template: |
       You are the outline agent. Analyze the logical flow between chapters and sections in the outline.
-      Identify any gaps, redundancies, or unclear transitions.
+      Identify any gaps, redundancies, unclear transitions, flattened hierarchy, or missing section content.
       Provide a summary of your findings.
 
 permissions:

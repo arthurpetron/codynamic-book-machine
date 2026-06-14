@@ -1,0 +1,33 @@
+\documentclass[11pt]{article}
+\title{How the Codynamic Book Machine Works}
+\author{Arthur Petron}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta}
+\usepackage{hyperref}
+\graphicspath{{media/}{media/diagrams/}{images/}{artwork/}}
+
+\begin{document}
+
+\section*{Messaging and Runtime Memory}
+
+Messaging is the connective tissue of the Codynamic Book Machine. If work items define what should happen, messages define how the system announces, routes, records, and replays what is happening. The runtime treats coordination as a stream of explicit events and task prompts rather than as hidden state in a single controller. That design makes agent activity inspectable, recoverable, and easier to resume after interruption.
+
+At the center of this layer is routed messaging. A routed message is not merely a note sent from one agent to another; it is a structured record that names the sender, the intended recipient or topic, the payload, and the reason for delivery. Routing allows the system to separate message production from message consumption. An agent can emit a request, a status update, a blocker report, or a completion notice without needing to know which component will process it next. The router resolves that intent into the appropriate queue, subscription, or coordination channel.
+
+Subscriptions provide the receiving side of that arrangement. Agents and services subscribe to the message types or topics relevant to their role, so the hypervisor can observe lifecycle events, the work manager can track task transitions, and specialized agents can react to prompts that match their responsibilities. This keeps the runtime loosely coupled: a section agent does not need direct knowledge of the references agent's internal implementation, only the message contract that connects them. In practice, subscriptions also make it possible to add new observers, such as logging or auditing components, without changing the agents that produce the messages.
+
+The system persists important messages in durable logs. A durable log is the memory of the runtime: it records what was requested, what was acknowledged, what was completed, and what failed. This persistence matters because the book machine is not a one-shot generator. It revisits sections, revises drafts, and coordinates multiple agents over time. Durable logs allow the system to reconstruct the sequence of actions that led to a given artifact, which is essential for debugging, review, and recovery after a restart. They also provide a stable history that can be inspected when a section appears inconsistent with its dependencies or when a task seems to have vanished from the active queue.
+
+Task prompts are the operational form of these messages. A prompt packages the instruction an agent should execute, along with the context needed to do it well: the section identifier, the current phase, the requested action, and any constraints or references that apply. In the Codynamic Book Machine, prompts are not informal chat messages; they are work directives. A prompt can ask a section agent to draft prose, a gardener to revise for consistency, a diagram agent to create a figure, or a references agent to register citations. Because prompts are explicit and structured, they can be stored, replayed, and compared against the resulting output.
+
+The runtime registry is the system's live map of agents and their state. It records which agents exist, what roles they are currently playing, what tasks they are assigned, and what lifecycle stage they occupy. This registry gives the hypervisor and work manager a shared view of the active system. It is the difference between knowing that an agent exists in principle and knowing that it is currently available, busy, blocked, or finished. The registry also supports coordination across phases: when a task is handed off from drafting to review, the runtime can update the agent record and preserve the continuity of that work.
+
+Coordination records tie the messaging layer back to the book itself. These records capture the relationships among prompts, responses, checkpoints, and artifacts so that the system can explain why a section changed and which agent actions produced the change. A coordination record may note that a section draft was generated, then revised after gardener feedback, then held pending citation registration, or that a diagram request was issued and later satisfied by an external asset path. In this sense, coordination records are the narrative trace of the machine's operation.
+
+Taken together, routed messages, subscriptions, durable logs, task prompts, the agent runtime registry, and coordination records form the machine's working memory. They let the system distribute labor without losing accountability. They also make the authoring process legible: every important transition can be traced from intent to prompt, from prompt to response, and from response to durable record. That traceability is what allows the Codynamic Book Machine to behave less like a black box and more like a disciplined collaborative system.
+
+
+\end{document}

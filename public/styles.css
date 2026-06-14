@@ -68,9 +68,86 @@ button:disabled {
   background: #e7e9e5;
 }
 
+.active-agent-strip {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.agent-chip {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 170px;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 8px;
+  background: var(--panel-strong);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.agent-chip span:not(.agent-chip-dot) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-chip strong {
+  display: inline-grid;
+  min-width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--accent-strong);
+  color: white;
+  font-size: 10px;
+}
+
+.agent-chip.idle {
+  color: var(--muted);
+}
+
+.agent-chip-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
 .traffic-lights {
   display: flex;
   gap: 7px;
+}
+
+.window-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.window-title strong {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.window-title span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .light {
@@ -141,7 +218,9 @@ button:disabled {
   font-weight: 700;
 }
 
-.user-chat-button {
+.user-chat-button,
+.hypervisor-toggle,
+.agent-status-pill {
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -156,9 +235,21 @@ button:disabled {
 }
 
 .user-chat-button:hover,
-.user-chat-button.has-pending {
+.user-chat-button.has-pending,
+.hypervisor-toggle:hover,
+.hypervisor-toggle.is-enabled,
+.agent-status-pill.is-active {
   border-color: var(--accent);
   background: var(--accent-soft);
+}
+
+.agent-status-pill {
+  cursor: default;
+}
+
+.hypervisor-toggle:disabled {
+  cursor: wait;
+  opacity: 0.72;
 }
 
 .queue-badge {
@@ -370,7 +461,7 @@ h2 {
 
 .chapter {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   gap: 4px;
   margin-bottom: 8px;
 }
@@ -405,8 +496,10 @@ h2 {
 
 .section-list li {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
   gap: 4px;
+  position: relative;
 }
 
 .outline-edit {
@@ -426,7 +519,7 @@ h2 {
 }
 
 .section-item {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 8px;
   padding: 6px 8px 6px 28px;
 }
@@ -437,10 +530,31 @@ h2 {
   border-color: #b8d6ca;
 }
 
+.chapter-title,
 .section-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.chapter-title,
+.section-name {
+  cursor: text;
+}
+
+.inline-title-input {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  padding: 2px 5px;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+}
+
+.section-name-prefix {
+  color: var(--muted);
 }
 
 .score {
@@ -469,8 +583,79 @@ h2 {
   background: var(--accent);
 }
 
-.score.warn::before {
+.score.warn::before,
+.score.idle::before,
+.score.agent-state.idle::before {
   background: var(--warn);
+}
+
+.score.agent-state.not-started::before {
+  background: var(--idle);
+}
+
+.score.agent-state.working::before {
+  background: var(--accent);
+}
+
+.score.agent-state.working {
+  min-width: 72px;
+  color: var(--accent-strong);
+}
+
+.outline-row-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.outline-menu-button {
+  min-width: 28px;
+  min-height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: white;
+  color: var(--muted);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.outline-menu-button:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.outline-row-menu-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 30;
+  display: none;
+  min-width: 150px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 12px 28px rgba(31, 37, 35, 0.16);
+}
+
+.outline-row-menu:hover .outline-row-menu-panel,
+.outline-row-menu:focus-within .outline-row-menu-panel {
+  display: grid;
+  gap: 4px;
+}
+
+.outline-row-menu-panel button {
+  min-height: 30px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.outline-row-menu-panel button:hover {
+  background: var(--accent-soft);
 }
 
 .editor-pane {
@@ -664,6 +849,58 @@ h2 {
 .reference-item,
 .artifact-item {
   padding: 12px;
+}
+
+.graph-diagnostics,
+.concept-graph-preview {
+  display: grid;
+  gap: 10px;
+}
+
+.diagnostic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.diagnostic-card {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f8faf7;
+}
+
+.diagnostic-card.has-issues {
+  border-color: #b7903a;
+  background: #fffaf0;
+}
+
+.diagnostic-card span,
+.diagnostic-card li {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.diagnostic-card ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 16px;
+}
+
+.concept-graph-preview pre {
+  max-height: 220px;
+  overflow: auto;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px;
+  background: #f2f4f1;
+  color: #1d2421;
+  font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
 
 .agent-settings-layout,
@@ -899,6 +1136,16 @@ textarea {
   font-weight: 700;
 }
 
+.preview-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .compile-panel {
   display: grid;
   gap: 8px;
@@ -1077,8 +1324,8 @@ textarea {
 
 .chat-log,
 .user-chat-panel {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   min-height: 0;
   overflow: hidden;
 }
@@ -1092,6 +1339,7 @@ textarea {
 }
 
 .chat-title {
+  flex: 0 0 auto;
   padding: 8px 16px 4px;
   color: var(--muted);
   font-size: 11px;
@@ -1100,20 +1348,37 @@ textarea {
   text-transform: uppercase;
 }
 
+.chat-log-body {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 16px 12px;
+}
+
 .check-list {
   display: grid;
   gap: 6px;
-  margin: 0 16px 10px;
+  margin: 0;
 }
 
 .check-list article {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 4px 8px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  padding: 8px;
+  padding: 7px 8px;
   background: rgba(255, 255, 255, 0.52);
+}
+
+.check-list article strong,
+.check-list article span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .check-list p {
@@ -1128,7 +1393,7 @@ textarea {
   display: grid;
   gap: 5px;
   margin: 0;
-  padding: 0 16px 12px;
+  padding: 0;
   overflow: auto;
   list-style: none;
   font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
@@ -1141,13 +1406,35 @@ textarea {
 
 .message {
   display: grid;
-  grid-template-columns: 54px 190px minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: 44px minmax(130px, 190px) minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 7px 8px;
+  background: var(--panel-strong);
 }
 
 .message-time,
 .message-source {
   color: var(--muted);
+}
+
+.message-time,
+.message-source,
+.message-text {
+  min-width: 0;
+}
+
+.message-source {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-text {
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .user-chat-item,

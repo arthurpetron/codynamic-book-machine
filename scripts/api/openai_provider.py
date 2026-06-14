@@ -33,28 +33,33 @@ class OpenAIProvider(LLMProvider):
     
     Environment variables:
         KEY_OPENAI_API: OpenAI API key
+        OPENAI_API_KEY: Alternative API key variable name (SDK default)
     """
     
     SUPPORTED_MODELS = {
-        "gpt-4-turbo-preview",
-        "gpt-4-turbo",
-        "gpt-4",
-        "gpt-4-32k",
-        "gpt-3.5-turbo",
-        "gpt-3.5-turbo-16k",
+        "gpt-5.5",
+        "gpt-5.4",
+        "gpt-5.4-mini",
+        "gpt-5.4-nano",
+        "gpt-5.2",
+        "gpt-5.2-mini",
+        "gpt-4.1",
+        "gpt-4.1-mini",
+        "gpt-4.1-nano",
     }
     
-    DEFAULT_MODEL = "gpt-4-turbo-preview"
+    DEFAULT_MODEL = "gpt-5.4-mini"
     
     def __init__(self, api_key: Optional[str] = None, default_model: Optional[str] = None):
         if not OPENAI_AVAILABLE:
             raise ImportError("openai package required. Install with: pip install openai")
         
-        api_key = api_key or os.getenv("KEY_OPENAI_API")
+        api_key = api_key or os.getenv("KEY_OPENAI_API") or os.getenv("OPENAI_API_KEY")
         if not api_key:
-            raise AuthenticationError("OpenAI API key not found. Set KEY_OPENAI_API environment variable.")
+            raise AuthenticationError("OpenAI API key not found. Set KEY_OPENAI_API or OPENAI_API_KEY environment variable.")
         
-        super().__init__(api_key, default_model or self.DEFAULT_MODEL)
+        configured_model = default_model or os.getenv("CBM_OPENAI_MODEL") or os.getenv("OPENAI_MODEL")
+        super().__init__(api_key, configured_model or self.DEFAULT_MODEL)
         self.client = OpenAI(api_key=api_key)
     
     def call(
@@ -88,13 +93,17 @@ class OpenAIProvider(LLMProvider):
         start_time = time.time()
         
         try:
-            response = self.client.chat.completions.create(
-                model=model,
-                messages=openai_messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                **kwargs
-            )
+            request = {
+                "model": model,
+                "messages": openai_messages,
+                "temperature": temperature,
+                **kwargs,
+            }
+            if model.startswith("gpt-5"):
+                request["max_completion_tokens"] = max_tokens
+            else:
+                request["max_tokens"] = max_tokens
+            response = self.client.chat.completions.create(**request)
             
             latency_ms = (time.time() - start_time) * 1000
             

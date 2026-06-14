@@ -1,0 +1,342 @@
+work:
+  id: codynamic_book_machine_working_paper
+  type: paper
+  title: How the Codynamic Book Machine Works
+  subtitle: A Structured Authoring System for Agent-Coordinated Books
+  summary: This paper explains the Codynamic Book Machine as both a writing tool and
+    a working example of codynamic architecture. It describes how a book begins as
+    intent and outline data, becomes a canonical work object, is decomposed into section-level
+    work, coordinated through agents and messages, revised through proposals and verification,
+    and finally compiled into publication artifacts.
+  intent:
+    audience: Researchers, tool builders, authors, and software engineers interested
+      in agentic authoring systems.
+    writing_style: Clear technical exposition with architectural explanation and concrete
+      workflow examples.
+    author_persona: System designer explaining the machine from the inside.
+    reader_takeaway: Readers should understand the data model, intake path, agent
+      workflow, artifact lifecycle, and design philosophy of the Codynamic Book Machine.
+    genre: nonfiction
+  authors:
+  - name: Arthur Petron
+    role: author
+  metadata:
+    version: 0.1.0
+    created: '2026-06-13'
+    updated: '2026-06-13'
+    maintained_by: author
+    language: en
+    license: CC-BY-4.0
+    status: draft
+  front_matter:
+    title_page:
+      enabled: true
+    table_of_contents:
+      enabled: false
+      depth: 3
+  structure:
+  - type: chapter
+    id: abstract
+    number: 0
+    title: Abstract
+    goal: State the paper's claim and scope in one page or less.
+    summary: Approx. 0.5 pages. Present the Codynamic Book Machine as an intent-driven,
+      schema-backed, multi-agent authoring system.
+    prerequisites: []
+    dependencies:
+      structural: []
+      narrative: ''
+    key_concepts: []
+    citations: []
+    content_file: content/sections/abstract.md
+  - type: chapter
+    id: ch01_introduction
+    number: 1
+    title: Introduction
+    goal: Explain why a book machine is needed and what makes this one codynamic.
+    summary: Approx. 2 pages. Frame the problem of long-form writing as coordination
+      among intent, structure, drafts, review, artifacts, and compilation.
+    prerequisites: []
+    dependencies:
+      structural: []
+      narrative: ''
+    key_concepts: []
+    citations: []
+    content:
+    - type: section
+      id: ch01_sec01_problem
+      number: '1.1'
+      title: The Coordination Problem in Long-Form Writing
+      goal: ''
+      summary: Explain why books are difficult to manage when outlines, drafts, citations,
+        diagrams, reviews, and builds drift apart.
+      prerequisites: []
+      dependencies:
+        structural: []
+        narrative: ''
+      key_concepts: []
+      citations: []
+      content_file: content/sections/ch01_sec01_problem.md
+    - type: section
+      id: ch01_sec02_thesis
+      number: '1.2'
+      title: The Machine as a Codynamic System
+      goal: ''
+      summary: 'Define the central thesis: the system works by keeping outline, agents,
+        dependencies, artifacts, and compiled outputs evolving together.'
+      prerequisites: []
+      dependencies:
+        structural: []
+        narrative: ''
+      key_concepts: []
+      citations: []
+      content_file: content/sections/ch01_sec02_thesis.md
+  - type: chapter
+    id: ch02_canonical_work_object
+    number: 2
+    title: The Canonical Work Object
+    goal: Describe the schema-first representation that all paths normalize into.
+    summary: Approx. 3 pages. Explain Work Outline Schema v2.1, recursive structure,
+      intent fields, metadata, dependencies, citations, diagrams, media, and compilation
+      settings.
+    prerequisites: []
+    dependencies:
+      structural:
+      - section_id: ch01_introduction
+        dependency_type: builds_on
+        required: true
+      narrative: ''
+    key_concepts:
+    - id: canonical_work_object
+      term: Canonical Work Object
+      definition: The normalized YAML representation rooted at work, containing the
+        whole written artifact and its machine-readable context.
+    - id: recursive_structure
+      term: Recursive Structure
+      definition: The content hierarchy in which chapters, sections, and subsections
+        share the same structural element model.
+    citations: []
+    content:
+    - type: section
+      id: ch02_sec01_schema
+      number: '2.1'
+      title: Schema, Intent, and Metadata
+      goal: ''
+      summary: Explain why the system captures purpose, audience, authorial voice,
+        metadata, and publication information before generation.
+      prerequisites: []
+      dependencies:
+        structural: []
+        narrative: ''
+      key_concepts: []
+      citations: []
+      content_file: content/sections/ch02_sec01_schema.md
+    - type: section
+      id: ch02_sec02_tree
+      number: '2.2'
+      title: Recursive Outline Trees
+      goal: ''
+      summary: Explain work.structure, content arrays, node ids, dependency fields,
+        content files, and leaf sections.
+      prerequisites: []
+      dependencies:
+        structural: []
+        narrative: ''
+      key_concepts: []
+      citations: []
+      content:
+      - type: subsection
+        id: ch02_sec02_sub01_depth
+        number: 2.2.1
+        title: Depth Without Special Cases
+        goal: ''
+        summary: Show how the same structural element supports chapter, section, and
+          subsection nodes.
+        prerequisites: []
+        dependencies:
+          structural: []
+          narrative: ''
+        key_concepts: []
+        citations: []
+        content_file: content/sections/ch02_sec02_sub01_depth.md
+      - type: subsection
+        id: ch02_sec02_sub02_dependencies
+        number: 2.2.2
+        title: Structural and Narrative Dependencies
+        goal: ''
+        summary: Describe machine-readable dependency edges and human-readable narrative
+          dependency notes.
+        prerequisites: []
+        dependencies:
+          structural: []
+          narrative: ''
+        key_concepts: []
+        citations: []
+        content_file: content/sections/ch02_sec02_sub02_dependencies.md
+  - type: chapter
+    id: ch03_intake_and_import
+    number: 3
+    title: From Intake to Outline
+    goal: Explain how raw author intent becomes a valid book project.
+    summary: Approx. 3 pages. Cover conversational intake, required questions, legacy
+      outline import, normalization, migration reports, and book repository layout.
+    prerequisites: []
+    dependencies:
+      structural:
+      - section_id: ch02_canonical_work_object
+        dependency_type: builds_on
+        required: true
+      narrative: ''
+    key_concepts:
+    - id: outline_intake
+      term: Outline Intake
+      definition: The pathway that records author answers or imported outlines and
+        produces a canonical work outline.
+    citations: []
+    content:
+    - type: section
+      id: ch03_sec01_conversation
+      number: '3.1'
+      title: Conversational Intake
+      goal: ''
+      summary: 'Explain the question bank: title, purpose, audience, reader takeaway,
+        voice, genre, design spec, and artifact structure.'
+      prerequisites: []
+      dependencies:
+        structural: []
+        narrative: ''
+      key_concepts: []
+      citations: []
+      content_file: content/sections/ch03_sec01_conversation.md
+    - type: section
+      id: ch03_sec02_importer
+      number: '3.2'
+      title: Outline Import and Normalization
+      goal: ''
+      summary: Explain conversion from legacy YAML, markdown headers, numbered outlines,
+        and raw text into canonical work YAML.
+      prerequisites: []
+      dependencies:
+        structural: []
+        narrative: ''
+      key_concepts: []
+      citations: []
+      content_file: content/sections/ch03_sec02_importer.md
+    - type: section
+      id: ch03_sec03_repository
+      number: '3.3'
+      title: Book Repository Layout
+      goal: ''
+      summary: Describe outline files, content sections, TeX payloads, logs, build
+        artifacts, media requests, and artifact registry.
+      prerequisites: []
+      dependencies:
+        structural: []
+        narrative: ''
+      key_concepts: []
+      citations: []
+      content_file: content/sections/ch03_sec03_repository.md
+  - type: chapter
+    id: ch04_agents_and_work
+    number: 4
+    title: Agents, Work, and Coordination
+    goal: Explain how the machine decomposes authoring into disciplined agent work.
+    summary: Approx. 4 pages. Describe hypervisor, outline, section, gardener, diagram,
+      design, references, and document assembly roles; then explain work items, checkpoints,
+      capacity, blockers, messages, and lifecycle states.
+    prerequisites: []
+    dependencies:
+      structural:
+      - section_id: ch03_intake_and_import
+        dependency_type: builds_on
+        required: true
+      narrative: ''
+    key_concepts:
+    - id: agent_runtime
+      term: Agent Runtime
+      definition: The lifecycle-aware system that spawns agents, queues tasks, records
+        prompts, and coordinates action.
+    - id: work_item
+      term: Work Item
+      definition: The atomic scheduled unit of agent labor with status, dependencies,
+        blockers, effort, priority, and checkpoint context.
+    citations: []
+    content:
+    - type: section
+      id: ch04_sec01_agent_roles
+      number: '4.1'
+      title: Agent Roles
+      goal: ''
+      summary: 'Map the major agents to their responsibilities: hypervision, outlining,
+        section drafting, gardening, diagrams, design, references, and assembly.'
+      prerequisites: []
+      dependencies:
+        structural: []
+        narrative: ''
+      key_concepts: []
+      citations: []
+      content_file: content/sections/ch04_sec01_agent_roles.md
+    - type: section
+      id: ch04_sec02_work_manager
+      number: '4.2'
+      title: Work Management
+      goal: ''
+      summary: Explain WorkItem, WorkManager, checkpoints, capacity reports, blockers,
+        overcommitment, and queue discipline.
+      prerequisites: []
+      dependencies:
+        structural: []
+        narrative: ''
+      key_concepts: []
+      citations: []
+      content_file: content/sections/ch04_sec02_work_manager.md
+    - type: section
+      id: ch04_sec03_messages
+      number: '4.3'
+      title: Messaging and Runtime Memory
+      goal: ''
+      summary: Explain routed messages, subscriptions, durable logs, task prompts,
+        agent runtime registry, and coordination records.
+      prerequisites: []
+      dependencies:
+        structural: []
+        narrative: ''
+      key_concepts: []
+      citations: []
+      content_file: content/sections/ch04_sec03_messages.md
+  - type: chapter
+    id: ch05_authoring_artifacts
+    number: 5
+    title: Drafting, Review, and Artifacts
+    goal: Explain how generated work becomes reviewable and durable.
+    summary: ''
+    prerequisites: []
+    dependencies:
+      structural: []
+      narrative: ''
+    key_concepts: []
+    citations: []
+    content_file: content/sections/ch05_authoring_artifacts.md
+  citations:
+    entries: []
+  diagrams: []
+  media: []
+  back_matter: {}
+  compilation:
+    output_formats:
+    - pdf
+    latex:
+      document_class: book
+      paper_size: letter
+  design_settings:
+    style_id: standard_article
+    page_size: letter
+    margin: 1in
+    font_size: 11pt
+    title_treatment: standard
+    plot_placement: inline
+    image_placement: inline
+    equation_style: numbered
+    latex_engine: latexmk
+    title_page_enabled: true
+    table_of_contents_enabled: true

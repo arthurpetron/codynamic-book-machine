@@ -51,7 +51,10 @@ def create_book(tmp_path: Path) -> BookRepository:
     ]
     a = work["structure"][0]["content"][0]
     b = work["structure"][0]["content"][1]
-    a["dependencies"]["structural"] = [{"section_id": "b", "dependency_type": "builds_on"}]
+    a["dependencies"]["structural"] = [
+        {"section_id": "b", "dependency_type": "builds_on"},
+        {"section_id": "missing_dep", "dependency_type": "requires"},
+    ]
     b["dependencies"]["structural"] = [{"section_id": "a", "dependency_type": "builds_on"}]
     a["key_concepts"] = [
         {
@@ -64,7 +67,11 @@ def create_book(tmp_path: Path) -> BookRepository:
     repository = BookRepository(tmp_path / "graph_book")
     repository.save_book(outline)
     repository.save_section("a", "Claim: this needs support.\n")
-    repository.save_section("b", "This cites a missing source \\cite{missing2026}.\n")
+    repository.save_section(
+        "b",
+        "This cites a missing source \\parencite[see][42]{missing2026,known2026}.\n\n"
+        "Markdown citation support should also catch [@missingMarkdown; @known2026].\n",
+    )
     return repository
 
 
@@ -115,12 +122,19 @@ def test_knowledge_graph_detects_missing_citations_orphan_claims_and_cycles(tmp_
 
     analysis = KnowledgeGraphAnalyzer(repository).analyze().as_dict()
 
-    assert analysis["citation_network"]["known2026"] == ["a"]
+    assert analysis["citation_network"]["known2026"] == ["a", "b"]
     assert analysis["concept_graph"]["Codynamic claim"] == ["Dependency"]
     assert {"section_id": "missing2026"} not in analysis["missing_citations"]
-    assert analysis["missing_citations"] == [{"section_id": "b", "ref_id": "missing2026"}]
+    assert {"section_id": "b", "ref_id": "missing2026", "line": "1", "syntax": "latex"} in analysis["missing_citations"]
+    assert {"section_id": "b", "ref_id": "missingMarkdown", "line": "3", "syntax": "markdown"} in analysis["missing_citations"]
+    assert analysis["invalid_dependencies"] == [{
+        "section_id": "a",
+        "dependency_id": "missing_dep",
+        "reason": "Dependency target is not a canonical outline node id.",
+    }]
     assert analysis["orphan_claims"][0]["section_id"] == "a"
     assert analysis["circular_dependencies"] == [["a", "b", "a"]]
+    assert "flowchart LR" in analysis["concept_graph_visualization"]["mermaid"]
 
 
 def test_changeset_manager_writes_json_and_diff_bundle(tmp_path, monkeypatch):

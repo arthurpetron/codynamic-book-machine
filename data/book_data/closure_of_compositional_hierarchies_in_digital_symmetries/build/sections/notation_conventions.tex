@@ -1,0 +1,45 @@
+\documentclass[11pt]{article}
+\title{On the Closure of Compositional Hierarchies in Digital Symmetries}
+\author{A rigorous researcher-engineer bridging abstract mathematics and concrete digital systems.}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{hyperref}
+\graphicspath{{media/}{media/diagrams/}{images/}{artwork/}}
+
+\begin{document}
+
+\section*{Notation \& Conventions}
+
+This book uses a small set of symbols and conventions consistently across chapters, with chapter-local redefinitions when a later argument benefits from a narrower or more specialized meaning. When a symbol is first introduced in a chapter, it should be understood in that chapter's local context unless explicitly stated otherwise.
+
+For Boolean objects, we write
+\[
+\mathbb{B} \coloneqq \{0,1\}
+\]
+for the Boolean domain, and
+\[
+\mathbb{B}^n
+\]
+for the set of bitstrings of length $n$. The notation
+\[
+\mathrm{Bool}(n)
+\]
+denotes the set of all $n$-ary Boolean functions, that is, functions $f : \mathbb{B}^n \to \mathbb{B}$.
+
+We use the following structural symbols throughout the book. Let $\mathcal{O}$ denote an operad, and let $\mathcal{O}(n)$ denote the operations of arity $n$. The symmetric group on $n$ letters is written $\Sigma_n$. Composition of operations, or serial substitution, is written $\circ$. Parallel or monoidal composition is written $\otimes$. Feedback or trace is written $\mathrm{Tr}$. Closure operators are written $\mathrm{cl}(\cdot)$. When discussing algebraic closure systems, a \emph{clone} means a set of operations closed under projections and composition. Group actions are written $G \curvearrowright X$, and automorphism groups are written $\mathrm{Aut}(\cdot)$.
+
+Typing conventions are explicit: ports are typed, and diagrams may be colored to indicate types or object labels. In particular, when a chapter uses colored operads or typed diagrams, the color set should be read as part of the typing discipline rather than as decorative notation. This convention is intended to keep interface data visible in every compositional construction, especially when a later chapter specializes the ambient category, operad, or diagrammatic language.
+
+Error and resolution metrics are chapter-specific but follow a common default convention. We write $\varepsilon(r)$ for a resolution- or error-dependent quantity, with the understanding that the precise meaning of $r$ and the metric itself may be overridden in a given chapter. Unless otherwise stated, the default error metric is normalized Hamming distance. For example, for $f,g \in \mathrm{Bool}(n)$, we define
+\[
+\varepsilon_{\mathrm{tt}}(r=n; f,g) = \frac{1}{2^n} \sum_{x \in \mathbb{B}^n} \mathbf{1}[f(x) \neq g(x)] ,
+\]
+where $\mathbf{1}[\cdot]$ is the indicator function. This convention measures the fraction of inputs on which two Boolean functions disagree.
+
+Individual chapters may override the default metric when the application requires a different notion of discrepancy, such as bisimulation distance, metastability-aware error, or another domain-specific resolution criterion. In such cases, the chapter should state the override explicitly and use it consistently within that chapter.
+
+Unless otherwise noted, all notation is intended to be read in a proof-oriented, composition-first manner: symbols denote objects, operations, or metrics that are stable under the closure and symmetry constructions developed in later chapters.
+
+
+\end{document}

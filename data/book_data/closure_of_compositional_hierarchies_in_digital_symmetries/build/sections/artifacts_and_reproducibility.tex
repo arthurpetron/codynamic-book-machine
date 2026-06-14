@@ -1,0 +1,35 @@
+\documentclass[11pt]{article}
+\title{On the Closure of Compositional Hierarchies in Digital Symmetries}
+\author{A rigorous researcher-engineer bridging abstract mathematics and concrete digital systems.}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{hyperref}
+\graphicspath{{media/}{media/diagrams/}{images/}{artwork/}}
+
+\begin{document}
+
+\section*{Artifacts \& Reproducibility}
+
+\begin{description}
+  \item[Manifest] A reproducibility manifest records the code and data artifacts together with their content hashes, so that each referenced object can be identified unambiguously. The manifest should also enumerate the build scripts used to generate derived outputs and the container images or other execution environments required to rerun the workflow. In the manuscript's claims-as-builds workflow, the manifest serves as the authoritative index from published claims to the exact artifact revisions that support them.
+
+  \item[Harnesses] Reproducibility harnesses package the test descriptions, continuous integration configuration, and recorded outputs that demonstrate how the book's executable artifacts are validated. In practice, this includes the commands or test cases used to exercise the build, the CI jobs that automate those checks, and the resulting logs or reports produced by the pipeline. The harnesses should be written so that a reader can rerun the same checks locally or in CI and compare the new outputs against the archived evidence.
+\end{description}
+
+For this book, the reproducibility record is intended to make the claims-as-builds workflow inspectable end to end: a reader should be able to locate the manifest, reconstruct the environment, rerun the harnesses, and compare the resulting outputs against the archived CI evidence. Where multiple artifact versions exist, the manifest should indicate the exact revision associated with the published build. Together, the manifest and harnesses provide the minimal audit trail needed to distinguish source material, generated outputs, and the execution context that links them.
+
+In practical terms, the reproducibility package should include the following items:
+\begin{itemize}
+  \item a manifest of source code, data, and derived artifacts with content hashes;
+  \item the build scripts or commands used to regenerate the published outputs;
+  \item container definitions or equivalent environment specifications;
+  \item test descriptions and harnesses that exercise the build;
+  \item continuous integration configuration for automated verification; and
+  \item archived outputs, logs, or reports that document the observed results.
+\end{itemize}
+
+This section is intentionally operational rather than theoretical: it defines the evidence needed to rerun, inspect, and verify the book's executable claims without ambiguity.
+
+
+\end{document}

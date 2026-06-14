@@ -389,10 +389,24 @@ def cmd_app(args):
         elif args.app_command == "save-section":
             content = Path(args.content_file).read_text()
             payload = app_state.save_section(args.section_id, content)
+        elif args.app_command == "start-section-agent":
+            payload = app_state.start_section_agent(args.section_id)
+        elif args.app_command == "run-hypervisor":
+            exclude_section_ids = json.loads(args.exclude_json) if args.exclude_json else []
+            include_section_ids = json.loads(args.include_json) if args.include_json else []
+            payload = app_state.run_hypervisor_once(
+                exclude_section_ids=exclude_section_ids,
+                include_section_ids=include_section_ids,
+                phase=args.phase,
+            )
+        elif args.app_command == "review-hypervisor-document":
+            payload = app_state.review_document_for_revision_subset(limit=args.limit)
         elif args.app_command == "compile-section":
             payload = app_state.compile_section(args.section_id)
         elif args.app_command == "compile-book":
             payload = app_state.compile_book()
+        elif args.app_command == "update-design-settings":
+            payload = app_state.update_design_settings(json.loads(args.settings_json))
         elif args.app_command == "request-review":
             payload = app_state.request_review(subject=args.subject)
         elif args.app_command == "create-section":
@@ -495,16 +509,40 @@ def cmd_agents(args):
             args.book_root,
             mode=getattr(args, "mode", "proposal"),
             project_root=Path("."),
+            llm_mode=getattr(args, "llm", "never"),
+            provider_name=getattr(args, "provider", "openai"),
+            model=getattr(args, "model", None),
         )
 
         if args.agents_command == "graph":
             payload = workflow.dependency_graph()
         elif args.agents_command == "spawn":
             payload = workflow.spawn_agents(section_ids=args.section_ids)
+        elif args.agents_command == "supervise":
+            payload = workflow.supervise_agents(section_ids=args.section_ids, queue_work=not args.no_queue)
+        elif args.agents_command == "supervise-loop":
+            payload = workflow.run_supervision_loop(
+                section_ids=args.section_ids or None,
+                interval_seconds=args.interval,
+                cycles=args.cycles,
+                run_tasks=not args.no_run_tasks,
+            )
         elif args.agents_command == "start":
             payload = workflow.start_agent(args.agent_id)
         elif args.agents_command == "stop":
             payload = workflow.stop_agent(args.agent_id, reason=args.reason)
+        elif args.agents_command == "queue-task":
+            context = json.loads(args.context) if args.context else {}
+            payload = workflow.queue_agent_task(
+                args.agent_id,
+                args.action_id,
+                context=context,
+                priority=args.priority,
+            )
+        elif args.agents_command == "run-task":
+            payload = workflow.run_agent_task(args.agent_id)
+        elif args.agents_command == "run-tasks":
+            payload = workflow.run_supervised_tasks(limit=args.limit)
         elif args.agents_command == "drift":
             payload = workflow.summarize_drift()
         elif args.agents_command == "draft-section":
@@ -766,6 +804,22 @@ Examples:
         default='proposal',
         help='Proposal-first or full-auto editing mode'
     )
+    agents_parser.add_argument(
+        '--llm',
+        choices=['always', 'never'],
+        default='never',
+        help='Whether agent drafting actions must call a real LLM provider'
+    )
+    agents_parser.add_argument(
+        '--provider',
+        default='openai',
+        help='LLM provider for agent drafting actions'
+    )
+    agents_parser.add_argument(
+        '--model',
+        default=None,
+        help='Optional provider model override for agent drafting actions'
+    )
     agents_subparsers = agents_parser.add_subparsers(
         dest='agents_command',
         help='Agent workflow action',
@@ -779,6 +833,18 @@ Examples:
     agents_spawn.add_argument('section_ids', nargs='*')
     agents_spawn.set_defaults(func=cmd_agents)
 
+    agents_supervise = agents_subparsers.add_parser('supervise', help='Hypervisor reconciliation of agents and task queues')
+    agents_supervise.add_argument('section_ids', nargs='*')
+    agents_supervise.add_argument('--no-queue', action='store_true', help='Only reconcile running state; do not add work')
+    agents_supervise.set_defaults(func=cmd_agents)
+
+    agents_supervise_loop = agents_subparsers.add_parser('supervise-loop', help='Run a continuous hypervisor reconciliation loop')
+    agents_supervise_loop.add_argument('section_ids', nargs='*')
+    agents_supervise_loop.add_argument('--interval', type=float, default=5.0, help='Seconds between supervision cycles')
+    agents_supervise_loop.add_argument('--cycles', type=int, help='Stop after this many cycles; omit to run until interrupted')
+    agents_supervise_loop.add_argument('--no-run-tasks', action='store_true', help='Reconcile queues without executing pending tasks')
+    agents_supervise_loop.set_defaults(func=cmd_agents)
+
     agents_start = agents_subparsers.add_parser('start', help='Start a spawned agent')
     agents_start.add_argument('agent_id')
     agents_start.set_defaults(func=cmd_agents)
@@ -787,6 +853,21 @@ Examples:
     agents_stop.add_argument('agent_id')
     agents_stop.add_argument('--reason', default='')
     agents_stop.set_defaults(func=cmd_agents)
+
+    agents_queue_task = agents_subparsers.add_parser('queue-task', help='Queue a task for a supervised agent')
+    agents_queue_task.add_argument('agent_id')
+    agents_queue_task.add_argument('action_id')
+    agents_queue_task.add_argument('--context', default='', help='JSON task context')
+    agents_queue_task.add_argument('--priority', type=int, default=50)
+    agents_queue_task.set_defaults(func=cmd_agents)
+
+    agents_run_task = agents_subparsers.add_parser('run-task', help='Run the next task for one supervised agent')
+    agents_run_task.add_argument('agent_id')
+    agents_run_task.set_defaults(func=cmd_agents)
+
+    agents_run_tasks = agents_subparsers.add_parser('run-tasks', help='Run pending supervised tasks across agents')
+    agents_run_tasks.add_argument('--limit', type=int)
+    agents_run_tasks.set_defaults(func=cmd_agents)
 
     agents_drift = agents_subparsers.add_parser('drift', help='Summarize drift from verification history')
     agents_drift.set_defaults(func=cmd_agents)
@@ -892,12 +973,30 @@ Examples:
     app_save.add_argument('--content-file', required=True)
     app_save.set_defaults(func=cmd_app)
 
+    app_start_section_agent = app_subparsers.add_parser('start-section-agent', help='Run one section agent pass for a section')
+    app_start_section_agent.add_argument('section_id')
+    app_start_section_agent.set_defaults(func=cmd_app)
+
+    app_hypervisor = app_subparsers.add_parser('run-hypervisor', help='Run one hypervisor-directed section agent pass')
+    app_hypervisor.add_argument('--exclude-json', default='')
+    app_hypervisor.add_argument('--include-json', default='')
+    app_hypervisor.add_argument('--phase', default='draft', choices=['draft', 'revision'])
+    app_hypervisor.set_defaults(func=cmd_app)
+
+    app_hypervisor_review = app_subparsers.add_parser('review-hypervisor-document', help='Review assembled document and select sections for revision')
+    app_hypervisor_review.add_argument('--limit', type=int, default=5)
+    app_hypervisor_review.set_defaults(func=cmd_app)
+
     app_compile = app_subparsers.add_parser('compile-section', help='Compile one section and return compile result')
     app_compile.add_argument('section_id')
     app_compile.set_defaults(func=cmd_app)
 
     app_compile_book = app_subparsers.add_parser('compile-book', help='Compile the full book and return compile result')
     app_compile_book.set_defaults(func=cmd_app)
+
+    app_update_design = app_subparsers.add_parser('update-design-settings', help='Update persisted document design settings')
+    app_update_design.add_argument('settings_json')
+    app_update_design.set_defaults(func=cmd_app)
 
     app_review = app_subparsers.add_parser('request-review', help='Record a full-review request')
     app_review.add_argument('--subject', default='book')

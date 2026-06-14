@@ -1,0 +1,11 @@
+### Symbol table
+
+First use in each chapter redefined locally; examples include \(\mathbb{B} \coloneqq \{0,1\}\) (Boolean domain), \(\mathbb{B}^n\) (bitstrings of length n), \(\mathrm{Bool}(n)\) (all n-ary Boolean functions)
+
+### Operations and structures
+
+\(\mathcal{O}\) (operad), \(\mathcal{O}(n)\) (operations of arity n), \(\Sigma_n\) (symmetric group), \(\circ\) (substitution/serial composition), \(\otimes\) (parallel/monoidal product), \(\mathrm{Tr}\) (feedback/trace), \(\mathrm{cl}(\cdot)\) (closure operator), "clone" = set closed under projections & composition, \(G \curvearrowright X\) (group action), \(\mathrm{Aut}(\cdot)\) (automorphism group)
+
+### Typing and diagrams
+
+Ports typed, colored operads; resolution & error convention \(\varepsilon(r)\) with default normalized Hamming distance (e.g., for \(f,g \in \mathrm{Bool}(n)\), \(\varepsilon_{\text{tt}}(r=n;f,g) = \frac{1}{2^n} \sum_{x \in \mathbb{B}^n} \mathbf{1}[f(x) \neq g(x)]\)); chapter-specific overrides (e.g., bisimulation, metastability)

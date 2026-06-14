@@ -162,6 +162,153 @@ def test_converter_uses_llm_for_unknown_outline_text():
     assert provider.calls
 
 
+def test_converter_uses_llm_when_known_format_maps_to_empty_structure():
+    canonical_json = """
+{
+  "work": {
+    "id": "rescued_outline",
+    "type": "book",
+    "title": "Rescued Outline",
+    "metadata": {
+      "version": "0.1.0",
+      "created": "2026-05-26",
+      "updated": "2026-05-26"
+    },
+    "structure": [
+      {
+        "type": "chapter",
+        "id": "first_chapter",
+        "title": "First Chapter",
+        "content_file": "content/sections/first_chapter.md"
+      }
+    ]
+  }
+}
+"""
+    provider = MockOutlineProvider(canonical_json)
+    converter = OutlineConverter(llm_provider=provider)
+
+    output = converter.convert(
+        "# Rescued Outline\n\nThis source has prose but no chapter headers.",
+        interactive=False,
+        quiet=True,
+        use_llm="auto",
+    )
+    outline = yaml.safe_load(output)
+
+    assert outline["work"]["id"] == "rescued_outline"
+    assert outline["work"]["structure"][0]["id"] == "first_chapter"
+    assert converter.last_report["llm_used"] is True
+    assert len(provider.calls) == 1
+
+
+def test_converter_normalizes_near_canonical_llm_output():
+    near_canonical_json = """
+{
+  "work": {
+    "id": "rescued_outline",
+    "type": "document",
+    "title": "Rescued Outline",
+    "metadata": {
+      "version": "0.1.0",
+      "created": "2026-05-26",
+      "updated": "2026-05-26"
+    },
+    "structure": {
+      "id": "root",
+      "type": "section",
+      "title": "Rescued Outline",
+      "children": [
+        {
+          "id": "abstract",
+          "type": "section",
+          "title": "Abstract",
+          "content_file": "content/sections/abstract.md"
+        },
+        {
+          "id": "outline",
+          "type": "section",
+          "title": "Outline",
+          "children": [
+            {
+              "id": "introduction",
+              "type": "section",
+              "title": "Introduction",
+              "content_file": "content/sections/introduction.md"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+"""
+    provider = MockOutlineProvider(near_canonical_json)
+    converter = OutlineConverter(llm_provider=provider)
+
+    output = converter.convert(
+        "# Rescued Outline\n\nThis source has prose but no chapter headers.",
+        interactive=False,
+        quiet=True,
+        use_llm="auto",
+    )
+    outline = yaml.safe_load(output)
+
+    assert outline["work"]["type"] == "paper"
+    assert isinstance(outline["work"]["structure"], list)
+    assert outline["work"]["structure"][0]["id"] == "abstract"
+    assert outline["work"]["structure"][1]["id"] == "introduction"
+
+
+def test_converter_promotes_outline_wrapper_and_splits_lettered_children():
+    near_canonical_json = """
+{
+  "work": {
+    "id": "device_outline",
+    "type": "paper",
+    "title": "Device Outline",
+    "metadata": {
+      "version": "0.1.0",
+      "created": "2026-05-26",
+      "updated": "2026-05-26"
+    },
+    "structure": [
+      {
+        "id": "outline",
+        "type": "section",
+        "title": "Outline",
+        "content": [
+          {
+            "id": "prototype_devices",
+            "type": "section",
+            "title": "Prototype Devices",
+            "content_file": "content/sections/prototype_devices.md",
+            "content_text": "**A. Vagal Patch** – 30-50 Hz vibration\\n\\n**B. Sleep Sound Pad** – delta playback\\n\\nHardware strategy"
+          }
+        ]
+      }
+    ]
+  }
+}
+"""
+    provider = MockOutlineProvider(near_canonical_json)
+    converter = OutlineConverter(llm_provider=provider)
+
+    output = converter.convert(
+        "# Device Outline\n\nThis source has prose but no chapter headers.",
+        interactive=False,
+        quiet=True,
+        use_llm="auto",
+    )
+    outline = yaml.safe_load(output)
+    structure = outline["work"]["structure"]
+
+    assert structure[0]["id"] == "prototype_devices"
+    assert "outline" not in [node["id"] for node in structure]
+    assert [child["title"] for child in structure[0]["content"]] == ["A. Vagal Patch", "B. Sleep Sound Pad"]
+    assert structure[0]["content_text"] == "Hardware strategy"
+
+
 def test_converter_can_force_llm_for_known_format():
     provider = MockOutlineProvider(yaml.safe_dump(yaml.safe_load(OutlineConverter().convert(
         LEGACY_OUTLINE,

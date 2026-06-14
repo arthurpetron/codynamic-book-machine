@@ -57,3 +57,51 @@ def test_import_outline_can_target_existing_book_root(tmp_path):
     assert result.book_root == target
     assert result.outline_path == target / "outline" / "custom_book.yaml"
     assert saved["work"]["id"] == "imported_book"
+
+
+def test_import_markdown_outline_generates_unique_section_ids(tmp_path):
+    source = tmp_path / "outline.md"
+    source.write_text(
+        """# Functional GUI Test Book
+
+## Orientation
+
+### What the Machine Should Do
+
+State the user-visible loop.
+
+### Testing a Fresh Outline
+
+Confirm the imported outline appears in the workspace.
+
+## Working Method
+
+### Editorial Passes
+
+Describe how edits feed back into the book.
+
+### Export Surface
+
+Describe the PDF preview.
+"""
+    )
+
+    result = BookImporter(tmp_path / "book_data").import_outline(source, use_llm="never")
+    book = BookRepository(result.book_root).load_book()
+    nodes = book["work"]["structure"]
+    leaf_ids = [
+        child["id"]
+        for chapter in nodes
+        for child in chapter.get("content", [])
+    ]
+
+    assert len(leaf_ids) == 4
+    assert len(leaf_ids) == len(set(leaf_ids))
+    assert "what_the_machine_should_do" in leaf_ids
+    assert "editorial_passes" in leaf_ids
+    assert (
+        result.book_root / "content" / "sections" / "what_the_machine_should_do.md"
+    ).read_text() == "State the user-visible loop.\n"
+    assert BookRepository(result.book_root).load_section("editorial_passes") == (
+        "Describe how edits feed back into the book.\n"
+    )

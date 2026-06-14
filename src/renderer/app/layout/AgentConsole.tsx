@@ -11,6 +11,7 @@ export function AgentConsole({ store }: AgentConsoleProps) {
   const [userMessages, setUserMessages] = useState<UserChatMessage[]>([]);
   const [reply, setReply] = useState("");
   const status = store.state.agentStatus;
+  const hypervisorConfidence = status?.hypervisorConfidence ?? status?.confidence ?? 0;
   const messages = useMemo(() => [...store.activityMessages, ...(store.state.messages ?? [])].slice(0, 40), [store.activityMessages, store.state.messages]);
   const pending = userMessages.filter((message) => message.status === "pending");
 
@@ -41,7 +42,7 @@ export function AgentConsole({ store }: AgentConsoleProps) {
         <div className="health-card">
           <span className="dot good" />
           <span>Hypervisor</span>
-          <strong>{status?.confidence ?? 0}%</strong>
+          <strong>{hypervisorConfidence}%</strong>
         </div>
         <div className="health-card">
           <span>Active</span>
@@ -51,7 +52,9 @@ export function AgentConsole({ store }: AgentConsoleProps) {
           <span>Confidence</span>
           <strong>{status?.confidence ?? 0}%</strong>
         </div>
-        <button className="secondary-action" type="button">Pause Swarm</button>
+        <button className="secondary-action" type="button" onClick={store.toggleHypervisor}>
+          {store.hypervisorEnabled ? "Pause Swarm" : "Start Swarm"}
+        </button>
         <button className="primary-action" type="button" onClick={store.requestReview}>Request Full Review</button>
         <button className="icon-button" type="button" aria-expanded={!collapsed} onClick={() => setCollapsed((value) => !value)}>{collapsed ? "v" : "^"}</button>
       </div>
@@ -81,13 +84,15 @@ export function AgentConsole({ store }: AgentConsoleProps) {
           </section>
           <section className="chat-log" aria-label="Inter-agent chat log">
             <div className="chat-title">Inter-agent chat log</div>
-            <ol className="messages">
-              {messages.map((line, index) => (
-                <li className="message" key={`${line}-${index}`}>
-                  <span className="message-text">{line}</span>
-                </li>
-              ))}
-            </ol>
+            <div className="chat-log-body">
+              <ol className="messages">
+                {messages.map((line, index) => (
+                  <li className="message" key={`${line}-${index}`}>
+                    <span className="message-text">{line}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
           </section>
         </div>
       ) : null}

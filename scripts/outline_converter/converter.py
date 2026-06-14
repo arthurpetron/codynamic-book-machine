@@ -108,24 +108,32 @@ class OutlineConverter:
         if not provider:
             raise ValueError(f"No LLM provider available: {self.last_llm_error}")
 
+        output_contract = self._outline_agent_output_contract()
         system_prompt = (
-            "You convert arbitrary outline-like input into the Codynamic Book "
-            "Machine's canonical Work Outline Schema v2.1 JSON. Return only JSON, "
-            "with no markdown fences or commentary. The JSON root must be an object "
-            "with a single key named work. Preserve source titles, hierarchy, "
-            "summaries, diagrams, artwork/media, and metadata when present. Do not "
-            "invent prose section bodies. For leaf structure nodes, set content_file "
-            "to content/sections/<node_id>.md. Use lowercase snake_case ids matching "
-            "^[a-z0-9_]+$. Include required fields: work.id, work.type, work.title, "
-            "work.structure, and metadata.version/created/updated."
+            "You are the Codynamic Book Machine outline_agent. Convert the full "
+            "source text into the canonical Work Outline Schema v2.1. Return only JSON "
+            "with a single root key named work; do not wrap it in markdown fences "
+            "and do not add commentary. Use the YAML contract below as the schema "
+            "reference, but your response must be valid JSON with quoted strings.\n\n"
+            "YAML schema reference:\n"
+            f"{output_contract}\n\n"
+            "Additional import rules:\n"
+            "- The input below is the full imported outline/source text. Use all of it.\n"
+            "- Preserve the source hierarchy recursively. Do not flatten nested A/B/C items, numbered sections, or subheadings into one top-level list.\n"
+            "- Do not create generic wrapper nodes such as 'Outline' when the source already contains real numbered sections below that heading.\n"
+            "- Put prose, bullets, numbered lists, and markdown tables into content_text as markdown. Do not use custom keys such as bullets, rows, table, or children.\n"
+            "- Parent nodes may have both content_text and content. Use content for child sections and content_text for text directly under the parent heading.\n"
+            "- For every node with content_text, also set content_file to content/sections/<node_id>.md.\n"
+            "- Do not invent prose that is not in the source; concise summaries are allowed only in summary fields.\n"
+            "- Use lowercase snake_case ids matching ^[a-z0-9_]+$."
         )
         prompt = f"""
 Source format hint: {source_format}
 
-Input outline:
+Full imported outline/source text:
 {content}
 
-Return canonical JSON only.
+Return only the canonical JSON object.
 """
         response = provider.simple_prompt(
             prompt,
@@ -140,11 +148,230 @@ Return canonical JSON only.
         elif "work" not in candidate:
             candidate = self.map_to_schema_v2(candidate, interactive=False)
 
+        candidate = self._normalize_llm_candidate(candidate)
         valid, errors = SchemaValidator().validate(candidate)
         if not valid:
             raise ValueError(f"LLM conversion did not validate: {'; '.join(errors)}")
 
         return candidate
+
+    def _outline_agent_output_contract(self) -> str:
+        """Load the canonical YAML contract from the outline agent definition."""
+        definition_path = Path(__file__).parents[1] / "agents" / "agent_definitions" / "outline_agent.yaml"
+        try:
+            definition = yaml.safe_load(definition_path.read_text()) or {}
+            contract = definition.get("canonical_output_contract")
+            if isinstance(contract, str) and contract.strip():
+                return contract.strip()
+        except Exception:
+            pass
+        return (
+            "work:\n"
+            "  id: lowercase_snake_case_work_id\n"
+            "  type: book|paper|monograph|essay|article|thesis\n"
+            "  title: Source title\n"
+            "  metadata:\n"
+            "    version: '0.1.0'\n"
+            "    created: YYYY-MM-DD\n"
+            "    updated: YYYY-MM-DD\n"
+            "  structure:\n"
+            "    - type: chapter|section|subsection|subsubsection|subsubsubsection\n"
+            "      id: lowercase_snake_case_node_id\n"
+            "      title: Source heading title\n"
+            "      content_file: content/sections/lowercase_snake_case_node_id.md\n"
+            "      content_text: |\n"
+            "        Preserve source text here.\n"
+        )
+
+    def _normalize_llm_candidate(self, candidate: Dict[str, Any]) -> Dict[str, Any]:
+        """Repair common near-canonical shapes returned by LLM conversion."""
+        work = candidate.get("work")
+        if not isinstance(work, dict):
+            return candidate
+
+        allowed_work_types = {"book", "paper", "monograph", "essay", "article", "thesis"}
+        work_type = str(work.get("type") or "book").lower()
+        if work_type == "document":
+            work_type = "paper"
+        work["type"] = work_type if work_type in allowed_work_types else "book"
+        raw_work_id = str(work.get("id") or self._generate_id(str(work.get("title") or "imported_work")))
+        work["id"] = re.sub(r"[^a-z0-9_]+", "_", raw_work_id.lower()).strip("_") or "imported_work"
+
+        structure = work.get("structure")
+        if isinstance(structure, dict):
+            if isinstance(structure.get("children"), list):
+                work["structure"] = structure["children"]
+            elif isinstance(structure.get("content"), list):
+                work["structure"] = structure["content"]
+            else:
+                work["structure"] = [structure]
+        elif structure is None:
+            work["structure"] = []
+
+        used_ids: set[str] = set()
+        work["structure"] = [
+            self._normalize_llm_node(node, depth=0, used_ids=used_ids)
+            for node in work.get("structure", [])
+            if isinstance(node, dict)
+        ]
+        work["structure"] = self._promote_generic_outline_wrappers(work["structure"])
+        return candidate
+
+    def _normalize_llm_node(self, node: Dict[str, Any], depth: int, used_ids: set[str]) -> Dict[str, Any]:
+        """Normalize one structural node from LLM output."""
+        normalized = dict(node)
+        children = normalized.pop("children", None)
+        if children is not None and "content" not in normalized:
+            normalized["content"] = children
+
+        allowed_node_types = {"part", "chapter", "section", "subsection", "subsubsection", "subsubsubsection"}
+        node_type = str(normalized.get("type") or "").lower()
+        if node_type not in allowed_node_types:
+            node_type = "chapter" if depth == 0 else "section" if depth == 1 else "subsection"
+        normalized["type"] = node_type
+
+        title = str(normalized.get("title") or normalized.get("id") or f"Section {len(used_ids) + 1}")
+        normalized["title"] = title
+        normalized["id"] = self._unique_node_id(str(normalized.get("id") or self._generate_id(title)), used_ids)
+
+        content = normalized.get("content")
+        if isinstance(content, list):
+            normalized["content"] = [
+                self._normalize_llm_node(child, depth=depth + 1, used_ids=used_ids)
+                for child in content
+                if isinstance(child, dict)
+            ]
+            if not normalized["content"]:
+                normalized.pop("content", None)
+                normalized.setdefault("content_file", f"content/sections/{normalized['id']}.md")
+        elif content is not None:
+            normalized.pop("content", None)
+
+        if "content" not in normalized and not normalized.get("content_file") and not normalized.get("content_text"):
+            normalized["content_file"] = f"content/sections/{normalized['id']}.md"
+        if not normalized.get("content_text"):
+            derived_content = self._content_text_from_llm_extras(normalized)
+            if derived_content:
+                normalized["content_text"] = derived_content
+                normalized.setdefault("content_file", f"content/sections/{normalized['id']}.md")
+        self._split_lettered_subsections(normalized, depth=depth, used_ids=used_ids)
+
+        return normalized
+
+    def _promote_generic_outline_wrappers(self, nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Remove generic wrapper nodes such as Outline when they only contain real sections."""
+        promoted: list[dict[str, Any]] = []
+        for node in nodes:
+            title = str(node.get("title") or "").strip().lower()
+            node_id = str(node.get("id") or "").strip().lower()
+            content_text = str(node.get("content_text") or "").strip()
+            children = node.get("content")
+            if title in {"outline", "contents", "table of contents"} and node_id in {"outline", "contents", "table_of_contents"} and isinstance(children, list) and not content_text:
+                promoted.extend(children)
+            else:
+                promoted.append(node)
+        return promoted
+
+    def _split_lettered_subsections(self, node: Dict[str, Any], depth: int, used_ids: set[str]) -> None:
+        """Turn markdown lettered items into child nodes when the model flattened them."""
+        if node.get("content"):
+            return
+        content_text = node.get("content_text")
+        if not isinstance(content_text, str) or not content_text.strip():
+            return
+
+        pattern = re.compile(
+            r"^\s*(?:\*\*)?([A-Z])\.\s+([^*\n–-]+?)(?:\*\*)?\s*(?:[–-]\s*(.*))?$",
+            re.MULTILINE,
+        )
+        matches = list(pattern.finditer(content_text))
+        if len(matches) < 2:
+            return
+
+        children: list[dict[str, Any]] = []
+        consumed_spans: list[tuple[int, int]] = []
+        child_type = "section" if depth == 0 else "subsection" if depth == 1 else "subsubsection"
+        for match in matches:
+            label = match.group(1)
+            title = match.group(2).strip()
+            detail = (match.group(3) or "").strip()
+            child_title = f"{label}. {title}"
+            child_id = self._unique_node_id(self._generate_id(title), used_ids)
+            child = {
+                "type": child_type,
+                "id": child_id,
+                "title": child_title,
+                "goal": "",
+                "summary": detail,
+                "prerequisites": [],
+                "dependencies": {"structural": [], "narrative": ""},
+                "key_concepts": [],
+                "citations": [],
+                "content_file": f"content/sections/{child_id}.md",
+            }
+            if detail:
+                child["content_text"] = detail
+            children.append(child)
+            consumed_spans.append(match.span())
+
+        remainder_parts: list[str] = []
+        cursor = 0
+        for start, end in consumed_spans:
+            remainder_parts.append(content_text[cursor:start])
+            cursor = end
+        remainder_parts.append(content_text[cursor:])
+        remainder = "\n".join(part.strip() for part in remainder_parts if part.strip()).strip()
+        node["content"] = children
+        if remainder:
+            node["content_text"] = remainder
+        else:
+            node.pop("content_text", None)
+
+    def _content_text_from_llm_extras(self, node: Dict[str, Any]) -> str:
+        """Convert common non-schema LLM keys into markdown section content."""
+        blocks: list[str] = []
+        bullets = node.pop("bullets", None)
+        if isinstance(bullets, list):
+            lines = [f"- {item}" for item in bullets if item is not None]
+            if lines:
+                blocks.append("\n".join(lines))
+
+        table = node.pop("table", None)
+        if isinstance(table, dict):
+            headers = table.get("headers")
+            rows = table.get("rows")
+            if isinstance(headers, list) and isinstance(rows, list) and headers:
+                blocks.append(self._markdown_table(headers, rows))
+        elif isinstance(table, str) and table.strip():
+            blocks.append(table.strip())
+
+        paragraphs = node.pop("paragraphs", None)
+        if isinstance(paragraphs, list):
+            text = "\n\n".join(str(item).strip() for item in paragraphs if str(item).strip())
+            if text:
+                blocks.insert(0, text)
+
+        body = node.pop("body", None)
+        if isinstance(body, str) and body.strip():
+            blocks.insert(0, body.strip())
+
+        return "\n\n".join(blocks).strip()
+
+    def _markdown_table(self, headers: list[Any], rows: list[Any]) -> str:
+        """Render simple tabular LLM output as a markdown table."""
+        header_cells = [str(cell).strip() for cell in headers]
+        lines = [
+            "| " + " | ".join(header_cells) + " |",
+            "| " + " | ".join("---" for _ in header_cells) + " |",
+        ]
+        for row in rows:
+            if not isinstance(row, list):
+                continue
+            cells = [str(cell).strip() for cell in row]
+            if len(cells) < len(header_cells):
+                cells.extend("" for _ in range(len(header_cells) - len(cells)))
+            lines.append("| " + " | ".join(cells[:len(header_cells)]) + " |")
+        return "\n".join(lines)
 
     def _extract_structured_response(self, response_text: str) -> Dict[str, Any]:
         """Extract JSON or YAML from a model response."""
@@ -332,11 +559,23 @@ Return canonical JSON only.
         
         current_chapter = None
         header_stack = []
+        current_node = None
+        body_lines: list[str] = []
+
+        def flush_body() -> None:
+            nonlocal body_lines
+            if current_node and body_lines:
+                body = "\n".join(body_lines).strip()
+                if body:
+                    current_node["content_text"] = body
+                    current_node["summary"] = current_node.get("summary") or self._summary_from_text(body)
+            body_lines = []
         
         for line in lines:
             # Parse markdown headers
             header_match = re.match(r'^(#{1,6})\s+(.+)', line)
             if header_match:
+                flush_body()
                 level = len(header_match.group(1))
                 title_text = header_match.group(2).strip()
                 
@@ -357,6 +596,11 @@ Return canonical JSON only.
                     
                     # Update stack
                     header_stack = header_stack[:target_depth+1] + [node]
+                current_node = node
+            elif current_node is not None:
+                body_lines.append(line)
+
+        flush_body()
         
         return parsed
     
@@ -455,7 +699,7 @@ Return canonical JSON only.
             'authors': [self._create_author(parsed.get('metadata', {}))],
             'metadata': self._create_metadata(parsed.get('metadata', {})),
             'front_matter': self._map_front_matter(parsed.get('front_matter', {})),
-            'structure': self._map_structure(parsed['structure']),
+            'structure': self._map_structure(parsed['structure'], used_ids=set()),
             'citations': {'entries': []},
             'diagrams': self._map_diagrams(parsed.get('diagrams', [])),
             'media': self._map_artwork(parsed.get('artwork', [])),
@@ -661,7 +905,7 @@ Return canonical JSON only.
     def _map_front_matter(self, fm: Dict[str, Any]) -> Dict[str, Any]:
         """Map front matter to v2.0 structure."""
         return {
-            'title_page': {'enabled': True},
+            'title_page': {'enabled': False},
             'copyright_page': {
                 'enabled': True,
                 'year': str(datetime.now().year),
@@ -669,7 +913,7 @@ Return canonical JSON only.
             },
             'dedication': {'enabled': False, 'text': ''},
             'epigraph': {'enabled': False, 'quote': '', 'attribution': ''},
-            'table_of_contents': {'enabled': True, 'depth': 3},
+            'table_of_contents': {'enabled': False, 'depth': 3},
             'list_of_figures': {'enabled': False},
             'list_of_tables': {'enabled': False},
             'preface': {
@@ -682,14 +926,18 @@ Return canonical JSON only.
             }
         }
     
-    def _map_structure(self, structure: List[Dict]) -> List[Dict]:
+    def _map_structure(self, structure: List[Dict], used_ids: set[str] | None = None) -> List[Dict]:
         """Recursively map structure to v2.1 format."""
+        used_ids = used_ids if used_ids is not None else set()
         result = []
         
         for idx, item in enumerate(structure, 1):
+            fallback_id = f"{item.get('type', 'section')}_{idx:02d}"
+            base_id = item.get('id') or self._generate_id(item.get('title', fallback_id)) or fallback_id
+            node_id = self._unique_node_id(base_id, used_ids)
             node = {
                 'type': item.get('type', 'chapter'),
-                'id': item.get('id') or f"{item.get('type', 'section')}_{idx:02d}",
+                'id': node_id,
                 'number': item.get('number', idx),
                 'title': item['title'],
                 'goal': item.get('goal', ''),
@@ -702,14 +950,32 @@ Return canonical JSON only.
             
             # Recursively process children
             if 'content' in item and item['content']:
-                node['content'] = self._map_structure(item['content'])
+                node['content'] = self._map_structure(item['content'], used_ids=used_ids)
             else:
                 # Leaf node - needs content_file or content_text
                 node['content_file'] = f"content/sections/{node['id']}.md"
+                if item.get('content_text'):
+                    node['content_text'] = item['content_text']
             
             result.append(node)
         
         return result
+
+    def _summary_from_text(self, text: str) -> str:
+        """Create a compact node summary from imported body text."""
+        normalized = " ".join(line.strip() for line in text.splitlines() if line.strip())
+        return normalized[:240]
+
+    def _unique_node_id(self, base_id: str, used_ids: set[str]) -> str:
+        """Return a schema-safe node id unique within one canonical work."""
+        normalized = re.sub(r'[^a-z0-9_]+', '_', base_id.lower()).strip('_') or "section"
+        candidate = normalized
+        counter = 2
+        while candidate in used_ids:
+            candidate = f"{normalized}_{counter}"
+            counter += 1
+        used_ids.add(candidate)
+        return candidate
 
     def _map_diagrams(self, diagrams: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Map legacy diagram metadata into canonical diagram entries."""
@@ -899,6 +1165,7 @@ Return canonical JSON only.
         parsed = None
         llm_used = False
         validation_errors: List[str] = []
+        llm_failure: Optional[str] = None
 
         if llm_requested or llm_auto:
             if not quiet:
@@ -910,7 +1177,8 @@ Return canonical JSON only.
                 if not quiet:
                     print("✓ LLM conversion produced valid canonical outline")
             except Exception as e:
-                self.last_llm_error = str(e)
+                llm_failure = str(e)
+                self.last_llm_error = llm_failure
                 if llm_requested:
                     raise
                 if not quiet:
@@ -919,29 +1187,51 @@ Return canonical JSON only.
         if not llm_used:
             if not quiet:
                 print(f"📖 Parsing outline...")
-            parsed = self.parse_outline(content, format_type)
+            try:
+                parsed = self.parse_outline(content, format_type)
+            except Exception as e:
+                if use_llm == "auto" and not llm_disabled:
+                    if not quiet:
+                        print("🤖 Deterministic parsing failed; trying LLM conversion...")
+                    try:
+                        schema_v2 = self.convert_with_llm(content, format_type)
+                        llm_used = True
+                        parsed = {'title': schema_v2['work']['title'], 'structure': schema_v2['work'].get('structure', [])}
+                    except Exception as llm_error:
+                        llm_failure = str(llm_error)
+                        self.last_llm_error = llm_failure
+                        raise ValueError(
+                            f"Deterministic parsing failed: {e}. LLM fallback failed: {llm_failure}"
+                        ) from llm_error
+                else:
+                    raise
             if not quiet:
                 print(f"✓ Parsed {len(parsed['structure'])} top-level elements")
 
-            if not quiet:
-                print(f"🗺️  Mapping to schema v2.1...")
-            schema_v2 = self.map_to_schema_v2(parsed, interactive)
-            valid, validation_errors = self.validate_canonical(schema_v2)
-            if not valid and use_llm == "auto" and not llm_disabled:
+            if not llm_used:
                 if not quiet:
-                    print("🤖 Deterministic conversion did not validate; trying LLM repair...")
-                try:
-                    schema_v2 = self.convert_with_llm(content, format_type)
-                    llm_used = True
-                    validation_errors = []
-                except Exception as e:
-                    self.last_llm_error = str(e)
-            if not quiet:
-                print(f"✓ Mapped to standardized format with comprehensive metadata")
+                    print(f"🗺️  Mapping to schema v2.1...")
+                schema_v2 = self.map_to_schema_v2(parsed, interactive)
+                valid, validation_errors = self.validate_canonical(schema_v2)
+                if not valid and use_llm == "auto" and not llm_disabled:
+                    if not quiet:
+                        print("🤖 Deterministic conversion did not validate; trying LLM repair...")
+                    try:
+                        schema_v2 = self.convert_with_llm(content, format_type)
+                        llm_used = True
+                        validation_errors = []
+                    except Exception as e:
+                        llm_failure = str(e)
+                        self.last_llm_error = llm_failure
+                if not quiet:
+                    print(f"✓ Mapped to standardized format with comprehensive metadata")
 
         valid, validation_errors = self.validate_canonical(schema_v2)
         if not valid:
-            raise ValueError(f"Converted outline is not schema-valid: {'; '.join(validation_errors)}")
+            details = f"Converted outline is not schema-valid: {'; '.join(validation_errors)}"
+            if use_llm == "auto" and llm_failure:
+                details = f"{details}. LLM fallback failed: {llm_failure}"
+            raise ValueError(details)
 
         self.last_report = self.build_report(
             format_type,

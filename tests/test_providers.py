@@ -142,9 +142,9 @@ class TestOpenAIProvider(unittest.TestCase):
         self.assertEqual(self.provider.get_provider_name(), "openai")
     
     def test_validate_supported_models(self):
-        self.assertTrue(self.provider.validate_model("gpt-4"))
-        self.assertTrue(self.provider.validate_model("gpt-3.5-turbo"))
-        self.assertTrue(self.provider.validate_model("gpt-4-turbo-preview"))
+        self.assertTrue(self.provider.validate_model("gpt-5.4-mini"))
+        self.assertTrue(self.provider.validate_model("gpt-5.5"))
+        self.assertTrue(self.provider.validate_model("gpt-4.1"))
     
     def test_validate_gpt_pattern(self):
         """Test that any gpt- prefixed model is considered valid"""
@@ -233,6 +233,10 @@ class TestIntegration(unittest.TestCase):
         self.assertEqual(response.content, "Test response")
         self.assertEqual(response.model, "gpt-4")
         self.assertEqual(response.tokens_used, 50)
+        mock_client.chat.completions.create.assert_called_once()
+        request = mock_client.chat.completions.create.call_args.kwargs
+        self.assertEqual(request["model"], "gpt-5.4-mini")
+        self.assertEqual(request["max_completion_tokens"], 2000)
 
 
 def run_tests():

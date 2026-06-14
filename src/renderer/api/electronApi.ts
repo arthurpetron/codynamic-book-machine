@@ -30,12 +30,23 @@ export const fallbackState: BookAppState = {
   selectedId: fallbackSection.id,
   selectedSection: fallbackSection,
   messages: ["desktop_app --> book: Loaded fallback renderer state."],
-  agentStatus: { active: 0, total: 1, confidence: 72, pendingProposals: 0 },
+  agentStatus: { active: 0, total: 1, confidence: 72, hypervisorConfidence: 100, pendingProposals: 0, activeAgents: [] },
   proposals: [],
   artifacts: [],
   references: [],
+  knowledgeGraph: {
+    citation_network: {},
+    dependency_graph: {},
+    concept_graph: {},
+    orphan_claims: [],
+    missing_citations: [],
+    invalid_dependencies: [],
+    circular_dependencies: [],
+    citation_occurrences: [],
+    concept_graph_visualization: { nodes: [], edges: [], mermaid: "flowchart LR" }
+  },
   verification: [],
-  design: { style_id: "standard_article", page_size: "letter", margin: "1in" }
+  design: { style_id: "standard_article", page_size: "letter", margin: "1in", title_page_enabled: false, table_of_contents_enabled: false }
 };
 
 const fallbackStyles: DocumentStyle[] = [
@@ -67,11 +78,47 @@ export function getElectronApi(): ElectronApi {
       async saveSection(_sectionId, content) {
         return { ...fallbackSection, source: content };
       },
+      async startSectionAgent(sectionId) {
+        const section = { ...fallbackSection, id: sectionId, source: "\\section*{Draft}\\n\\nGenerated fallback LaTeX draft.\\n" };
+        return { section, event: { event_type: "section_agent_started", status: "pass" } };
+      },
+      async runHypervisor(options) {
+        if (options?.excludeSectionIds?.includes(fallbackSection.id)) {
+          return {
+            targetSectionId: null,
+            complete: true,
+            phase: options?.phase ?? "draft",
+            event: { event_type: "hypervisor_idle", status: "pass" }
+          };
+        }
+        const section = { ...fallbackSection, source: "Generated fallback LaTeX draft from Hypervisor.\\n" };
+        return {
+          targetSectionId: section.id,
+          phase: options?.phase ?? "draft",
+          event: { event_type: "hypervisor_section_agent_dispatched", status: "pass" },
+          sectionAgent: { section, event: { event_type: "section_agent_started", status: "pass" } }
+        };
+      },
+      async reviewHypervisorDocument() {
+        return {
+          selectedSectionIds: [fallbackSection.id],
+          documentChars: fallbackSection.source.length,
+          averageCompletenessPercent: fallbackSection.score ?? null,
+          event: { event_type: "hypervisor_document_reviewed", status: "warn" }
+        };
+      },
       async compileSection() {
         return { status: "skipped" };
       },
       async compileBook() {
         return { status: "skipped" };
+      },
+      async updateDesignSettings(updates) {
+        fallbackState.design = { ...(fallbackState.design ?? {}), ...updates };
+        return fallbackState.design;
+      },
+      async pdfDataUrl() {
+        return "";
       },
       async requestReview() {
         return { event_type: "review_requested", status: "warn", rationale: "Fallback review requested." };

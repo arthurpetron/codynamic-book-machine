@@ -39,6 +39,21 @@ window.cbm = {
           }
         ],
         references: [{ id: 'ref_demo', title: 'Demo Reference', author: 'A. Writer', year: 2026 }],
+        knowledgeGraph: {
+          citation_network: { ref_demo: ['ch01_sec01'] },
+          dependency_graph: { ch01_sec01: [] },
+          concept_graph: { Codynamic: ['Structure'] },
+          orphan_claims: [],
+          missing_citations: [{ section_id: 'ch01_sec01', ref_id: 'missing_demo', line: '3', syntax: 'latex' }],
+          invalid_dependencies: [],
+          circular_dependencies: [],
+          citation_occurrences: [{ section_id: 'ch01_sec01', ref_id: 'missing_demo', line: '3', syntax: 'latex' }],
+          concept_graph_visualization: {
+            nodes: ['Codynamic', 'Structure'],
+            edges: [{ from: 'Codynamic', to: 'Structure' }],
+            mermaid: 'flowchart LR\n  Codynamic --> Structure'
+          }
+        },
         artifacts: [{ artifact_id: 'pdf_demo', kind: 'pdf', path: 'build/pdf/demo.pdf' }],
         verification: [{ rationale: 'Visual test verification event.' }]
       };

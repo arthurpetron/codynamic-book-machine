@@ -44,6 +44,7 @@ def generate_prompt_bundle(agent_id, context_dict={}):
     return {
         "agent_name": agent_spec["name"],
         "intro_prompt": role_intro,
+        "prompt_header": agent_spec.get("prompt_header", ""),
         "actions": actions,
         "introspect": introspect_actions,
         "permissions": agent_spec.get("permissions", []),
@@ -91,6 +92,7 @@ def bootstrap_agent_prompt(current_agent_id):
 def compose_system_prompt(agent_id, bootstrap_context, prompt_bundle):
     agent_name = prompt_bundle.get("agent_name", agent_id)
     role_description = prompt_bundle.get("intro_prompt", "")
+    prompt_header = prompt_bundle.get("prompt_header", "")
     tasks = prompt_bundle.get("tasks", [])
     permissions = prompt_bundle.get("permissions", [])
     actions = prompt_bundle.get("actions", {})
@@ -103,6 +105,9 @@ def compose_system_prompt(agent_id, bootstrap_context, prompt_bundle):
 
 ## Your Role
 {role_description}
+
+## Prompt Header
+{prompt_header or "(No prompt header declared.)"}
 
 ## Your Responsibilities
 You are responsible for:

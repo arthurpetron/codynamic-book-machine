@@ -6,7 +6,13 @@ interface EditorToolbarProps {
   onCompile: () => void;
 }
 
-export function EditorToolbar({ isCompiling, liveSync, onLiveSyncChange, onSave, onCompile }: EditorToolbarProps) {
+export function EditorToolbar({
+  isCompiling,
+  liveSync,
+  onLiveSyncChange,
+  onSave,
+  onCompile
+}: EditorToolbarProps) {
   return (
     <div className="editor-toolbar" aria-label="Editor toolbar">
       <button type="button" title="Save section" onClick={onSave}>Save</button>

@@ -26,7 +26,7 @@ work:
   metadata:
     version: '0.1'
     created: '2025-05-26'
-    updated: '2025-05-26'
+    updated: '2026-06-12'
     maintained_by: author
     language: en
     license: CC-BY-4.0
@@ -263,3 +263,13 @@ work:
       check_citations: true
       check_cross_refs: true
       orphan_detection: true
+  design_settings:
+    style_id: standard_article
+    page_size: letter
+    margin: 1in
+    font_size: 11pt
+    title_treatment: standard
+    plot_placement: inline
+    image_placement: inline
+    equation_style: numbered
+    latex_engine: latexmk

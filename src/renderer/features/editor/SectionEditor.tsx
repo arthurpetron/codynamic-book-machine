@@ -12,6 +12,8 @@ export function SectionEditor({ store }: SectionEditorProps) {
   const [isDirty, setIsDirty] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
   const gutterRef = useRef<HTMLDivElement | null>(null);
+  const lastSavedSourceRef = useRef(store.selectedSection?.source ?? "");
+  const lastCompiledSourceRef = useRef(store.selectedSection?.source ?? "");
   const lineNumbers = useMemo(() => {
     const count = Math.max(1, source.split("\n").length);
     return Array.from({ length: count }, (_, index) => index + 1);
@@ -19,11 +21,25 @@ export function SectionEditor({ store }: SectionEditorProps) {
 
   useEffect(() => {
     setSource(store.selectedSection?.source ?? "");
+    lastSavedSourceRef.current = store.selectedSection?.source ?? "";
+    lastCompiledSourceRef.current = store.selectedSection?.source ?? "";
     setIsDirty(false);
   }, [store.selectedSection?.id, store.selectedSection?.source]);
 
   useEffect(() => {
-    if (!liveSync || !isDirty || !store.selectedId || isCompiling || store.isCompilingSection) {
+    if (!isDirty || !store.selectedId || source === lastSavedSourceRef.current) {
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      void store.saveSection(source).then(() => {
+        lastSavedSourceRef.current = source;
+      });
+    }, 500);
+    return () => window.clearTimeout(timeout);
+  }, [source, isDirty, store.selectedId, store.saveSection]);
+
+  useEffect(() => {
+    if (!liveSync || !store.selectedId || source === lastCompiledSourceRef.current || isCompiling || store.isCompilingSection) {
       return;
     }
     const timeout = window.setTimeout(() => {
@@ -36,6 +52,8 @@ export function SectionEditor({ store }: SectionEditorProps) {
     setIsCompiling(true);
     try {
       await store.compileSection(source);
+      lastSavedSourceRef.current = source;
+      lastCompiledSourceRef.current = source;
       setIsDirty(false);
     } finally {
       setIsCompiling(false);
@@ -49,7 +67,9 @@ export function SectionEditor({ store }: SectionEditorProps) {
         liveSync={liveSync}
         onLiveSyncChange={setLiveSync}
         onSave={() => {
-          store.saveSection(source);
+          void store.saveSection(source).then(() => {
+            lastSavedSourceRef.current = source;
+          });
           setIsDirty(false);
         }}
         onCompile={compile}
@@ -70,14 +90,19 @@ export function SectionEditor({ store }: SectionEditorProps) {
             }
           }}
           onBlur={() => {
-            if (isDirty) {
-              store.saveSection(source);
+            if (isDirty && source !== lastSavedSourceRef.current) {
+              void store.saveSection(source).then(() => {
+                lastSavedSourceRef.current = source;
+              });
             }
           }}
           onKeyDown={(event) => {
             if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
               event.preventDefault();
-              store.saveSection(source);
+              void store.saveSection(source).then(() => {
+                lastSavedSourceRef.current = source;
+              });
+              setIsDirty(false);
             }
           }}
           spellCheck={false}

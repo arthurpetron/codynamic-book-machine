@@ -59,9 +59,10 @@ export function OutlinePane({ store }: OutlinePaneProps) {
         selectedId={store.selectedId}
         filter={filter}
         onSelect={store.selectSection}
-        onRename={async (nodeId, currentTitle) => {
-          const title = window.prompt("Rename outline item", currentTitle);
-          if (title?.trim()) {
+        agentRunState={store.sectionAgentRunState}
+        onStartAgent={store.startSectionAgent}
+        onRename={async (nodeId, title) => {
+          if (title.trim()) {
             await store.updateOutlineNode(nodeId, title.trim());
           }
         }}

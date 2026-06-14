@@ -61,7 +61,7 @@ export function Workspace({ store }: WorkspaceProps) {
         ) : null}
         {store.activeTab === "references" ? (
           <section className="tab-panel detail-panel" aria-label="References and artifacts">
-            <ReferencesPanel references={store.state.references ?? []} />
+            <ReferencesPanel references={store.state.references ?? []} knowledgeGraph={store.state.knowledgeGraph} />
             <ArtifactBrowser artifacts={store.state.artifacts ?? []} />
           </section>
         ) : null}

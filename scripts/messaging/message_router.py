@@ -1,6 +1,7 @@
 # scripts/messaging/message_router.py
 
 import yaml
+import json
 import jsonschema
 from datetime import datetime
 from pathlib import Path
@@ -32,7 +33,7 @@ def load_communication_policy(sub_path):
         return (yaml.safe_load(f) or {}).get("communication", {})
     
 class MessageRouter:
-    def __init__(self, schema_path=SCHEMA_PATH, subscription_path=SUBSCRIPTION_PATH, log_dir=MESSAGE_LOG_PATH):
+    def __init__(self, schema_path=SCHEMA_PATH, subscription_path=SUBSCRIPTION_PATH, log_dir=MESSAGE_LOG_PATH, verbose=False):
         self.subscribers: Dict[
             str,  # target_agent_id
             Dict[
@@ -46,6 +47,7 @@ class MessageRouter:
         self.chat_path = self.log_path / "chat.log"
         self.schema = load_schema(schema_path)
         self.subscription_path = subscription_path
+        self.verbose = verbose
 
         # Durable config only; callbacks register at runtime.
         self.subscription_map = load_subscriptions(subscription_path)
@@ -59,13 +61,13 @@ class MessageRouter:
         message_dict = self._normalize_message(message_dict)
         valid, err = validate_with_schema(message_dict, self.schema)
         if not valid:
-            print(f"[Router] Validation failed: {err}")
+            self._emit(f"[Router] Validation failed: {err}")
             self._audit(message_dict, "failed", str(err))
             return False
 
         allowed, reason = self._is_allowed(message_dict["from"], message_dict["to"])
         if not allowed:
-            print(f"[Router] Message blocked by communication policy: {reason}")
+            self._emit(f"[Router] Message blocked by communication policy: {reason}")
             message_dict["status"] = "failed"
             self._log_message(message_dict)
             self._audit(message_dict, "failed", reason)
@@ -77,8 +79,10 @@ class MessageRouter:
         recipient = message_dict["to"]
         delivered = 0
         if recipient != "all_agents" and not self.subscribers.get(recipient):
-            print(f"\n\n[Router] Warning: No callbacks registered for '{recipient}'\n"
-                   "This message will not be delivered!\n\n")
+            self._emit(
+                f"[Router] Warning: No callbacks registered for '{recipient}'. "
+                "This message will not be delivered!"
+            )
         if recipient == "all_agents":
             for recipient in self.subscribers.keys():  # Broadcast to all agents
                 for callback in self.subscribers[recipient].values():
@@ -89,7 +93,7 @@ class MessageRouter:
                 callback(message_dict)
                 delivered += 1
         else:
-            print(f"[Router] No subscribers for agent_id: {recipient}")
+            self._emit(f"[Router] No subscribers for agent_id: {recipient}")
         message_dict["status"] = "delivered" if delivered else "queued"
         message_dict["delivered_at"] = datetime.now().isoformat() if delivered else None
         self._audit(message_dict, message_dict["status"], f"delivered_to={delivered}")
@@ -102,27 +106,27 @@ class MessageRouter:
         except AttributeError:
             pass
 
-        print(f"[Router] Agent '{agent_id}' subscribed to {target_agent_id}.")
+        self._emit(f"[Router] Agent '{agent_id}' subscribed to {target_agent_id}.")
 
     def unsubscribe(self, agent_id: str, target_agent_id: str):
         try:
             if target_agent_id not in self.subscribers or not self.subscribers[target_agent_id]:
-                print(f"[Router] '{target_agent_id}' has no more active listeners.")
+                self._emit(f"[Router] '{target_agent_id}' has no more active listeners.")
                 return
 
             # Remove the callback from in-memory subscriber mapping
             if target_agent_id in self.subscribers:
                 if agent_id in self.subscribers[target_agent_id]:
                     del self.subscribers[target_agent_id][agent_id]
-                    print(f"[Router] Callback for {agent_id} removed from {target_agent_id}")
+                    self._emit(f"[Router] Callback for {agent_id} removed from {target_agent_id}")
                     
                     if not self.subscribers[target_agent_id]:
-                        print(f"[Router] '{target_agent_id}' has no more active listeners.")
+                        self._emit(f"[Router] '{target_agent_id}' has no more active listeners.")
                 else:
-                    print(f"[Router] No registered callback from {agent_id} to {target_agent_id}")
+                    self._emit(f"[Router] No registered callback from {agent_id} to {target_agent_id}")
 
         except Exception as e:
-            print(f"[Router] Failed to unsubscribe: {e}")
+            self._emit(f"[Router] Failed to unsubscribe: {e}")
 
     def _log_message(self, msg_dict):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
@@ -131,13 +135,17 @@ class MessageRouter:
             yaml.dump(msg_dict, f)
         with open(self.chat_path, "a") as f:
             f.write(self.chat_line(msg_dict) + "\n")
-        print(f"[Router] Message logged to {log_file}")
+        self._emit(f"[Router] Message logged to {log_file}")
 
     @staticmethod
     def chat_line(msg_dict: Dict[str, Any]) -> str:
         body = str(msg_dict.get("body") or msg_dict.get("subject") or "").strip()
         message = " ".join(body.split())
         return f"{msg_dict.get('from', 'unknown')} --> {msg_dict.get('to', 'unknown')}: {message}"
+
+    def _emit(self, message: str):
+        if self.verbose:
+            print(message)
 
     def _normalize_message(self, msg: Dict[str, Any]) -> Dict[str, Any]:
         message = dict(msg)
@@ -193,10 +201,5 @@ class MessageRouter:
             "status": status,
             "detail": detail,
         }
-        log = []
-        if self.audit_path.exists():
-            with open(self.audit_path, "r") as f:
-                log = yaml.safe_load(f) or []
-        log.append(entry)
-        with open(self.audit_path, "w") as f:
-            yaml.safe_dump(log, f, sort_keys=False)
+        with open(self.audit_path, "a") as f:
+            f.write(json.dumps(entry, sort_keys=True) + "\n")

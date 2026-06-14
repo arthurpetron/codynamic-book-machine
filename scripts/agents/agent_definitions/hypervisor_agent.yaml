@@ -36,6 +36,31 @@ permissions:
   - log_activity
 
 actions:
+  - id: supervise_agents
+    description: Reconcile desired agents, running state, and durable task queues.
+    prompt_template: |
+      Reconcile the agent runtime for the following section ids:
+      {section_ids}
+
+      Queue work if requested: {queue_work}
+
+  - id: summarize_drift
+    description: Summarize global manuscript and runtime drift from verification history.
+    prompt_template: |
+      Summarize current drift for {subject} using verification history and runtime state.
+
+  - id: process_message
+    description: Process a routed agent message as a durable hypervisor task.
+    prompt_template: |
+      Read this routed agent message and decide whether the runtime needs follow-up supervision:
+      {message}
+
+      If the message reports task completion, update your belief model of agent state and decide
+      whether the next queued task, gardener validation, revision pass, or no action is appropriate.
+      If the message reports a LaTeX compile failure, extract the relevant section id(s),
+      errors, and log excerpt, then queue revise_section_from_feedback tasks for the responsible
+      section agent(s) with concrete instructions to fix the LaTeX.
+
   - id: detect_agent_drift
     description: Assess whether an agent has deviated from its stated role or active task.
     prompt_template: |

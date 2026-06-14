@@ -1,0 +1,312 @@
+work:
+  id: resonant_bioharmonic_medicine
+  type: paper
+  title: 'Resonant Bioharmonic Medicine: Using Targeted Frequencies to Modulate Cellular
+    Metabolism and Neural State'
+  subtitle: ''
+  summary: This paper proposes Resonant Bioharmonic Medicine (RBM), a mechanistically
+    grounded framework for using acoustic and vibrotactile stimuli to modulate human
+    physiology. It surveys published frequency-effect pairs, describes resonance pathways
+    across biological scales, and outlines prototype devices and an experimental roadmap
+    for frequency-based interventions.
+  intent:
+    audience: ''
+    writing_style: ''
+    author_persona: ''
+    reader_takeaway: ''
+    genre: nonfiction
+  authors:
+  - name: ''
+    role: author
+  metadata:
+    version: 0.1.0
+    created: '2026-06-12'
+    updated: '2026-06-12'
+    maintained_by: author
+    language: en
+    license: CC-BY-4.0
+    status: draft
+  front_matter:
+    title_page:
+      enabled: true
+    table_of_contents:
+      enabled: true
+      depth: 3
+  structure:
+  - type: section
+    id: abstract
+    number: 1
+    title: Abstract
+    goal: ''
+    summary: Introduces Resonant Bioharmonic Medicine as a framework for using sound
+      and vibrotactile stimuli as direct physiological interventions, grounded in
+      coupled-oscillator models and published frequency-effect findings.
+    prerequisites: []
+    dependencies:
+      structural: []
+      narrative: ''
+    key_concepts: []
+    citations: []
+    content_file: content/sections/abstract.md
+    content_text: 'This paper introduces a novel, mechanistically grounded framework
+      for using acoustic and vibrotactile stimuli as direct interventions in human
+      physiology: **Resonant Bioharmonic Medicine (RBM)**. Drawing from recent advances
+      in biophysics, neuroscience, and cellular biomechanics, I argue that sound can
+      be used not merely for emotional modulation, but as a *biological compiler*
+      — a tool to entrain, amplify, or re-harmonize specific metabolic and neural
+      processes at their natural frequencies.
+
+
+      The foundation of RBM is a layered model of the human body as a system of coupled
+      oscillators, from intracellular organelles to neural field dynamics. I provide
+      a structured overview of published studies linking specific frequency bands
+      (e.g. 40 Hz, 0.8 Hz, 100 Hz) to measurable physiological outcomes, including
+      reduced tau accumulation, improved HRV, enhanced sleep-phase memory consolidation,
+      and cytoskeletal modulation.
+
+
+      Building on this evidence, I propose the design of localized “frequency medicine”
+      devices that apply phase-locked, symbolic, or biologically matched vibratory
+      stimuli directly to the body. I outline multiple low-risk, high-impact prototypes
+      that can be constructed immediately using off-the-shelf components, including
+      vagal nerve acoustic entrainment, sleep-aligned audio fields, and mitochondrially-resonant
+      stimulation pads.
+
+
+      This paper concludes by framing RBM as a bridge between bioelectromagnetic physiology,
+      symbolic cognition, and intentional systems design — with potential implications
+      for neurodegenerative disease, trauma recovery, and perceptual engineering.'
+  - type: section
+    id: introduction_the_body_as_a_resonant_system
+    title: '1. Introduction: The Body as a Resonant System'
+    goal: ''
+    summary: Frames the body as a resonant system and introduces biological oscillators
+      across scales.
+    prerequisites: []
+    dependencies:
+      structural: []
+      narrative: ''
+    key_concepts: []
+    citations: []
+    content_file: content/sections/introduction_the_body_as_a_resonant_system.md
+    content_text: '* From spike-centric neuroscience to field-aware models
+
+
+      * Biological oscillators across scale: membranes, mitochondria, neural rhythms
+
+
+      * Cymatics and intracellular field structure: motifs as stable attractors'
+  - type: section
+    id: constructive_foundations_of_resonant_bioharmonic_medicine
+    title: 2. Constructive Foundations of Resonant Bioharmonic Medicine
+    goal: ''
+    summary: Establishes the conceptual basis for RBM, including cellular electromagnetic
+      activity and sound as a physical modulator.
+    prerequisites: []
+    dependencies:
+      structural: []
+      narrative: ''
+    key_concepts: []
+    citations: []
+    content_file: content/sections/constructive_foundations_of_resonant_bioharmonic_medicine.md
+    content_text: '* Every living cell generates an ongoing EM “hum”
+
+
+      * Voice and sound as legitimate physical modulators
+
+
+      * Symbolic sound → field resonance → metabolic modulation'
+  - type: section
+    id: survey_of_published_frequency_effect_pairs
+    title: 3. Survey of Published Frequency–Effect Pairs
+    goal: ''
+    summary: Summarizes reported associations between specific frequencies and physiological
+      outcomes in a table.
+    prerequisites: []
+    dependencies:
+      structural: []
+      narrative: ''
+    key_concepts: []
+    citations: []
+    content_file: content/sections/survey_of_published_frequency_effect_pairs.md
+    content_text: '| Frequency | Ailment / Outcome | Target Metabolic Cycle | Study
+      |
+
+      | ----- | ----- | ----- | ----- |
+
+      | 40 Hz | Tau pathology ↓, motor function ↑ | Neural gamma entrainment, proteostasis
+      | Iaccarino et al., 2016; Martorell et al., 2019 |
+
+      | 0.8 Hz | Sleep memory ↑ | Cortical slow oscillation | Ngo et al., 2013 |
+
+      | 30–50 Hz | Vagus stimulation, inflammation ↓ | Afferent vagal tone modulation
+      | Bonaz et al., 2016 |
+
+      | 62–125 Hz | Mitochondrial ROS / number modulation | Cellular EM field resonance
+      | Krajnak et al., 2020 |
+
+      | 100 Hz | Neurite growth ↑ | Cytoskeletal reorganization | Mo et al., 2022
+      |'
+  - type: section
+    id: resonance_pathways_in_the_body
+    title: 4. Resonance Pathways in the Body
+    goal: ''
+    summary: Describes mechanical, electromagnetic, symbolic, and metabolic pathways
+      through which resonance may act in the body.
+    prerequisites: []
+    dependencies:
+      structural: []
+      narrative: ''
+    key_concepts: []
+    citations: []
+    content_file: content/sections/resonance_pathways_in_the_body.md
+    content_text: '* Mechanical: bone conduction, tissue harmonics
+
+
+      * Electromagnetic: piezoelectric coupling (e.g. collagen, actin)
+
+
+      * Symbolic/cognitive: compiler-like interface to perception
+
+
+      * Interaction with metabolic cycles: ATP synthase, mitochondrial uptake, ion
+      channel flickering'
+  - type: section
+    id: prototype_devices_and_modal_designs
+    title: 5. Prototype Devices and Modal Designs
+    goal: ''
+    summary: Outlines prototype frequency-medicine devices and notes hardware, software,
+      and waveform design strategy.
+    prerequisites: []
+    dependencies:
+      structural: []
+      narrative: ''
+    key_concepts: []
+    citations: []
+    content_file: content/sections/prototype_devices_and_modal_designs.md
+    content_text: Hardware, software, and waveform design strategy
+    content:
+    - type: subsection
+      id: vagal_patch
+      title: A. Vagal Patch
+      goal: ''
+      summary: 30–50 Hz vibration on neck / ear
+      prerequisites: []
+      dependencies:
+        structural: []
+        narrative: ''
+      key_concepts: []
+      citations: []
+      content_file: content/sections/vagal_patch.md
+      content_text: 30–50 Hz vibration on neck / ear
+    - type: subsection
+      id: sleep_sound_pad
+      title: B. Sleep Sound Pad
+      goal: ''
+      summary: delta-modulated ambient playback
+      prerequisites: []
+      dependencies:
+        structural: []
+        narrative: ''
+      key_concepts: []
+      citations: []
+      content_file: content/sections/sleep_sound_pad.md
+      content_text: delta-modulated ambient playback
+    - type: subsection
+      id: somatune_strap
+      title: C. SomaTune Strap
+      goal: ''
+      summary: 40 Hz wearable chest device with 0.1 Hz pulse
+      prerequisites: []
+      dependencies:
+        structural: []
+        narrative: ''
+      key_concepts: []
+      citations: []
+      content_file: content/sections/somatune_strap.md
+      content_text: 40 Hz wearable chest device with 0.1 Hz pulse
+    - type: subsection
+      id: cytoskeletal_stim_unit
+      title: D. Cytoskeletal Stim Unit
+      goal: ''
+      summary: 100 Hz acoustic pad for recovery, neurotrophic effects
+      prerequisites: []
+      dependencies:
+        structural: []
+        narrative: ''
+      key_concepts: []
+      citations: []
+      content_file: content/sections/cytoskeletal_stim_unit.md
+      content_text: 100 Hz acoustic pad for recovery, neurotrophic effects
+  - type: section
+    id: experimental_roadmap
+    title: 6. Experimental Roadmap
+    goal: ''
+    summary: Proposes biometrics, simulation tools, and a constructivist design loop
+      for testing RBM interventions.
+    prerequisites: []
+    dependencies:
+      structural: []
+      narrative: ''
+    key_concepts: []
+    citations: []
+    content_file: content/sections/experimental_roadmap.md
+    content_text: '* Suggested biometrics: HRV, ATP assays, EEG phase-coherence, subjective
+      reports
+
+
+      * Simulation tools for field-motif interference
+
+
+      * Constructivist design loop: outcome ↔ frequency ↔ waveform ↔ embodiment'
+  - type: section
+    id: broader_implications
+    title: 7. Broader Implications
+    goal: ''
+    summary: Positions RBM as a reframing of sound healing, symbolic medicine, and
+      perceptual engineering.
+    prerequisites: []
+    dependencies:
+      structural: []
+      narrative: ''
+    key_concepts: []
+    citations: []
+    content_file: content/sections/broader_implications.md
+    content_text: '* Reframing “sound healing” as biophysical entrainment
+
+
+      * Symbolic medicine: bridging subjective experience with real modulation
+
+
+      * From perceptual grammar tuning → reality interface engineering'
+  - type: section
+    id: conclusion_call_to_collaboration
+    title: 8. Conclusion & Call to Collaboration
+    goal: ''
+    summary: Concludes by presenting RBM as a new field and inviting collaborators
+      for prototypes and trials.
+    prerequisites: []
+    dependencies:
+      structural: []
+      narrative: ''
+    key_concepts: []
+    citations: []
+    content_file: content/sections/conclusion_call_to_collaboration.md
+    content_text: '* This paper opens a field: Resonant Bioharmonic Medicine (RBM)
+
+
+      * Low-barrier entry point for prototypes and trials
+
+
+      * Seeking aligned researchers, hardware engineers, and perception-aware investors'
+  citations:
+    entries: []
+  diagrams: []
+  media: []
+  back_matter: {}
+  compilation:
+    output_formats:
+    - pdf
+    latex:
+      document_class: book
+      paper_size: letter

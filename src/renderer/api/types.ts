@@ -22,6 +22,7 @@ export interface SectionPayload extends OutlineItem {
   type?: string;
   summary?: string;
   contentFile?: string;
+  latexFile?: string;
   source: string;
 }
 
@@ -36,7 +37,15 @@ export interface AgentStatus {
   active: number;
   total: number;
   confidence: number;
+  hypervisorConfidence?: number;
   pendingProposals: number;
+  activeAgents?: {
+    agent_id: string;
+    role?: string;
+    section_id?: string | null;
+    status?: string;
+    task_queue_length?: number;
+  }[];
 }
 
 export interface EditProposal {
@@ -67,7 +76,11 @@ export interface ReferenceEntry {
 export interface CompileResult {
   status?: string;
   pdf_path?: string;
+  log_path?: string;
   errors?: string[];
+  responsible_section_ids?: string[];
+  responsible_section_titles?: string[];
+  diagnostic_summary?: string;
 }
 
 export interface VerificationEvent {
@@ -79,6 +92,32 @@ export interface VerificationEvent {
   rationale?: string;
 }
 
+export interface GraphDiagnostic {
+  section_id?: string;
+  ref_id?: string;
+  dependency_id?: string;
+  line?: string;
+  syntax?: string;
+  excerpt?: string;
+  reason?: string;
+}
+
+export interface KnowledgeGraphState {
+  citation_network?: Record<string, string[]>;
+  dependency_graph?: Record<string, string[]>;
+  concept_graph?: Record<string, string[]>;
+  orphan_claims?: GraphDiagnostic[];
+  missing_citations?: GraphDiagnostic[];
+  invalid_dependencies?: GraphDiagnostic[];
+  circular_dependencies?: string[][];
+  citation_occurrences?: GraphDiagnostic[];
+  concept_graph_visualization?: {
+    nodes?: string[];
+    edges?: { from: string; to: string }[];
+    mermaid?: string;
+  };
+}
+
 export interface UserChatMessage {
   message_id: string;
   from_agent?: string;
@@ -87,6 +126,8 @@ export interface UserChatMessage {
   status: "pending" | "answered" | "dismissed" | string;
   answer?: string;
 }
+
+export type HypervisorPhase = "draft" | "revision" | "compile_repair";
 
 export interface BookAppState {
   bookRoot?: string;
@@ -98,13 +139,14 @@ export interface BookAppState {
   outline: OutlineChapter[];
   selectedId?: string | null;
   selectedSection?: SectionPayload | null;
-  design?: Record<string, string>;
+  design?: Record<string, string | number | boolean>;
   styles?: DocumentStyle[];
   messages?: string[];
   agentStatus?: AgentStatus;
   artifacts?: Artifact[];
   proposals?: EditProposal[];
   references?: ReferenceEntry[];
+  knowledgeGraph?: KnowledgeGraphState;
   compile?: CompileResult | null;
   verification?: VerificationEvent[];
 }
@@ -126,8 +168,28 @@ export interface ElectronApi {
     state(selectedId?: string | null): Promise<BookAppState>;
     section(sectionId: string): Promise<SectionPayload>;
     saveSection(sectionId: string, content: string): Promise<SectionPayload>;
+    startSectionAgent(sectionId: string): Promise<{ section: SectionPayload; event?: VerificationEvent; output_path?: string }>;
+    runHypervisor(options?: {
+      excludeSectionIds?: string[];
+      includeSectionIds?: string[];
+      phase?: HypervisorPhase;
+    }): Promise<{
+      targetSectionId?: string | null;
+      complete?: boolean;
+      phase?: HypervisorPhase;
+      event?: VerificationEvent;
+      sectionAgent?: { section: SectionPayload; event?: VerificationEvent; output_path?: string } | null;
+    }>;
+    reviewHypervisorDocument(limit?: number): Promise<{
+      selectedSectionIds: string[];
+      documentChars?: number;
+      averageCompletenessPercent?: number | null;
+      event?: VerificationEvent;
+    }>;
     compileSection(sectionId: string): Promise<CompileResult>;
     compileBook(): Promise<CompileResult>;
+    updateDesignSettings(updates: Record<string, string | number | boolean>): Promise<Record<string, string | number | boolean>>;
+    pdfDataUrl(pdfPath: string): Promise<string>;
     requestReview(subject?: string): Promise<VerificationEvent>;
     createSection(parentId: string | undefined, title: string): Promise<SectionPayload>;
     createChapter(title: string): Promise<Record<string, unknown>>;

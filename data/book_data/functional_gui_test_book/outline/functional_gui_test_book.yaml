@@ -1,0 +1,271 @@
+work:
+  id: functional_gui_test_book
+  type: book
+  title: Functional GUI Test Book
+  subtitle: ''
+  summary: ''
+  intent:
+    audience: TO BE SPECIFIED
+    writing_style: TO BE SPECIFIED
+    author_persona: TO BE SPECIFIED
+    reader_takeaway: TO BE SPECIFIED
+    genre: nonfiction
+  authors:
+  - name: TO BE SPECIFIED
+    affiliation: ''
+    email: ''
+    role: author
+  metadata:
+    version: 0.1.0
+    created: '2026-06-12'
+    updated: '2026-06-12'
+    maintained_by: author
+    language: en
+    license: CC-BY-4.0
+    status: draft
+    descriptive:
+      abstract: ''
+      keywords: []
+      subject: ''
+      language: en
+      genre: nonfiction
+      intended_audience: ''
+    administrative:
+      provenance:
+        authors: []
+        maintainer: author
+        created_by: ''
+      versioning:
+        version: 0.1.0
+        changelog:
+        - version: 0.1.0
+          date: '2026-06-12'
+          changes: Migrated to canonical work outline format
+        release_notes: ''
+      timestamps:
+        created: '2026-06-12'
+        modified: '2026-06-12'
+        published: ''
+        archived: ''
+      rights_and_access:
+        license: CC-BY-4.0
+        copyright_holder: TO BE SPECIFIED
+        copyright_year: '2026'
+        access_permissions:
+        - open_access
+        embargo_date: ''
+        usage_terms: ''
+        distribution_rights: ''
+    structural:
+      section_hierarchy: []
+      page_count: 0
+      word_count: 0
+      figure_count: 0
+      table_count: 0
+      diagram_count: 0
+      equation_count: 0
+      file_manifest: []
+      citation_map: {}
+    technical:
+      file_format: YAML
+      encoding: UTF-8
+      file_size_bytes: 0
+      checksum: ''
+      page_dimensions: ''
+      dpi: 300
+      font_info: []
+      software_used: []
+      dependencies: []
+    semantic:
+      ontology: []
+      thesis_statement: ''
+      research_questions: []
+      key_definitions: []
+      argument_structure: ''
+      purpose: ''
+      methodology: ''
+      epistemological_stance: ''
+    relational:
+      references: []
+      cited_by: []
+      related_works: []
+      supersedes: ''
+      superseded_by: ''
+      derived_from: ''
+      linked_uris: []
+      companion_materials: []
+    contextual:
+      historical_context: ''
+      geographic_context: ''
+      cultural_context: ''
+      institutional_context: ''
+      funding_sources: []
+      disclaimers: []
+    computational:
+      schema_version: 2.1.0
+      unique_identifier: uuid-72595e01ab1fdacb
+      machine_readable_format: YAML
+      api_endpoints: []
+      validation_status:
+        schema_valid: false
+        dependencies_resolved: false
+        citations_verified: false
+        last_validated: ''
+      execution_logs:
+      - timestamp: '2026-06-12T21:45:21.657487Z'
+        agent: outline_converter
+        action: created_outline
+      build_metadata:
+        last_build: ''
+        build_system: ''
+        output_artifacts: []
+      machine_tags:
+      - auto-generated-outline
+  front_matter:
+    title_page:
+      enabled: true
+    copyright_page:
+      enabled: true
+      year: '2026'
+      holder: ''
+    dedication:
+      enabled: false
+      text: ''
+    epigraph:
+      enabled: false
+      quote: ''
+      attribution: ''
+    table_of_contents:
+      enabled: true
+      depth: 3
+    list_of_figures:
+      enabled: false
+    list_of_tables:
+      enabled: false
+    preface:
+      enabled: false
+      content_file: ''
+    acknowledgments:
+      enabled: false
+      content_file: ''
+  structure:
+  - type: chapter
+    id: orientation
+    number: 1
+    title: Orientation
+    goal: ''
+    summary: ''
+    prerequisites: []
+    dependencies:
+      structural: []
+      narrative: ''
+    key_concepts: []
+    citations: []
+    content:
+    - type: section
+      id: what_the_machine_should_do
+      number: 1
+      title: What the Machine Should Do
+      goal: ''
+      summary: 'State the user-visible loop: import an outline, select sections, draft
+        text, and compile.'
+      prerequisites: []
+      dependencies:
+        structural: []
+        narrative: ''
+      key_concepts: []
+      citations: []
+      content_file: content/sections/what_the_machine_should_do.md
+      content_text: 'State the user-visible loop: import an outline, select sections,
+        draft text, and compile.'
+    - type: section
+      id: testing_a_fresh_outline
+      number: 2
+      title: Testing a Fresh Outline
+      goal: ''
+      summary: Confirm that a new outline becomes the active book and appears in the
+        workspace.
+      prerequisites: []
+      dependencies:
+        structural: []
+        narrative: ''
+      key_concepts: []
+      citations: []
+      content_file: content/sections/testing_a_fresh_outline.md
+      content_text: Confirm that a new outline becomes the active book and appears
+        in the workspace.
+  - type: chapter
+    id: working_method
+    number: 2
+    title: Working Method
+    goal: ''
+    summary: ''
+    prerequisites: []
+    dependencies:
+      structural: []
+      narrative: ''
+    key_concepts: []
+    citations: []
+    content:
+    - type: section
+      id: editorial_passes
+      number: 1
+      title: Editorial Passes
+      goal: ''
+      summary: Describe how section edits and agent review should feed back into the
+        book.
+      prerequisites: []
+      dependencies:
+        structural: []
+        narrative: ''
+      key_concepts: []
+      citations: []
+      content_file: content/sections/editorial_passes.md
+      content_text: Describe how section edits and agent review should feed back into
+        the book.
+    - type: section
+      id: export_surface
+      number: 2
+      title: Export Surface
+      goal: ''
+      summary: Describe what a useful PDF preview should show before final export.
+      prerequisites: []
+      dependencies:
+        structural: []
+        narrative: ''
+      key_concepts: []
+      citations: []
+      content_file: content/sections/export_surface.md
+      content_text: Describe what a useful PDF preview should show before final export.
+  citations:
+    entries: []
+  diagrams: []
+  media: []
+  back_matter:
+    appendices: []
+    glossary:
+      enabled: false
+      entries: []
+    bibliography:
+      enabled: true
+      style: APA
+      source: citations.entries
+    index:
+      enabled: false
+      auto_generate: false
+    about_author:
+      enabled: false
+      content_file: ''
+  compilation:
+    output_formats:
+    - pdf
+    pdf_settings:
+      document_class: book
+      paper_size: letter
+      font_size: 11pt
+      two_side: true
+    validation:
+      check_dependencies: true
+      check_citations: true
+      check_cross_refs: true
+      orphan_detection: true

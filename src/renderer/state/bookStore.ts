@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fallbackState, getElectronApi } from "../api/electronApi";
-import type { BookAppState, CompileResult, DocumentStyle, SectionPayload } from "../api/types";
+import type { BookAppState, CompileResult, DocumentStyle, HypervisorPhase, SectionPayload } from "../api/types";
 
 export type WorkspaceTab = "editor" | "agents" | "references";
+export type SectionAgentRunState = "working" | "idle";
 export interface CompileHistoryItem {
   id: string;
   target: "section" | "book";
@@ -14,9 +15,10 @@ export interface CompileHistoryItem {
 
 export function useBookStore() {
   const api = useMemo(() => getElectronApi(), []);
+  const hasNativeApi = typeof window !== "undefined" && Boolean(window.cbm);
   const [state, setState] = useState<BookAppState>(fallbackState);
-  const [selectedId, setSelectedId] = useState<string | null>(fallbackState.selectedId ?? null);
-  const [selectedSection, setSelectedSection] = useState<SectionPayload | null>(fallbackState.selectedSection ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(hasNativeApi ? null : (fallbackState.selectedId ?? null));
+  const [selectedSection, setSelectedSection] = useState<SectionPayload | null>(hasNativeApi ? null : (fallbackState.selectedSection ?? null));
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("editor");
   const [styles, setStyles] = useState<DocumentStyle[]>(fallbackState.styles ?? []);
   const [compileResult, setCompileResult] = useState<CompileResult | null>(fallbackState.compile ?? null);
@@ -24,11 +26,19 @@ export function useBookStore() {
   const [isCompilingSection, setIsCompilingSection] = useState(false);
   const [compileHistory, setCompileHistory] = useState<CompileHistoryItem[]>([]);
   const [activityMessages, setActivityMessages] = useState<string[]>([]);
+  const [sectionAgentRunState, setSectionAgentRunState] = useState<Record<string, SectionAgentRunState>>({});
+  const [hypervisorEnabled, setHypervisorEnabled] = useState(false);
+  const [isHypervisorWorking, setIsHypervisorWorking] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const hypervisorEnabledRef = useRef(false);
+  const hypervisorHandledSectionIdsRef = useRef<Set<string>>(new Set());
+  const hypervisorPhaseRef = useRef<HypervisorPhase>("draft");
+  const hypervisorRevisionQueueRef = useRef<string[]>([]);
+  const isHypervisorWorkingRef = useRef(false);
 
   const addActivity = useCallback((source: string, text: string) => {
     const nextMessage = `${source} --> book: ${text}`;
-    setActivityMessages((messages) => [nextMessage, ...messages].slice(0, 20));
+    setActivityMessages((messages) => [...messages, nextMessage].slice(-20));
   }, []);
 
   const recordCompile = useCallback((target: "section" | "book", result: CompileResult) => {
@@ -44,14 +54,29 @@ export function useBookStore() {
 
   const loadState = useCallback(async (nextSelectedId?: string | null) => {
     setIsLoading(true);
+    const requestedSelectedId = nextSelectedId ?? selectedId;
     try {
-      const snapshot = await api.app.state(nextSelectedId ?? selectedId);
+      const snapshot = await api.app.state(requestedSelectedId);
       setState(snapshot);
       setSelectedId(snapshot.selectedId ?? nextSelectedId ?? null);
       setSelectedSection(snapshot.selectedSection ?? null);
       setCompileResult(snapshot.compile ?? null);
     } catch (error) {
-      addActivity("Desktop -> Book", `Failed to load app state: ${(error as Error).message}`);
+      const message = (error as Error).message || "";
+      if (requestedSelectedId && message.includes("Unknown section id")) {
+        try {
+          const snapshot = await api.app.state(null);
+          setState(snapshot);
+          setSelectedId(snapshot.selectedId ?? null);
+          setSelectedSection(snapshot.selectedSection ?? null);
+          setCompileResult(snapshot.compile ?? null);
+          addActivity("Desktop -> Book", `Recovered from stale section id: ${requestedSelectedId}.`);
+        } catch (retryError) {
+          addActivity("Desktop -> Book", `Failed to recover app state: ${(retryError as Error).message}`);
+        }
+      } else {
+        addActivity("Desktop -> Book", `Failed to load app state: ${message}`);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -80,6 +105,146 @@ export function useBookStore() {
     }
   }, [api, selectedId, addActivity]);
 
+  const startSectionAgent = useCallback(async (sectionId?: string) => {
+    const targetId = sectionId ?? selectedId;
+    if (!targetId) {
+      return;
+    }
+    setSectionAgentRunState((states) => ({ ...states, [targetId]: "working" }));
+    try {
+      addActivity("Section Agent -> Book", `Starting initial LaTeX pass for ${targetId}.`);
+      const result = await api.app.startSectionAgent(targetId);
+      if (targetId === selectedId) {
+        setSelectedSection(result.section);
+      }
+      addActivity("Section Agent -> Book", `Generated LaTeX draft for ${targetId}.`);
+      setSectionAgentRunState((states) => ({ ...states, [targetId]: "idle" }));
+      await loadState(targetId);
+    } catch (error) {
+      addActivity("Section Agent -> Book", `Section agent failed: ${(error as Error).message}`);
+      setSectionAgentRunState((states) => ({ ...states, [targetId]: "idle" }));
+      throw error;
+    }
+  }, [api, selectedId, loadState, addActivity]);
+
+  const nextHypervisorTarget = useCallback((excluded: Set<string> = new Set()) => {
+    const items = state.outline.flatMap((chapter) => chapter.items ?? []);
+    const includeIds = hypervisorPhaseRef.current === "revision"
+      ? new Set(hypervisorRevisionQueueRef.current)
+      : null;
+    const candidates = items.filter((item) => !excluded.has(item.id) && (!includeIds || includeIds.has(item.id)));
+    if (!candidates.length) {
+      return undefined;
+    }
+    return candidates.find((item) => item.score == null)?.id
+      ?? [...candidates].sort((left, right) => (left.score ?? 0) - (right.score ?? 0))[0]?.id;
+  }, [state.outline]);
+
+  const runHypervisorCycle = useCallback(async () => {
+    if (!hypervisorEnabledRef.current || isHypervisorWorkingRef.current) {
+      return;
+    }
+    isHypervisorWorkingRef.current = true;
+    setIsHypervisorWorking(true);
+    try {
+      while (hypervisorEnabledRef.current) {
+        const excluded = hypervisorHandledSectionIdsRef.current;
+        let targetId: string | undefined = nextHypervisorTarget(excluded);
+
+        if (!targetId) {
+          if (hypervisorPhaseRef.current === "draft") {
+            addActivity("Hypervisor -> Book", "Draft pass complete. Reviewing assembled document for revision targets.");
+            const review = await api.app.reviewHypervisorDocument(5);
+            hypervisorRevisionQueueRef.current = review.selectedSectionIds ?? [];
+            if (hypervisorRevisionQueueRef.current.length > 0) {
+              hypervisorPhaseRef.current = "revision";
+              hypervisorHandledSectionIdsRef.current = new Set();
+              addActivity("Hypervisor -> Book", `Revision pass queued for ${hypervisorRevisionQueueRef.current.length} section(s).`);
+              continue;
+            }
+          }
+          hypervisorEnabledRef.current = false;
+          setHypervisorEnabled(false);
+          addActivity("Hypervisor -> Book", "Hypervisor completed all queued draft and revision work.");
+          break;
+        }
+
+        setSelectedId(targetId);
+        setSectionAgentRunState((states) => ({ ...states, [targetId as string]: "working" }));
+        api.app.section(targetId)
+          .then(setSelectedSection)
+          .catch((error) => addActivity("Hypervisor -> Book", `Failed to preselect ${targetId}: ${(error as Error).message}`));
+
+        const phase = hypervisorPhaseRef.current;
+        addActivity("Hypervisor -> Book", `Dispatching ${phase} section-agent pass for ${targetId}.`);
+        const result = await api.app.runHypervisor({
+          excludeSectionIds: [...excluded],
+          includeSectionIds: hypervisorRevisionQueueRef.current,
+          phase,
+        });
+
+        if (result.phase === "compile_repair") {
+          setSectionAgentRunState((states) => ({ ...states, [targetId as string]: "idle" }));
+          addActivity("Hypervisor -> Typeset", "Processed urgent compile failure and queued section repair work.");
+          await loadState(selectedId);
+          continue;
+        }
+
+        if (result.complete || !result.targetSectionId) {
+          setSectionAgentRunState((states) => ({ ...states, [targetId as string]: "idle" }));
+          if (phase === "draft") {
+            addActivity("Hypervisor -> Book", "Draft pass complete. Reviewing assembled document for revision targets.");
+            const review = await api.app.reviewHypervisorDocument(5);
+            hypervisorRevisionQueueRef.current = review.selectedSectionIds ?? [];
+            if (hypervisorRevisionQueueRef.current.length > 0) {
+              hypervisorPhaseRef.current = "revision";
+              hypervisorHandledSectionIdsRef.current = new Set();
+              addActivity("Hypervisor -> Book", `Revision pass queued for ${hypervisorRevisionQueueRef.current.length} section(s).`);
+              continue;
+            }
+          }
+          hypervisorEnabledRef.current = false;
+          setHypervisorEnabled(false);
+          addActivity("Hypervisor -> Book", "Hypervisor completed all queued draft and revision work.");
+          break;
+        }
+
+        if (result.targetSectionId !== targetId) {
+          setSectionAgentRunState((states) => ({ ...states, [targetId as string]: "idle", [result.targetSectionId as string]: "working" }));
+          targetId = result.targetSectionId;
+        }
+        excluded.add(result.targetSectionId);
+        if (result.sectionAgent?.section) {
+          setSelectedSection(result.sectionAgent.section);
+        }
+        addActivity("Hypervisor -> Book", `Completed ${phase} section-agent pass for ${result.targetSectionId}.`);
+        await loadState(result.targetSectionId);
+        setSectionAgentRunState((states) => ({ ...states, [targetId as string]: "idle" }));
+      }
+    } catch (error) {
+      addActivity("Hypervisor -> Book", `Hypervisor failed: ${(error as Error).message}`);
+      hypervisorEnabledRef.current = false;
+      setHypervisorEnabled(false);
+    } finally {
+      isHypervisorWorkingRef.current = false;
+      setIsHypervisorWorking(false);
+    }
+  }, [api, loadState, addActivity, nextHypervisorTarget]);
+
+  const toggleHypervisor = useCallback(() => {
+    const nextEnabled = !hypervisorEnabled;
+    hypervisorEnabledRef.current = nextEnabled;
+    setHypervisorEnabled(nextEnabled);
+    if (!nextEnabled) {
+      addActivity("Hypervisor -> Book", "Hypervisor disabled.");
+      return;
+    }
+    hypervisorHandledSectionIdsRef.current = new Set();
+    hypervisorPhaseRef.current = "draft";
+    hypervisorRevisionQueueRef.current = [];
+    addActivity("Hypervisor -> Book", "Hypervisor enabled. It will draft all sections once, review the assembled document, then revise a selected subset.");
+  }, [hypervisorEnabled, addActivity]);
+
   const createSection = useCallback(async (parentId: string | undefined, title: string) => {
     const section = await api.app.createSection(parentId, title);
     addActivity("Outline -> Book", `Created ${section.title}.`);
@@ -100,12 +265,19 @@ export function useBookStore() {
   }, [api, selectedId, loadState, addActivity]);
 
   const importOutline = useCallback(async (mode: "current" | "new") => {
-    const result = await api.app.importOutline(mode);
-    if (!result) {
-      return;
+    try {
+      const result = await api.app.importOutline(mode);
+      if (!result) {
+        return;
+      }
+      const output = result.output || `Imported outline from ${result.sourcePath}.`;
+      addActivity("Importer -> Outline", output);
+      if (!output.toLowerCase().startsWith("import failed:")) {
+        await loadState(null);
+      }
+    } catch (error) {
+      addActivity("Importer -> Outline", `Import failed: ${(error as Error).message}`);
     }
-    addActivity("Importer -> Outline", result.output || `Imported outline from ${result.sourcePath}.`);
-    await loadState(null);
   }, [api, loadState, addActivity]);
 
   const compileSection = useCallback(async (content: string) => {
@@ -174,13 +346,18 @@ export function useBookStore() {
   }, [api, selectedId, loadState, addActivity]);
 
   const setDocumentStyle = useCallback(async (styleId: string) => {
-    if (!api.typeset) {
-      return;
-    }
-    const result = await api.typeset.setStyle(styleId, state.bookRoot);
-    addActivity("Document Design -> Typeset", result.output || `Document style set to ${styleId}.`);
+    const settings = await api.app.updateDesignSettings({ style_id: styleId });
+    setState((current) => ({ ...current, design: settings }));
+    addActivity("Document Design -> Typeset", `Document style set to ${styleId}.`);
     await loadState(selectedId);
-  }, [api, state.bookRoot, selectedId, loadState, addActivity]);
+  }, [api, selectedId, loadState, addActivity]);
+
+  const updateDesignSettings = useCallback(async (updates: Record<string, string | number | boolean>) => {
+    const settings = await api.app.updateDesignSettings(updates);
+    setState((current) => ({ ...current, design: settings }));
+    addActivity("Document Design -> Typeset", "Updated document settings.");
+    await loadState(selectedId);
+  }, [api, selectedId, loadState, addActivity]);
 
   useEffect(() => {
     loadState(null);
@@ -194,6 +371,16 @@ export function useBookStore() {
     api.app.onLibraryMessage(({ message }) => addActivity("Library -> Book", message));
   }, []);
 
+  useEffect(() => {
+    if (hypervisorEnabled && !isHypervisorWorking) {
+      const timer = window.setTimeout(() => {
+        void runHypervisorCycle();
+      }, 350);
+      return () => window.clearTimeout(timer);
+    }
+    return undefined;
+  }, [hypervisorEnabled, isHypervisorWorking, runHypervisorCycle]);
+
   return {
     api,
     state,
@@ -206,11 +393,16 @@ export function useBookStore() {
     isCompilingSection,
     compileHistory,
     activityMessages,
+    sectionAgentRunState,
+    hypervisorEnabled,
+    isHypervisorWorking,
     isLoading,
     setActiveTab,
     loadState,
     selectSection,
     saveSection,
+    startSectionAgent,
+    toggleHypervisor,
     createSection,
     createChapter,
     updateOutlineNode,
@@ -221,6 +413,7 @@ export function useBookStore() {
     reviewProposal,
     reviseProposal,
     setDocumentStyle,
+    updateDesignSettings,
     addActivity
   };
 }

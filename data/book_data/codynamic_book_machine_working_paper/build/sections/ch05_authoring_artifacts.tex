@@ -1,0 +1,31 @@
+\documentclass[11pt]{article}
+\title{How the Codynamic Book Machine Works}
+\author{Arthur Petron}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta}
+\usepackage{hyperref}
+\graphicspath{{media/}{media/diagrams/}{images/}{artwork/}}
+
+\begin{document}
+
+\section*{Drafting, Review, and Artifacts}
+
+This chapter explains the point at which generated text stops being a transient draft and becomes a reviewable, durable artifact. In the Codynamic Book Machine, authoring is not a single act of composition followed by a final export. It is a staged process in which content is drafted, checked, revised, and then committed into files and build outputs that can be inspected independently of the agent that produced them.
+
+The distinction matters because long-form work accumulates dependencies. A section draft may depend on outline structure, citation keys, diagram assets, and prior chapter claims. If those dependencies remain implicit, the result is fragile: a text may read well in isolation but fail during compilation, drift from the canonical outline, or become difficult to audit later. The machine therefore treats review and artifact creation as first-class steps in the authoring pipeline rather than as incidental cleanup.
+
+Drafting produces the first reviewable representation of a section. At this stage, an agent translates outline intent into prose, preserves the section's scope, and writes the result into the section payload file. The draft is intentionally local: it should be understandable on its own, but it is still only one node in a larger work graph. A good draft makes its assumptions visible, uses the established terminology of the book, and leaves room for later refinement by gardeners, reviewers, and reference agents.
+
+Review turns a draft into a controlled object. Review checks whether the section matches its outline goal, whether it introduces unsupported claims, whether it uses registered citation keys, and whether it refers to diagrams or other media that actually exist. It also checks continuity across neighboring sections so that repeated definitions, transitions, and terminology remain consistent. In this system, review is not merely editorial preference; it is a coordination mechanism that keeps the book's structure aligned with its content.
+
+Artifacts are the durable outputs of that coordination. The section payload file is one artifact, but it is not the only one. Build logs, generated \TeX{}, compiled PDF output, media assets, and reference records all become part of the book's working memory. These artifacts allow the system to answer practical questions later: what was generated, when it was generated, which inputs were used, and whether the output compiled successfully. Durability here means that the work can be resumed, audited, or rebuilt without reconstructing the entire authoring history from scratch.
+
+A useful way to think about the lifecycle is as a boundary crossing. Before review, a section is a proposal: it may be incomplete, provisional, or dependent on unresolved tasks. After review and artifact generation, it becomes a record that other agents and human readers can rely on. That record is not immutable in the absolute sense; it can still be revised. But revisions happen against a stable baseline, with the previous state preserved in files, logs, or version control rather than lost inside an agent's transient context.
+
+This chapter therefore focuses on the transition from mutable work to stable record. Drafts are meant to change; artifacts are meant to persist. The machine succeeds when it can move content across that boundary without losing traceability, without breaking compilation, and without severing the relationship between the prose a reader sees and the structured work that produced it.
+
+
+\end{document}

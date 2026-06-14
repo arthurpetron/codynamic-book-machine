@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { useBookStore } from "../../state/bookStore";
 import { CompileDiagnostics } from "./CompileDiagnostics";
 
@@ -12,20 +13,55 @@ function summarizeSource(source: string) {
     .find((line) => line && !line.startsWith("\\")) || "This section is ready for drafting.";
 }
 
-function fileUrlFromPath(filePath: string) {
-  return `file://${filePath.split("/").map((part) => encodeURIComponent(part)).join("/")}`;
-}
-
 export function PdfPreviewPane({ store }: PdfPreviewPaneProps) {
   const section = store.selectedSection;
   const result = store.compileResult;
+  const [pdfDataUrl, setPdfDataUrl] = useState("");
+  const [pdfLoadError, setPdfLoadError] = useState("");
   const styles = store.styles.length > 0 ? store.styles : store.state.styles ?? [];
-  const styleId = store.state.design?.style_id ?? "standard_article";
+  const styleId = String(store.state.design?.style_id ?? "standard_article");
+  const titlePageEnabled = Boolean(store.state.design?.title_page_enabled);
+  const tocEnabled = Boolean(store.state.design?.table_of_contents_enabled);
   const pdfPath = result?.pdf_path || "";
-  const pdfUrl = pdfPath ? fileUrlFromPath(pdfPath) : "";
   const isCompiling = store.isCompilingBook || store.isCompilingSection;
   const compileStatus = isCompiling ? "Compiling" : result?.status ?? "Ready";
   const errors = result?.errors ?? [];
+  const hasCompileErrors = errors.length > 0 || result?.status === "failed";
+  const responsibleSections = result?.responsible_section_titles ?? [];
+  const fallbackDiagnostic = responsibleSections.length > 0
+    ? `Compile failed in ${responsibleSections.join(", ")}. See the compile log for details.`
+    : "Compile failed. See the compile log for details.";
+  const diagnostics = result?.diagnostic_summary
+    ? [result.diagnostic_summary, ...errors.slice(1)]
+    : errors.length > 0
+      ? errors
+      : [fallbackDiagnostic];
+  const pdfVersion = result?.log_path ?? `${compileStatus}:${pdfPath}`;
+
+  useEffect(() => {
+    let cancelled = false;
+    setPdfDataUrl("");
+    setPdfLoadError("");
+    if (!pdfPath || hasCompileErrors || isCompiling) {
+      return () => {
+        cancelled = true;
+      };
+    }
+    store.api.app.pdfDataUrl(pdfPath)
+      .then((dataUrl) => {
+        if (!cancelled) {
+          setPdfDataUrl(dataUrl);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setPdfLoadError((error as Error).message);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [store.api, pdfPath, pdfVersion, hasCompileErrors, isCompiling]);
 
   return (
     <aside className="preview-pane" aria-label="Live PDF preview">
@@ -45,6 +81,22 @@ export function PdfPreviewPane({ store }: PdfPreviewPaneProps) {
               ))}
             </select>
           </label>
+          <label className="preview-toggle">
+            <input
+              type="checkbox"
+              checked={titlePageEnabled}
+              onChange={(event) => store.updateDesignSettings({ title_page_enabled: event.target.checked })}
+            />
+            <span>Title page</span>
+          </label>
+          <label className="preview-toggle">
+            <input
+              type="checkbox"
+              checked={tocEnabled}
+              onChange={(event) => store.updateDesignSettings({ table_of_contents_enabled: event.target.checked })}
+            />
+            <span>TOC</span>
+          </label>
           <button className="secondary-action" type="button" onClick={store.compileBook} disabled={store.isCompilingBook}>
             {store.isCompilingBook ? "Compiling" : "Compile Book"}
           </button>
@@ -56,10 +108,10 @@ export function PdfPreviewPane({ store }: PdfPreviewPaneProps) {
           <strong>{compileStatus}</strong>
           <span>{pdfPath ? pdfPath.split("/").at(-1) : "No compiled PDF loaded yet"}</span>
         </div>
-        {errors.length > 0 ? (
+        {hasCompileErrors ? (
           <div className="compile-error-summary">
-            <strong>{errors.length} compile issue{errors.length === 1 ? "" : "s"}</strong>
-            <span>{errors[0]}</span>
+            <strong>{Math.max(errors.length, 1)} compile issue{errors.length === 1 ? "" : "s"}</strong>
+            <span>{diagnostics[0]}</span>
           </div>
         ) : null}
         {store.compileHistory.length > 0 ? (
@@ -81,10 +133,12 @@ export function PdfPreviewPane({ store }: PdfPreviewPaneProps) {
             <strong>Compiling {store.isCompilingBook ? "book" : "section"}</strong>
             <span>Running latexmk and refreshing the preview.</span>
           </div>
-        ) : pdfUrl ? (
-          <iframe className="pdf-frame" src={pdfUrl} title="Compiled PDF preview" />
-        ) : result?.errors?.length ? (
-          <CompileDiagnostics errors={result.errors} />
+        ) : hasCompileErrors ? (
+          <CompileDiagnostics errors={diagnostics} />
+        ) : pdfLoadError ? (
+          <CompileDiagnostics errors={[`PDF preview failed to load: ${pdfLoadError}`]} />
+        ) : pdfDataUrl ? (
+          <iframe key={pdfVersion} className="pdf-frame" src={pdfDataUrl} title="Compiled PDF preview" />
         ) : (
           <article className="pdf-page">
             <p className="pdf-kicker">Chapter 1</p>
