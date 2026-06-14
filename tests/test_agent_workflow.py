@@ -257,6 +257,26 @@ def test_routed_message_becomes_hypervisor_task_and_starts_hypervisor(tmp_path):
     assert "current_prompt" in runtime
 
 
+def test_hypervisor_process_message_gets_unprocessed_chat_log_tail(tmp_path):
+    repository = create_book(tmp_path)
+    workflow = AuthoringAgentWorkflow(repository.book_root)
+    workflow.supervise_agents(section_ids=["intro"], queue_work=False)
+
+    workflow.message_router.publish({
+        "from": "gardener_agent",
+        "to": "hypervisor_agent",
+        "reply_to": "gardener_agent",
+        "subject": "Global editorial drift detected",
+        "body": "affected_section_agents:\n- section_agent__intro\n",
+    })
+
+    task = workflow.runtime.list()["hypervisor_agent"]["task_queue"][0]
+
+    assert task["action_id"] == "process_message"
+    assert task["context"]["unprocessed_chat_log_lines"]
+    assert "gardener_agent --> hypervisor_agent:" in task["context"]["unprocessed_chat_log_lines"][-1]
+
+
 def test_non_hypervisor_agent_runs_when_task_queue_is_nonzero(tmp_path):
     repository = create_book(tmp_path)
     workflow = AuthoringAgentWorkflow(repository.book_root)

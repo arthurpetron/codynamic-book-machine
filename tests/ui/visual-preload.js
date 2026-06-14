@@ -26,7 +26,7 @@ window.cbm = {
         selectedSection: fallbackSection,
         design: { style_id: 'standard_article', page_size: 'letter', margin: '1in' },
         styles: [{ styleId: 'standard_article', label: 'Standard Article' }],
-        messages: [['now', 'Visual Test -> Renderer', 'Loaded mocked book state.']],
+        messages: ['visual_test --> renderer: Loaded mocked book state.'],
         agentStatus: { active: 7, total: 12, confidence: 72, pendingProposals: 1 },
         proposals: [
           {

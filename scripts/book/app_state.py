@@ -1099,22 +1099,13 @@ Requirements:
                 return event
         return None
 
-    def _messages(self) -> list[list[str]]:
-        messages = []
-        state_root = self.data_root / "agent_state"
-        for path in sorted(state_root.glob("*/message_log.yaml")) if state_root.exists() else []:
-            entries = yaml.safe_load(path.read_text()) or []
-            for entry in entries[-10:]:
-                message = entry.get("message", {})
-                created = entry.get("timestamp", "")
-                messages.append([
-                    created[11:16] if len(created) >= 16 else "now",
-                    f"{message.get('from', 'Agent')} -> {message.get('to', 'All')}",
-                    message.get("body") or message.get("subject") or "",
-                ])
-        if messages:
-            return messages[-20:]
-        return [["now", "Desktop -> Book", "Loaded canonical book state."]]
+    def _messages(self) -> list[str]:
+        chat_path = self.book_root / "logs" / "message_log" / "chat.log"
+        if chat_path.exists():
+            lines = [line for line in chat_path.read_text().splitlines() if line.strip()]
+            if lines:
+                return lines[-40:]
+        return ["desktop_app --> book: Loaded canonical book state."]
 
     def _agent_status(self) -> dict[str, Any]:
         runtime = self._agent_runtime_state()

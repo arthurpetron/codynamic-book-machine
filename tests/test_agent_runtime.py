@@ -99,6 +99,7 @@ def test_message_router_adds_ids_and_audit_without_mutating_config(tmp_path):
     assert delivered[0]["message_id"].startswith("msg_")
     assert delivered[0]["correlation_id"] == delivered[0]["message_id"]
     assert (tmp_path / "message_log" / "audit.yaml").exists()
+    assert (tmp_path / "message_log" / "chat.log").read_text().strip() == "sender --> target: payload"
     assert yaml.safe_load(subscription_path.read_text()) == {
         "subscriptions": {
             "listener": {"listens_to": ["target"]},

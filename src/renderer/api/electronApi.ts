@@ -29,7 +29,7 @@ export const fallbackState: BookAppState = {
   ],
   selectedId: fallbackSection.id,
   selectedSection: fallbackSection,
-  messages: [["now", "Desktop -> Book", "Loaded fallback renderer state."]],
+  messages: ["desktop_app --> book: Loaded fallback renderer state."],
   agentStatus: { active: 0, total: 1, confidence: 72, pendingProposals: 0 },
   proposals: [],
   artifacts: [],

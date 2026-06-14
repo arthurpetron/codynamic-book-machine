@@ -1533,7 +1533,10 @@ class AuthoringAgentWorkflow:
         queued.append(self.queue_agent_task(
             AGENT_IDS["hypervisor"],
             "summarize_drift",
-            {"subject": "book"},
+            {
+                "subject": "book",
+                "unprocessed_chat_log_lines": self.unprocessed_chat_log_lines(),
+            },
             priority=10,
         ))
         for section_id in section_ids:
@@ -1691,17 +1694,35 @@ class AuthoringAgentWorkflow:
         if subject.startswith("Task queued:"):
             return
         priority = 0 if agent_id == AGENT_IDS["hypervisor"] and subject.startswith("LaTeX compile failed:") else 5
+        context = {"message": message}
+        if agent_id == AGENT_IDS["hypervisor"]:
+            context["unprocessed_chat_log_lines"] = (
+                self.unprocessed_chat_log_lines() + [MessageRouter.chat_line(message)]
+            )[-20:]
         try:
             self.runtime.enqueue_task(
                 agent_id,
                 "process_message",
-                context={"message": message},
+                context=context,
                 priority=priority,
                 assigned_by=message.get("from", AGENT_IDS["hypervisor"]),
                 dedupe=True,
             )
         except KeyError:
             return
+
+    def unprocessed_chat_log_lines(self, limit: int = 20) -> list[str]:
+        """Return chat lines for process_message tasks not yet completed."""
+        lines = []
+        for record in self.runtime.list().values():
+            for task in record.get("task_queue", []):
+                if task.get("action_id") != "process_message":
+                    continue
+                if task.get("status") not in {"pending", "running"}:
+                    continue
+                message = (task.get("context") or {}).get("message") or {}
+                lines.append(MessageRouter.chat_line(message))
+        return lines[-limit:]
 
     def _process_agent_message_task(self, agent_id: str, task: dict[str, Any]) -> dict[str, Any]:
         message = (task.get("context") or {}).get("message") or {}

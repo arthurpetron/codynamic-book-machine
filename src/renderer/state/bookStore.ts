@@ -23,11 +23,11 @@ export function useBookStore() {
   const [isCompilingBook, setIsCompilingBook] = useState(false);
   const [isCompilingSection, setIsCompilingSection] = useState(false);
   const [compileHistory, setCompileHistory] = useState<CompileHistoryItem[]>([]);
-  const [activityMessages, setActivityMessages] = useState<[string, string, string][]>([]);
+  const [activityMessages, setActivityMessages] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const addActivity = useCallback((source: string, text: string) => {
-    const nextMessage: [string, string, string] = ["now", source, text];
+    const nextMessage = `${source} --> book: ${text}`;
     setActivityMessages((messages) => [nextMessage, ...messages].slice(0, 20));
   }, []);
 

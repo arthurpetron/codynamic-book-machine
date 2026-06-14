@@ -100,7 +100,7 @@ export interface BookAppState {
   selectedSection?: SectionPayload | null;
   design?: Record<string, string>;
   styles?: DocumentStyle[];
-  messages?: [string, string, string][];
+  messages?: string[];
   agentStatus?: AgentStatus;
   artifacts?: Artifact[];
   proposals?: EditProposal[];

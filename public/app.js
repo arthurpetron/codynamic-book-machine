@@ -103,10 +103,10 @@ Gardener agents validate that local edits preserve the intended global structure
 let sections = fallbackSections;
 
 const fallbackMessages = [
-  ["12:04", "Hypervisor -> All", "Coherence drop in 1.2; request dependency check from Outline Agent."],
-  ["12:03", "Gardener-02 -> Section-1.2", "Validated. Minor drift around local reconfiguration language."],
-  ["12:01", "Section 1.1 -> Hypervisor", "Completed: update static model contrast with new paragraph."],
-  ["11:58", "Outline Agent -> Section-2.1", "Queued formal vocabulary pass after 1.2 stabilizes."]
+  "hypervisor_agent --> all_agents: Coherence drop in 1.2; request dependency check from outline_agent.",
+  "gardener_agent --> section_agent__1_2: Validated. Minor drift around local reconfiguration language.",
+  "section_agent__1_1 --> hypervisor_agent: Completed update static model contrast with new paragraph.",
+  "outline_agent --> section_agent__2_1: Queued formal vocabulary pass after 1.2 stabilizes."
 ];
 
 const fallbackUserChat = [
@@ -302,16 +302,16 @@ function renderMessages(extraMessage) {
   const baseMessages = currentAppState?.messages || fallbackMessages;
   const allMessages = [...activityMessages, ...baseMessages].slice(0, 40);
   messagesList.innerHTML = "";
-  allMessages.forEach(([time, source, text]) => {
+  allMessages.forEach((line) => {
     const item = document.createElement("li");
     item.className = "message";
-    item.innerHTML = `<span class="message-time">${time}</span><span class="message-source">${source}</span><span class="message-text">${text}</span>`;
+    item.innerHTML = `<span class="message-text">${escapeHtml(line)}</span>`;
     messagesList.appendChild(item);
   });
 }
 
 function appendActivityMessage(source, text) {
-  renderMessages(["now", source, text]);
+  renderMessages(`${source} --> book: ${text}`);
 }
 
 function renderAgentPanel() {
@@ -725,7 +725,7 @@ pauseSwarm.addEventListener("click", () => {
   const paused = pauseSwarm.dataset.paused === "true";
   pauseSwarm.dataset.paused = String(!paused);
   pauseSwarm.textContent = paused ? "Pause Swarm" : "Resume Swarm";
-  renderMessages([paused ? "now" : "now", "Operator -> Hypervisor", paused ? "Swarm resumed." : "Swarm paused. Agents will finish current local actions only."]);
+  renderMessages(`operator --> hypervisor_agent: ${paused ? "Swarm resumed." : "Swarm paused. Agents will finish current local actions only."}`);
 });
 
 requestReview.addEventListener("click", () => {

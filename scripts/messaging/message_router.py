@@ -43,6 +43,7 @@ class MessageRouter:
         self.log_path = Path(log_dir)
         self.log_path.mkdir(parents=True, exist_ok=True)
         self.audit_path = self.log_path / "audit.yaml"
+        self.chat_path = self.log_path / "chat.log"
         self.schema = load_schema(schema_path)
         self.subscription_path = subscription_path
 
@@ -128,7 +129,15 @@ class MessageRouter:
         log_file = self.log_path / f"{msg_dict['to']}_{timestamp}_{msg_dict['message_id']}.yaml"
         with open(log_file, "w") as f:
             yaml.dump(msg_dict, f)
+        with open(self.chat_path, "a") as f:
+            f.write(self.chat_line(msg_dict) + "\n")
         print(f"[Router] Message logged to {log_file}")
+
+    @staticmethod
+    def chat_line(msg_dict: Dict[str, Any]) -> str:
+        body = str(msg_dict.get("body") or msg_dict.get("subject") or "").strip()
+        message = " ".join(body.split())
+        return f"{msg_dict.get('from', 'unknown')} --> {msg_dict.get('to', 'unknown')}: {message}"
 
     def _normalize_message(self, msg: Dict[str, Any]) -> Dict[str, Any]:
         message = dict(msg)
