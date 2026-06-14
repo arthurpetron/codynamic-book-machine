@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
 import re
 from typing import Any
 
 import yaml
 
+from scripts.api import get_provider_with_fallback
 from scripts.book.authoring import AuthoringLoop, VerificationHistory
 from scripts.book.repository import BookRepository
 from scripts.book.typesetting import DesignSettingsService, DocumentStyleRegistry, LatexBuildService
@@ -25,7 +27,7 @@ class BookAppState:
         book = self.repository.load_book()
         work = book["work"]
         outline = self._outline(work.get("structure", []))
-        selected = selected_id or self._first_leaf_id(outline)
+        selected = self._valid_selected_id(selected_id, outline)
         return {
             "bookRoot": str(self.book_root),
             "book": {
@@ -43,6 +45,7 @@ class BookAppState:
             "artifacts": [artifact.__dict__ for artifact in self.repository.artifacts.discover()],
             "proposals": [proposal.__dict__ for proposal in self.repository.proposals.list()],
             "references": self._references(work),
+            "knowledgeGraph": self.repository.knowledge_graph().analyze().as_dict(),
             "compile": self._latest_compile(),
             "verification": VerificationHistory(self.book_root).load()[-20:],
         }
@@ -51,7 +54,7 @@ class BookAppState:
         node = self.repository.outline_service().get_node(section_id)
         if not node:
             raise KeyError(f"Unknown section id: {section_id}")
-        content = self.repository.load_section(section_id)
+        content = self._unwrap_latex_payload(self.repository.load_latex_section(section_id))
         if not content.strip():
             content = self._fallback_section_content(node)
         return {
@@ -62,13 +65,14 @@ class BookAppState:
             "source": content,
             "summary": node.get("summary", ""),
             "contentFile": node.get("content_file"),
+            "latexFile": f"tex/section_payloads/{section_id}.tex",
             "score": self._score_for(section_id),
             "tone": self._tone_for(section_id),
             "agent": self._agent_label(section_id),
         }
 
     def save_section(self, section_id: str, content: str) -> dict[str, Any]:
-        path = self.repository.save_section(section_id, content)
+        path = self.repository.save_latex_section(section_id, content)
         AuthoringLoop(self.book_root).history.record_event(
             event_type="section_saved",
             agent_id="desktop_app",
@@ -77,6 +81,193 @@ class BookAppState:
             rationale=f"Section saved to {path.relative_to(self.book_root)}",
         )
         return self.section_payload(section_id)
+
+    def start_section_agent(self, section_id: str, task_context: dict[str, Any] | None = None) -> dict[str, Any]:
+        book = self.repository.load_book()
+        node = self.repository.outline_service().get_node(section_id)
+        if not node:
+            raise KeyError(f"Unknown section id: {section_id}")
+
+        source_markdown = self.repository.load_section(section_id)
+        existing_latex = self.repository.load_latex_section(section_id)
+        sibling_context = self._sibling_context(book["work"].get("structure", []), section_id)
+        prompt = self._section_agent_prompt(book, node, source_markdown, existing_latex, sibling_context, task_context or {})
+        provider = get_provider_with_fallback(["openai", "anthropic"])
+        response = provider.simple_prompt(
+            prompt,
+            system_prompt=self._section_agent_system_prompt(),
+            temperature=0.2,
+            max_tokens=4000,
+        )
+        agent_output = self._extract_section_agent_response(response.content)
+        latex = agent_output["latex"]
+        path = self.repository.save_latex_section(section_id, latex)
+        event = AuthoringLoop(self.book_root).history.record_event(
+            event_type="section_agent_started",
+            agent_id=f"section_agent__{section_id}",
+            subject=section_id,
+            status="pass",
+            rationale=f"Generated initial LaTeX draft at {path.relative_to(self.book_root)}.",
+            metadata={
+                "model": response.model,
+                "provider": response.provider,
+                "completeness_percent": agent_output["completeness_percent"],
+                "completeness_rationale": agent_output.get("completeness_rationale", ""),
+            },
+        )
+        return {
+            "event": event,
+            "section": self.section_payload(section_id),
+            "output_path": str(path),
+        }
+
+    def run_hypervisor_once(
+        self,
+        exclude_section_ids: list[str] | None = None,
+        include_section_ids: list[str] | None = None,
+        phase: str = "draft",
+    ) -> dict[str, Any]:
+        """Select the next section needing work and run one section-agent pass."""
+        urgent = self._run_urgent_hypervisor_task()
+        if urgent:
+            return urgent
+        heartbeat = self._run_gardener_heartbeat_task()
+        excluded = set(exclude_section_ids or [])
+        included = set(include_section_ids or [])
+        book = self.repository.load_book()
+        candidates = [
+            candidate
+            for candidate in self._section_candidates(book["work"].get("structure", []))
+            if candidate["id"] not in excluded
+            and (not included or candidate["id"] in included)
+        ]
+        if not candidates:
+            event = AuthoringLoop(self.book_root).history.record_event(
+                event_type="hypervisor_idle",
+                agent_id="hypervisor_agent",
+                subject="book",
+                status="pass",
+                rationale="No remaining sections are available for this hypervisor run.",
+                metadata={
+                    "phase": phase,
+                    "excluded_section_ids": sorted(excluded),
+                    "include_section_ids": sorted(included),
+                },
+            )
+            return {
+                "event": event,
+                "targetSectionId": None,
+                "sectionAgent": None,
+                "complete": True,
+                "phase": phase,
+                "gardenerHeartbeat": heartbeat,
+            }
+
+        unscored = [candidate for candidate in candidates if candidate["score"] is None]
+        target = unscored[0] if unscored else min(candidates, key=lambda candidate: candidate["score"] or 0)
+        result = (
+            self._run_revision_cycle_via_task_queue(target["id"])
+            if phase == "revision"
+            else self._run_draft_cycle_via_task_queue(target["id"])
+        )
+        section_agent_metadata = (result.get("event") or {}).get("metadata") or {}
+        event = AuthoringLoop(self.book_root).history.record_event(
+            event_type="hypervisor_section_agent_dispatched",
+            agent_id="hypervisor_agent",
+            subject=target["id"],
+            status="pass",
+            rationale=f"Hypervisor selected {target['id']} for the next {phase} section-agent pass.",
+            metadata={
+                "phase": phase,
+                "selection_reason": "unscored" if unscored else "lowest_score",
+                "completeness_percent": section_agent_metadata.get("completeness_percent"),
+                "completeness_rationale": section_agent_metadata.get("completeness_rationale", ""),
+            },
+        )
+        return {
+            "event": event,
+            "targetSectionId": target["id"],
+            "sectionAgent": result,
+            "phase": phase,
+            "gardenerHeartbeat": heartbeat,
+        }
+
+    def _run_urgent_hypervisor_task(self) -> dict[str, Any] | None:
+        from scripts.book.agent_workflow import AGENT_IDS, AuthoringAgentWorkflow
+
+        workflow = AuthoringAgentWorkflow(self.book_root, project_root=Path("."))
+        workflow.supervise_agents(section_ids=[], queue_work=False)
+        runtime = workflow.runtime.list().get(AGENT_IDS["hypervisor"], {})
+        pending = [
+            task for task in runtime.get("task_queue", [])
+            if task.get("status") == "pending"
+        ]
+        if not pending:
+            return None
+        pending.sort(key=lambda item: (item.get("priority", 50), item.get("added_at", "")))
+        task = pending[0]
+        message = (task.get("context") or {}).get("message") or {}
+        if task.get("priority", 50) > 0 or not str(message.get("subject", "")).startswith("LaTeX compile failed:"):
+            return None
+        result = workflow.run_agent_task(AGENT_IDS["hypervisor"])
+        event = AuthoringLoop(self.book_root).history.record_event(
+            event_type="hypervisor_urgent_compile_failure_processed",
+            agent_id=AGENT_IDS["hypervisor"],
+            subject="book",
+            status="warn",
+            rationale="Processed top-priority LaTeX compile failure before normal hypervisor work.",
+            metadata={"task": result.get("task"), "result": result.get("result")},
+        )
+        return {
+            "event": event,
+            "targetSectionId": None,
+            "sectionAgent": None,
+            "complete": False,
+            "phase": "compile_repair",
+            "urgent": result,
+        }
+
+    def review_document_for_revision_subset(self, limit: int = 5) -> dict[str, Any]:
+        """Read the assembled document and choose sections for a second revision pass."""
+        document_tex = LatexBuildService(self.book_root).assembler.assemble_book()
+        book = self.repository.load_book()
+        candidates = self._section_candidates(book["work"].get("structure", []))
+        scored = [candidate for candidate in candidates if candidate["score"] is not None]
+        needs_revision = [
+            candidate
+            for candidate in scored
+            if (candidate["score"] or 0) < 85
+        ]
+        ranked = sorted(needs_revision or scored, key=lambda candidate: candidate["score"] or 0)
+        selected = ranked[:max(0, limit)]
+        average_score = (
+            sum(candidate["score"] or 0 for candidate in scored) / len(scored)
+            if scored
+            else None
+        )
+        event = AuthoringLoop(self.book_root).history.record_event(
+            event_type="hypervisor_document_reviewed",
+            agent_id="hypervisor_agent",
+            subject="book",
+            status="warn" if selected else "pass",
+            rationale=(
+                f"Selected {len(selected)} section(s) for coordinate/propose/revise follow-up."
+                if selected
+                else "No section agents need a follow-up revision pass."
+            ),
+            metadata={
+                "document_chars": len(document_tex),
+                "average_completeness_percent": average_score,
+                "selected_section_ids": [candidate["id"] for candidate in selected],
+                "selection_rule": "scores below 85, otherwise lowest-scored sections",
+            },
+        )
+        return {
+            "event": event,
+            "selectedSectionIds": [candidate["id"] for candidate in selected],
+            "documentChars": len(document_tex),
+            "averageCompletenessPercent": average_score,
+        }
 
     def compile_section(self, section_id: str) -> dict[str, Any]:
         result = LatexBuildService(self.book_root).compile_section(section_id)
@@ -88,7 +279,50 @@ class BookAppState:
             rationale="Selected section compile requested from UI.",
             metadata=result.as_dict(),
         )
+        if result.status != "passed":
+            return self._run_section_compile_repair_loop(section_id, result.as_dict())
         return result.as_dict()
+
+    def _run_section_compile_repair_loop(
+        self,
+        section_id: str,
+        initial_result: dict[str, Any],
+        max_attempts: int = 3,
+    ) -> dict[str, Any]:
+        attempts = []
+        current_result = initial_result
+        for attempt in range(1, max_attempts + 1):
+            self._activate_hypervisor_for_compile_error(current_result, [section_id], "section")
+            repair = self._run_compile_fix_section_agent(section_id, current_result, attempt, max_attempts)
+            retry = LatexBuildService(self.book_root).compile_section(section_id).as_dict()
+            AuthoringLoop(self.book_root).history.record_event(
+                event_type="section_compile_repair_attempt",
+                agent_id="desktop_app",
+                subject=section_id,
+                status="pass" if retry.get("status") == "passed" else "fail",
+                rationale=f"Compile repair attempt {attempt} of {max_attempts}.",
+                metadata={
+                    "compile": retry,
+                    "repair_task_id": (repair.get("task") or {}).get("task_id"),
+                },
+            )
+            attempts.append({
+                "attempt": attempt,
+                "repair": repair,
+                "compile": retry,
+            })
+            current_result = retry
+            if retry.get("status") == "passed":
+                retry["repair_loop"] = {
+                    "status": "passed",
+                    "attempts": attempts,
+                }
+                return retry
+        current_result["repair_loop"] = {
+            "status": "failed",
+            "attempts": attempts,
+        }
+        return current_result
 
     def compile_book(self) -> dict[str, Any]:
         result = LatexBuildService(self.book_root).compile_book()
@@ -100,7 +334,188 @@ class BookAppState:
             rationale="Full book compile requested from UI.",
             metadata=result.as_dict(),
         )
+        if result.status != "passed":
+            return self._run_book_compile_repair_loop(result.as_dict())
         return result.as_dict()
+
+    def _run_book_compile_repair_loop(
+        self,
+        initial_result: dict[str, Any],
+        max_attempts: int = 3,
+    ) -> dict[str, Any]:
+        attempts = []
+        current_result = initial_result
+        for attempt in range(1, max_attempts + 1):
+            target_ids = self._compile_repair_targets(current_result)
+            self._activate_hypervisor_for_compile_error(current_result, target_ids, "book")
+            if not target_ids:
+                break
+            repairs = []
+            for section_id in target_ids:
+                repairs.append(self._run_compile_fix_section_agent(section_id, current_result, attempt, max_attempts))
+            retry = LatexBuildService(self.book_root).compile_book().as_dict()
+            AuthoringLoop(self.book_root).history.record_event(
+                event_type="book_compile_repair_attempt",
+                agent_id="desktop_app",
+                subject="book",
+                status="pass" if retry.get("status") == "passed" else "fail",
+                rationale=f"Direct compile repair attempt {attempt} of {max_attempts}.",
+                metadata={
+                    "compile": retry,
+                    "target_section_ids": target_ids,
+                    "repair_task_ids": [(repair.get("task") or {}).get("task_id") for repair in repairs],
+                },
+            )
+            attempts.append({
+                "attempt": attempt,
+                "target_section_ids": target_ids,
+                "repairs": repairs,
+                "compile": retry,
+            })
+            current_result = retry
+            if retry.get("status") == "passed":
+                retry["repair_loop"] = {"status": "passed", "attempts": attempts}
+                return retry
+        current_result["repair_loop"] = {"status": "failed", "attempts": attempts}
+        return current_result
+
+    def _compile_repair_targets(self, compile_result: dict[str, Any]) -> list[str]:
+        responsible_ids = compile_result.get("responsible_section_ids") or []
+        if responsible_ids:
+            return list(dict.fromkeys(responsible_ids))
+        return []
+
+    def _run_compile_fix_section_agent(
+        self,
+        section_id: str,
+        compile_result: dict[str, Any],
+        attempt: int,
+        max_attempts: int,
+    ) -> dict[str, Any]:
+        node = self.repository.outline_service().get_node(section_id) or {}
+        context = {
+            "section_id": section_id,
+            "title": node.get("title", section_id),
+            "phase": "compile_repair",
+            "attempt": attempt,
+            "max_attempts": max_attempts,
+            "diagnostic_summary": compile_result.get("diagnostic_summary", ""),
+            "errors": compile_result.get("errors") or [],
+            "log_path": compile_result.get("log_path"),
+            "tex_path": compile_result.get("tex_path"),
+            "responsible_section_ids": compile_result.get("responsible_section_ids") or [section_id],
+            "responsible_section_titles": compile_result.get("responsible_section_titles") or [node.get("title", section_id)],
+            "instruction": (
+                "Direct compile repair: fix only the concrete LaTeX compiler error in this section. "
+                "Do not route through Hypervisor and do not perform a general rewrite."
+            ),
+        }
+        return self._run_section_agent_task(
+            section_id,
+            "fix_latex_compile_error",
+            context,
+            execute_latex=True,
+            priority=0,
+        )
+
+    def _activate_hypervisor_for_compile_error(
+        self,
+        compile_result: dict[str, Any],
+        section_ids: list[str],
+        scope: str,
+    ) -> None:
+        from scripts.book.agent_workflow import AGENT_IDS, AuthoringAgentWorkflow
+
+        workflow = AuthoringAgentWorkflow(self.book_root, project_root=Path("."))
+        workflow.supervise_agents(section_ids=section_ids, queue_work=False)
+        try:
+            workflow.runtime.start(AGENT_IDS["hypervisor"])
+        except KeyError:
+            return
+        AuthoringLoop(self.book_root).history.record_event(
+            event_type="hypervisor_compile_error_notified",
+            agent_id="desktop_app",
+            subject="book",
+            status="warn",
+            rationale="Hypervisor runtime was activated for compile-error visibility; section repair runs directly.",
+            metadata={
+                "scope": scope,
+                "target_section_ids": section_ids,
+                "compile": compile_result,
+            },
+        )
+
+    def _route_compile_failure_to_hypervisor(
+        self,
+        compile_result: dict[str, Any],
+        section_ids: list[str],
+        scope: str,
+        queue_repairs: bool = True,
+    ) -> None:
+        from scripts.book.agent_workflow import AGENT_IDS, AuthoringAgentWorkflow
+
+        target_section_ids = list(dict.fromkeys(section_ids))
+        workflow = AuthoringAgentWorkflow(self.book_root, project_root=Path("."))
+        workflow.supervise_agents(section_ids=target_section_ids, queue_work=False)
+        message = {
+            "from": "desktop_app",
+            "to": AGENT_IDS["hypervisor"],
+            "reply_to": "desktop_app",
+            "subject": f"LaTeX compile failed: {scope}",
+            "body": yaml.safe_dump({
+                "scope": scope,
+                "target_section_ids": target_section_ids,
+                "status": compile_result.get("status"),
+                "errors": compile_result.get("errors") or [],
+                "diagnostic_summary": compile_result.get("diagnostic_summary", ""),
+                "responsible_section_ids": compile_result.get("responsible_section_ids") or target_section_ids,
+                "responsible_section_titles": compile_result.get("responsible_section_titles") or [],
+                "log_path": compile_result.get("log_path"),
+                "tex_path": compile_result.get("tex_path"),
+                "instructions": (
+                    "Route concrete LaTeX repair tasks to the section agent(s). "
+                    "Each section agent should preserve useful prose and only fix the syntax causing the compile failure."
+                ),
+            }, sort_keys=False, allow_unicode=True),
+        }
+        workflow.message_router.publish(message)
+        if not queue_repairs:
+            return
+        feedback = yaml.safe_dump({
+            "source": "hypervisor_agent",
+            "reason": "LaTeX compile failed.",
+            "scope": scope,
+            "errors": compile_result.get("errors") or [],
+            "diagnostic_summary": compile_result.get("diagnostic_summary", ""),
+            "responsible_section_ids": compile_result.get("responsible_section_ids") or target_section_ids,
+            "responsible_section_titles": compile_result.get("responsible_section_titles") or [],
+            "log_path": compile_result.get("log_path"),
+            "tex_path": compile_result.get("tex_path"),
+            "instructions": "Fix the LaTeX error(s) causing compilation to fail. Preserve useful content and make the smallest valid repair.",
+        }, sort_keys=False, allow_unicode=True)
+        for section_id in target_section_ids:
+            workflow.queue_agent_task(
+                f"{AGENT_IDS['section']}__{section_id}",
+                "revise_section_from_feedback",
+                {
+                    "section_id": section_id,
+                    "phase": "compile_repair",
+                    "feedback": feedback,
+                },
+                priority=0,
+            )
+
+    def update_design_settings(self, updates: dict[str, Any]) -> dict[str, Any]:
+        settings = DesignSettingsService(self.repository).update(updates)
+        AuthoringLoop(self.book_root).history.record_event(
+            event_type="design_settings_updated",
+            agent_id="desktop_app",
+            subject="book",
+            status="pass",
+            rationale="Updated document design settings from the desktop UI.",
+            metadata={"updates": updates},
+        )
+        return settings
 
     def request_review(self, subject: str = "book") -> dict[str, Any]:
         from scripts.book.agent_workflow import AuthoringAgentWorkflow
@@ -261,9 +676,272 @@ class BookAppState:
         return chapters
 
     def _fallback_section_content(self, node: dict[str, Any]) -> str:
+        section_id = node.get("id")
+        if section_id:
+            source = self.repository.load_section(section_id)
+            if source.strip():
+                return source
         title = node.get("title", node.get("id", "Untitled"))
         summary = node.get("summary") or node.get("goal") or "Draft this section."
         return f"\\section{{{title}}}\n\n{summary}\n"
+
+    def _section_agent_system_prompt(self) -> str:
+        definition_path = Path("scripts/agents/agent_definitions/section_agent.yaml")
+        try:
+            definition = yaml.safe_load(definition_path.read_text()) or {}
+            role = definition.get("role", "")
+            prompt_header = str(definition.get("prompt_header") or "").strip()
+            tasks = "\n".join(f"- {task}" for task in definition.get("tasks", []))
+        except Exception:
+            role = "Composes LaTeX content for a specific document section."
+            prompt_header = ""
+            tasks = "- Draft valid LaTeX for the selected section"
+        return (
+            "You are section_agent, an agent in the Codynamic Book Machine system.\n"
+            f"Role: {role}\n\n"
+            f"Prompt Header:\n{prompt_header or '(No prompt header declared.)'}\n\n"
+            f"Responsibilities:\n{tasks}\n\n"
+            "You can see the full book outline for context, but you are performing one single pass for the selected section only. "
+            "Return a valid JSON object only, with keys latex_body, completeness_percent, and completeness_rationale. "
+            "latex_body must contain valid LaTeX body content only: no documentclass, preamble, begin/end document, markdown fences, or commentary. "
+            "completeness_percent must be an integer from 0 to 100 estimating how complete the generated draft is for this section's outline intent and source material."
+        )
+
+    def _run_draft_cycle_via_task_queue(self, section_id: str) -> dict[str, Any]:
+        result = self._run_section_agent_task(
+            section_id,
+            "draft_initial_section",
+            {
+                "section_id": section_id,
+                "phase": "draft",
+                "instruction": "Generate one initial LaTeX pass for this section.",
+            },
+            execute_latex=True,
+        )
+        result["gardener"] = self._run_gardener_task(section_id)
+        return result
+
+    def _run_revision_cycle_via_task_queue(self, section_id: str) -> dict[str, Any]:
+        sibling_context = self._sibling_context(self.repository.load_book()["work"].get("structure", []), section_id)
+        self._run_section_agent_task(
+            section_id,
+            "coordinate_with_sibling_sections",
+            {
+                "section_id": section_id,
+                "phase": "revision",
+                "sibling_context": sibling_context,
+            },
+            execute_latex=False,
+        )
+        proposal = self._run_section_agent_task(
+            section_id,
+            "propose_section_improvements",
+            {
+                "section_id": section_id,
+                "phase": "revision",
+                "instruction": "Propose one concrete revision plan from the assembled manuscript context.",
+            },
+            execute_latex=False,
+        )
+        result = self._run_section_agent_task(
+            section_id,
+            "revise_section_from_feedback",
+            {
+                "section_id": section_id,
+                "phase": "revision",
+                "feedback": "Use the section agent's own proposed improvements as feedback.",
+                "proposal_task": proposal.get("task", {}),
+            },
+            execute_latex=True,
+        )
+        result["gardener"] = self._run_gardener_task(section_id)
+        return result
+
+    def _run_gardener_task(self, section_id: str) -> dict[str, Any]:
+        from scripts.book.agent_workflow import AGENT_IDS, AuthoringAgentWorkflow
+
+        workflow = AuthoringAgentWorkflow(self.book_root, project_root=Path("."))
+        workflow.supervise_agents(section_ids=[section_id], queue_work=False)
+        task = workflow.queue_agent_task(
+            AGENT_IDS["gardener"],
+            "run_section_checks",
+            {"section_id": section_id, **self._section_coherence_context(section_id)},
+            priority=30,
+        )
+        return workflow.run_agent_task(AGENT_IDS["gardener"]) | {"queued_task": task}
+
+    def _run_gardener_heartbeat_task(self) -> dict[str, Any]:
+        from scripts.book.agent_workflow import AGENT_IDS, AuthoringAgentWorkflow
+
+        workflow = AuthoringAgentWorkflow(self.book_root, project_root=Path("."))
+        workflow.supervise_agents(section_ids=[], queue_work=False)
+        task = workflow.queue_agent_task(
+            AGENT_IDS["gardener"],
+            "run_maintenance_cycle",
+            {"trigger": "hypervisor_pass"},
+            priority=60,
+        )
+        return workflow.run_agent_task(AGENT_IDS["gardener"]) | {"queued_task": task}
+
+    def _section_coherence_context(self, section_id: str) -> dict[str, Any]:
+        latest = self._latest_verification_for(section_id) or {}
+        metadata = latest.get("metadata") or {}
+        score = metadata.get("completeness_percent")
+        rationale = metadata.get("completeness_rationale", "")
+        if score is None:
+            score = self._score_for(section_id)
+        return {
+            "section_agent_coherence_percent": score,
+            "section_agent_coherence_rationale": rationale,
+        }
+
+    def _run_section_agent_task(
+        self,
+        section_id: str,
+        action_id: str,
+        context: dict[str, Any],
+        execute_latex: bool,
+        priority: int = 20,
+    ) -> dict[str, Any]:
+        from scripts.book.agent_workflow import AGENT_IDS, AuthoringAgentWorkflow
+
+        workflow = AuthoringAgentWorkflow(self.book_root, project_root=Path("."))
+        workflow.supervise_agents(section_ids=[section_id], queue_work=False)
+        agent_id = f"{AGENT_IDS['section']}__{section_id}"
+        task = workflow.queue_agent_task(agent_id, action_id, context=context, priority=priority)
+        workflow.runtime.mark_task(agent_id, task["task_id"], "running")
+        if execute_latex:
+            result = self.start_section_agent(section_id, task_context={"action_id": action_id, **context})
+        else:
+            result = {
+                "section_id": section_id,
+                "action_id": action_id,
+                "status": "complete",
+                "context": context,
+            }
+        completed = workflow.runtime.mark_task(agent_id, task["task_id"], "complete", result=result)
+        workflow._publish_task_completion(agent_id, task, result)
+        completed_summary = {key: value for key, value in completed.items() if key != "result"}
+        return {**result, "task": completed_summary}
+
+    def _section_agent_prompt(
+        self,
+        book: dict[str, Any],
+        node: dict[str, Any],
+        source_markdown: str,
+        existing_latex: str,
+        sibling_context: list[dict[str, Any]],
+        task_context: dict[str, Any],
+    ) -> str:
+        outline_context = yaml.safe_dump(book["work"], sort_keys=False, allow_unicode=True)
+        section_context = yaml.safe_dump(node, sort_keys=False, allow_unicode=True)
+        sibling_yaml = yaml.safe_dump(sibling_context, sort_keys=False, allow_unicode=True)
+        existing_block = existing_latex.strip() or "(No existing LaTeX draft was found.)"
+        action_id = str(task_context.get("action_id", ""))
+        if action_id == "fix_latex_compile_error":
+            task_mode = (
+                "DIRECT LATEX COMPILE REPAIR. The compiler has identified this section as responsible for the current failure. "
+                "Use fix_latex_compile_error only. Read diagnostic_summary, errors, log_path, tex_path, and the current LaTeX. "
+                "Return the smallest body-level LaTeX change that fixes the named compiler error. Do not perform a general rewrite, "
+                "do not add preamble/package requirements, and do not change unaffected prose. If the failure is caused by booktabs "
+                "commands such as \\toprule, \\midrule, or \\bottomrule, replace those commands locally with \\hline."
+            )
+        else:
+            task_mode = (
+                "This section already has LaTeX content. Use coordinate_with_sibling_sections to compare the section against "
+                "nearby sections, use propose_section_improvements to identify a concrete improvement plan, then use "
+                "revise_section_from_feedback with that proposal as the feedback. Return the revised single-pass result."
+                if existing_latex.strip()
+                else
+                "This section has no existing LaTeX draft. Use draft_initial_section, while still checking sibling context for fit."
+            )
+        return f"""
+Generate or revise the LaTeX draft for this section.
+
+Selected section:
+{section_context}
+
+Imported source material for this section:
+{source_markdown or "(No imported source text was found. Use the section title, summary, and full outline context.)"}
+
+Existing LaTeX content for this section:
+{existing_block}
+
+Sibling section context:
+{sibling_yaml}
+
+Hypervisor task context:
+{yaml.safe_dump(task_context, sort_keys=False, allow_unicode=True)}
+
+Full book outline context:
+{outline_context}
+
+Task mode:
+{task_mode}
+
+Requirements:
+- Return JSON only: {{"latex_body": "...", "completeness_percent": 0-100, "completeness_rationale": "..."}}.
+- latex_body must use LaTeX, not Markdown.
+- latex_body must not include \\section, \\subsection, or other heading commands unless they are structurally necessary inside this section.
+- When existing LaTeX is present, preserve usable material and revise it instead of discarding it.
+- Preserve factual content from the imported source.
+- Expand terse bullets into concise prose when useful, but do not invent unsupported claims.
+- Use valid LaTeX escapes for &, %, $, #, _, {{, and }}.
+- Keep citations as textual placeholders if source citations are not registered.
+- completeness_percent should reflect source coverage, specificity, citation readiness, and whether the draft is publishable without further section-agent work.
+""".strip()
+
+    def _extract_section_agent_response(self, content: str) -> dict[str, Any]:
+        cleaned = content.strip()
+        fenced = re.search(r"```(?:json|latex|tex)?\s*(.*?)```", cleaned, re.DOTALL)
+        if fenced:
+            cleaned = fenced.group(1).strip()
+        try:
+            payload = json.loads(cleaned)
+        except Exception:
+            payload = {
+                "latex_body": cleaned,
+                "completeness_percent": 50,
+                "completeness_rationale": "Agent returned LaTeX without a structured completeness estimate.",
+            }
+        latex = str(payload.get("latex_body") or payload.get("latex") or "").strip() or cleaned
+        try:
+            completeness = int(payload.get("completeness_percent", 50))
+        except (TypeError, ValueError):
+            completeness = 50
+        return {
+            "latex": latex.rstrip() + "\n",
+            "completeness_percent": max(0, min(100, completeness)),
+            "completeness_rationale": str(payload.get("completeness_rationale") or ""),
+        }
+
+    def _unwrap_latex_payload(self, content: str) -> str:
+        stripped = content.strip()
+        fenced = re.search(r"```(?:json|latex|tex)?\s*(.*?)```", stripped, re.DOTALL)
+        if fenced:
+            stripped = fenced.group(1).strip()
+        if not stripped.startswith("{"):
+            return content
+        try:
+            payload = json.loads(stripped)
+        except json.JSONDecodeError:
+            legacy_match = re.match(r'^\{\s*"latex_body"\s*:\s*"(.*)"\s*,\s*"completeness_percent"\s*:', stripped, re.DOTALL)
+            if legacy_match:
+                return self._decode_legacy_latex_body(legacy_match.group(1))
+            return content
+        if isinstance(payload, dict) and payload.get("latex_body"):
+            return str(payload["latex_body"]).rstrip() + "\n"
+        return content
+
+    def _decode_legacy_latex_body(self, value: str) -> str:
+        return (
+            value
+            .replace("\\n", "\n")
+            .replace('\\"', '"')
+            .replace("\\\\", "\\")
+            .rstrip()
+            + "\n"
+        )
 
     def _leaf_items(self, node: dict[str, Any]) -> list[dict[str, Any]]:
         children = node.get("content") or []
@@ -282,13 +960,66 @@ class BookAppState:
             items.extend(self._leaf_items(child))
         return items
 
+    def _section_candidates(self, nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        candidates = []
+        for node in nodes:
+            children = node.get("content") or []
+            if children:
+                candidates.extend(self._section_candidates(children))
+            elif node.get("id"):
+                candidates.append({
+                    "id": node["id"],
+                    "title": node.get("title", node["id"]),
+                    "score": self._score_for(node["id"]),
+                })
+        return candidates
+
+    def _sibling_context(self, nodes: list[dict[str, Any]], section_id: str) -> list[dict[str, Any]]:
+        parent_children = self._parent_children_for(nodes, section_id) or []
+        siblings = []
+        for child in parent_children:
+            if not child.get("id"):
+                continue
+            siblings.append({
+                "id": child["id"],
+                "title": child.get("title", child["id"]),
+                "summary": child.get("summary", ""),
+                "goal": child.get("goal", ""),
+                "is_selected": child["id"] == section_id,
+                "has_latex": bool(self.repository.load_latex_section(child["id"]).strip()) if not (child.get("content") or []) else None,
+            })
+        return siblings
+
+    def _parent_children_for(self, nodes: list[dict[str, Any]], section_id: str) -> list[dict[str, Any]] | None:
+        for node in nodes:
+            children = node.get("content") or []
+            if any(child.get("id") == section_id for child in children):
+                return children
+            match = self._parent_children_for(children, section_id)
+            if match is not None:
+                return match
+        return None
+
     def _first_leaf_id(self, outline: list[dict[str, Any]]) -> str | None:
         for chapter in outline:
             if chapter.get("items"):
                 return chapter["items"][0]["id"]
         return None
 
+    def _valid_selected_id(self, selected_id: str | None, outline: list[dict[str, Any]]) -> str | None:
+        valid_ids = {
+            item["id"]
+            for chapter in outline
+            for item in chapter.get("items", [])
+        }
+        if selected_id in valid_ids:
+            return selected_id
+        return self._first_leaf_id(outline)
+
     def _references(self, work: dict[str, Any]) -> list[dict[str, Any]]:
+        citations = work.get("citations", {}).get("entries", [])
+        if citations:
+            return citations
         references = work.get("references") or work.get("bibliography") or []
         if isinstance(references, list):
             return references
@@ -329,10 +1060,26 @@ class BookAppState:
         return candidate
 
     def _score_for(self, section_id: str) -> int | None:
+        completeness = self._latest_completeness_for(section_id)
+        if completeness is not None:
+            return completeness
         latest = self._latest_verification_for(section_id)
         if not latest:
             return None
-        return {"pass": 94, "warn": 67, "fail": 35}.get(latest.get("status"))
+        return {"pass": 80, "warn": 50, "fail": 20}.get(latest.get("status"))
+
+    def _latest_completeness_for(self, section_id: str) -> int | None:
+        for event in reversed(VerificationHistory(self.book_root).load()):
+            if event.get("subject") != section_id:
+                continue
+            metadata = event.get("metadata") or {}
+            if "completeness_percent" not in metadata:
+                continue
+            try:
+                return int(metadata["completeness_percent"])
+            except (TypeError, ValueError):
+                continue
+        return None
 
     def _tone_for(self, section_id: str) -> str:
         latest = self._latest_verification_for(section_id)
@@ -366,18 +1113,62 @@ class BookAppState:
                     message.get("body") or message.get("subject") or "",
                 ])
         if messages:
-            return messages[-20:][::-1]
+            return messages[-20:]
         return [["now", "Desktop -> Book", "Loaded canonical book state."]]
 
     def _agent_status(self) -> dict[str, Any]:
-        agents = list((self.data_root / "agent_state").glob("*")) if (self.data_root / "agent_state").exists() else []
-        pending_proposals = len(self.repository.proposals.list(status="pending"))
-        return {
-            "active": len(agents),
-            "total": max(len(agents), 1),
-            "confidence": 72,
-            "pendingProposals": pending_proposals,
+        runtime = self._agent_runtime_state()
+        pending_counts = {
+            agent_id: len([
+                task for task in record.get("task_queue", [])
+                if task.get("status") in {"pending", "running"}
+            ])
+            for agent_id, record in runtime.items()
         }
+        active_agents = [
+            {
+                "agent_id": agent_id,
+                "role": record.get("role", "agent"),
+                "section_id": record.get("section_id"),
+                "status": record.get("status", "unknown"),
+                "task_queue_length": pending_counts.get(agent_id, 0),
+            }
+            for agent_id, record in sorted(runtime.items())
+            if record.get("status") == "running" or pending_counts.get(agent_id, 0)
+        ]
+        legacy_agents = list((self.data_root / "agent_state").glob("*")) if (self.data_root / "agent_state").exists() else []
+        pending_proposals = len(self.repository.proposals.list(status="pending"))
+        book = self.repository.load_book()
+        outline = self._outline(book["work"].get("structure", []))
+        section_scores = [
+            score
+            for chapter in outline
+            for item in chapter.get("items", [])
+            for score in [item.get("score")]
+            if isinstance(score, (int, float))
+        ]
+        confidence = round(sum(section_scores) / len(section_scores)) if section_scores else 0
+        working_agents = [
+            agent for agent in active_agents
+            if agent["task_queue_length"] > 0
+        ]
+        hypervisor_confidence = max(0, min(100, 100 - (pending_proposals * 10)))
+        return {
+            "active": len(working_agents) if runtime else len(legacy_agents),
+            "total": max(len(runtime) if runtime else len(legacy_agents), 1),
+            "confidence": confidence,
+            "hypervisorConfidence": hypervisor_confidence,
+            "pendingProposals": pending_proposals,
+            "activeAgents": active_agents,
+        }
+
+    def _agent_runtime_state(self) -> dict[str, Any]:
+        path = self.book_root / "logs" / "agent_runtime.json"
+        if not path.exists():
+            return {}
+        import json
+
+        return json.loads(path.read_text())
 
     def _latest_compile(self) -> dict[str, Any] | None:
         logs = sorted((self.book_root / "build" / "logs").glob("*.log"))
