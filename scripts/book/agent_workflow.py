@@ -252,6 +252,22 @@ class AgentRuntimeRegistry:
                 if item.get("id")
             ],
         }
+        task_selection = []
+        if definition.get("name") == "section_agent":
+            task_selection = [
+                "",
+                "Section-agent task selection:",
+                (
+                    "Before executing, map the current queued task to one or more declared tasks "
+                    "from your YAML, identify any prerequisite callback/research/registration work, "
+                    "and then use the action that best performs that work."
+                ),
+                (
+                    "For process_message callbacks, decide whether the message should trigger "
+                    "revise_section_from_feedback, do_research_on_the_web, sibling coordination, "
+                    "or only an acknowledgement."
+                ),
+            ]
         return "\n".join([
             f"You are {definition.get('name') or record.get('agent_id')}.",
             f"Role: {definition.get('role') or record.get('role', 'agent')}",
@@ -261,6 +277,7 @@ class AgentRuntimeRegistry:
             "",
             "Declared capabilities from your agent definition YAML:",
             yaml.safe_dump(capabilities, sort_keys=False, allow_unicode=True).strip(),
+            *task_selection,
             "",
             "Current queued task:",
             yaml.safe_dump({
@@ -600,6 +617,7 @@ class AuthoringAgentWorkflow:
         """Hypervisor-owned public task assignment API."""
         self._register_runtime_message_handlers()
         self._validate_agent_action(agent_id, action_id)
+        context = self._enrich_section_task_context(agent_id, context)
         task = self.runtime.enqueue_task(
             agent_id,
             action_id,
@@ -616,6 +634,25 @@ class AuthoringAgentWorkflow:
         )
         self._publish_task_assignment(agent_id, task)
         return task
+
+    def _enrich_section_task_context(
+        self,
+        agent_id: str,
+        context: dict[str, Any] | None,
+    ) -> dict[str, Any] | None:
+        if not agent_id.startswith(f"{AGENT_IDS['section']}__"):
+            return context
+        enriched = dict(context or {})
+        section_id = enriched.get("section_id") or agent_id.split("__", 1)[1]
+        enriched.setdefault("section_id", section_id)
+        registered_references = self._registered_reference_context()
+        enriched.setdefault(
+            "registered_references",
+            yaml.safe_dump(registered_references, sort_keys=False, allow_unicode=True),
+        )
+        enriched.setdefault("references_bib_path", registered_references["bib_path"])
+        enriched.setdefault("references_bib", registered_references["bibtex"])
+        return enriched
 
     def run_agent_task(self, agent_id: str) -> dict[str, Any]:
         """Execute the next durable task for one running agent."""
@@ -1739,7 +1776,62 @@ class AuthoringAgentWorkflow:
         if agent_id == AGENT_IDS["hypervisor"] and message.get("subject") == "Global editorial drift detected":
             result["queued_drift_assignments"] = self._queue_global_drift_assignments_from_message(message)
             result["status"] = "drift_assignments_queued"
+        if agent_id.startswith(f"{AGENT_IDS['section']}__"):
+            followup = self._queue_section_callback_followup(agent_id, message)
+            if followup:
+                result["queued_followup"] = followup
+                result["status"] = "section_callback_followup_queued"
         return result
+
+    def _queue_section_callback_followup(
+        self,
+        agent_id: str,
+        message: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        subject = str(message.get("subject") or "")
+        from_agent = str(message.get("from") or "")
+        section_id = agent_id.split("__", 1)[1]
+        body = str(message.get("body") or "")
+        if from_agent == AGENT_IDS["diagram"] and subject.startswith("Diagram asset ready:"):
+            return self.queue_agent_task(
+                agent_id,
+                "revise_section_from_feedback",
+                {
+                    "section_id": section_id,
+                    "phase": "diagram_callback",
+                    "feedback": yaml.safe_dump({
+                        "source": from_agent,
+                        "subject": subject,
+                        "message_body": body,
+                        "instruction": (
+                            "Process this diagram callback. Verify the asset is relevant to this section, "
+                            "then include or confirm the appropriate LaTeX input/include command."
+                        ),
+                    }, sort_keys=False, allow_unicode=True),
+                },
+                priority=6,
+            )
+        if from_agent == AGENT_IDS["references"] and subject.startswith("References registered:"):
+            return self.queue_agent_task(
+                agent_id,
+                "revise_section_from_feedback",
+                {
+                    "section_id": section_id,
+                    "phase": "references_callback",
+                    "feedback": yaml.safe_dump({
+                        "source": from_agent,
+                        "subject": subject,
+                        "message_body": body,
+                        "instruction": (
+                            "Process this references callback. Verify registered keys exist in "
+                            "references/references.bib, then cite only verified keys where they support "
+                            "the section."
+                        ),
+                    }, sort_keys=False, allow_unicode=True),
+                },
+                priority=6,
+            )
+        return None
 
     def _queue_global_drift_assignments_from_message(self, message: dict[str, Any]) -> list[dict[str, Any]]:
         try:
@@ -2232,6 +2324,23 @@ class AuthoringAgentWorkflow:
         )
         return result
 
+    def _registered_reference_context(self) -> dict[str, Any]:
+        bib_rel_path = "references/references.bib"
+        bib_path = self.book_root / bib_rel_path
+        bibtex = bib_path.read_text() if bib_path.exists() else ""
+        book = self.repository.load_book()
+        citations = (
+            book.get("work", {})
+            .get("citations", {})
+            .get("entries", [])
+        )
+        return {
+            "bib_path": bib_rel_path,
+            "registered_keys": self._bib_keys(bibtex),
+            "bibtex": bibtex,
+            "canonical_entries": citations,
+        }
+
     def _bib_keys(self, bibtex: str) -> list[str]:
         import re
 
@@ -2316,6 +2425,7 @@ class AuthoringAgentWorkflow:
             "dependency_payloads": dependency_payloads,
             "current_payload": current_payload[:2400],
             "graph_diagnostics": relevant_graph,
+            "registered_references": self._registered_reference_context(),
         }
         return (
             "Draft a LaTeX section payload for this canonical book node.\n\n"
@@ -2362,6 +2472,7 @@ class AuthoringAgentWorkflow:
             "dependency_node": graph_node,
             "source_material": source_material[:3000],
             "existing_latex": existing_latex[:6000],
+            "registered_references": self._registered_reference_context(),
         }
         if action_id == "fix_latex_compile_error":
             instructions = [

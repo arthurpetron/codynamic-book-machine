@@ -296,6 +296,9 @@ def test_non_hypervisor_agent_runs_when_task_queue_is_nonzero(tmp_path):
 
 def test_non_hypervisor_agent_generates_prompt_when_queue_activates(tmp_path):
     repository = create_book(tmp_path)
+    bib_path = repository.book_root / "references" / "references.bib"
+    bib_path.parent.mkdir(parents=True, exist_ok=True)
+    bib_path.write_text("@book{smith2024systems,\n  title = {Systems}\n}\n")
     workflow = AuthoringAgentWorkflow(repository.book_root)
     workflow.supervise_agents(section_ids=["intro"], queue_work=False)
 
@@ -319,6 +322,9 @@ def test_non_hypervisor_agent_generates_prompt_when_queue_activates(tmp_path):
     assert "Reference workflow:" in runtime["current_prompt"]
     assert "diagram_agent:create_diagram_asset" in runtime["current_prompt"]
     assert "write_section_tex" in runtime["current_prompt"]
+    assert "Section-agent task selection:" in runtime["current_prompt"]
+    assert "references/references.bib" in runtime["current_prompt"]
+    assert "smith2024systems" in runtime["current_prompt"]
     assert "Intro" in runtime["current_prompt"]
 
 
@@ -707,6 +713,18 @@ def test_diagram_agent_returns_asset_path_to_requesting_section_queue(tmp_path):
     assert path in repository.load_latex_section("intro")
     assert "\\begin{figure}" in repository.load_latex_section("intro")
 
+    callback = workflow.run_agent_task("section_agent__intro")
+
+    assert callback["result"]["status"] == "section_callback_followup_queued"
+    followups = [
+        queued
+        for queued in workflow.runtime.list()["section_agent__intro"]["task_queue"]
+        if queued["action_id"] == "revise_section_from_feedback"
+    ]
+    assert followups
+    assert followups[0]["context"]["phase"] == "diagram_callback"
+    assert path in followups[0]["context"]["feedback"]
+
 
 def test_section_visual_proposal_queues_diagram_and_inserts_asset(tmp_path):
     repository = create_book(tmp_path)
@@ -771,12 +789,28 @@ def test_references_agent_registers_bib_entries_and_updates_canonical_citations(
     ]
     assert any("References registered: intro" == task["context"]["message"]["subject"] for task in section_messages)
 
+    callback = workflow.run_agent_task("section_agent__intro")
+
+    assert callback["result"]["status"] == "section_callback_followup_queued"
+    followups = [
+        queued for queued in workflow.runtime.list()["section_agent__intro"]["task_queue"]
+        if queued["action_id"] == "revise_section_from_feedback"
+    ]
+    assert followups
+    assert followups[0]["context"]["phase"] == "references_callback"
+    assert followups[0]["context"]["references_bib_path"] == "references/references.bib"
+    assert "@article{doe2026widgets" in followups[0]["context"]["references_bib"]
+    assert "doe2026widgets" in followups[0]["context"]["registered_references"]
+
 
 def test_section_research_task_queues_reference_registration(tmp_path):
     repository = create_book(tmp_path)
+    bib_path = repository.book_root / "references" / "references.bib"
+    bib_path.parent.mkdir(parents=True, exist_ok=True)
+    bib_path.write_text("@book{existing2024widgets,\n  title = {Existing Widgets}\n}\n")
     workflow = AuthoringAgentWorkflow(repository.book_root)
     workflow.supervise_agents(section_ids=["intro"], queue_work=False)
-    workflow.queue_agent_task(
+    queued = workflow.queue_agent_task(
         "section_agent__intro",
         "do_research_on_the_web",
         {
@@ -791,6 +825,10 @@ def test_section_research_task_queues_reference_registration(tmp_path):
             ],
         },
     )
+
+    assert queued["context"]["references_bib_path"] == "references/references.bib"
+    assert "@book{existing2024widgets" in queued["context"]["references_bib"]
+    assert "existing2024widgets" in queued["generated_prompt"]
 
     result = workflow.run_agent_task("section_agent__intro")
 
