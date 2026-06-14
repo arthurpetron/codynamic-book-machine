@@ -3,18 +3,13 @@ work:
   type: paper
   title: How the Codynamic Book Machine Works
   subtitle: A Structured Authoring System for Agent-Coordinated Books
-  summary: 'This paper explains the Codynamic Book Machine as both a writing tool
-    and a working example of codynamic architecture. It describes how authorial intent
+  summary: This paper explains the Codynamic Book Machine as both a writing tool and
+    a working example of codynamic architecture. It describes how authorial intent
     becomes a canonical work object, how that object is decomposed into section-level
     responsibilities, how agents coordinate through task queues and append-only messages,
     how editorial gardening keeps the manuscript coherent, how references and diagrams
     are routed through specialist agents, and how durable artifacts become a compiled
     paper.
-
-
-    The target length is approximately twenty pages. The paper should be explanatory,
-    technical, and concrete, using the current repository as the primary case study
-    and treating the running system as the evidence base.'
   intent:
     audience: Researchers, tool builders, authors, and software engineers interested
       in agentic authoring systems.

@@ -1,6 +1,6 @@
 Outline Migration Report
 ========================
-Timestamp: 2026-06-14T23:12:04.488154
+Timestamp: 2026-06-14T23:31:34.997227
 Source format: unknown
 Canonical schema: work_outline_schema_2.1.0
 Work: How the Codynamic Book Machine Works (codynamic_book_machine_working_paper)
