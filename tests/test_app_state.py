@@ -504,6 +504,8 @@ def test_failed_book_compile_runs_responsible_section_compile_fix_directly(tmp_p
     assert result["status"] == "passed"
     assert result["repair_loop"]["status"] == "passed"
     assert repository.load_latex_section("intro") == "Plain table body using \\hline.\n"
+    assert result["repair_loop"]["attempts"][0]["hypervisor"]["phase"] == "compile_repair"
+    assert result["repair_loop"]["attempts"][0]["hypervisor"]["executed_repair_count"] == 1
     assert prompts
     assert "DIRECT LATEX COMPILE REPAIR" in prompts[0]
     assert "Undefined control sequence" in prompts[0]

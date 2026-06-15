@@ -11,6 +11,7 @@ import yaml
 
 from scripts.book.importer import BookImporter, ImportResult
 from scripts.book.intake import BookIntakeService
+from scripts.book.conversation_outline import ConversationOutlineResult, ConversationOutlineService
 from scripts.book.repository import BookRepository
 
 
@@ -161,6 +162,24 @@ class BookLibrary:
         )
         self.register(record)
         return self.open_book(record.book_id), result
+
+    def create_book_from_outline_conversation(
+        self,
+        messages: list[dict[str, Any]],
+        use_llm: str | bool = "auto",
+        tags: list[str] | None = None,
+    ) -> tuple[BookRecord, ImportResult, ConversationOutlineResult]:
+        """Create, import, register, and open a new book from a chat transcript."""
+        outline_result = ConversationOutlineService(self.book_data_dir).synthesize_to_file(
+            messages,
+            use_llm=use_llm,
+        )
+        record, import_result = self.import_outline(
+            outline_result.outline_path,
+            use_llm="never",
+            tags=tags or ["conversation-outline"],
+        )
+        return record, import_result, outline_result
 
     def archive_book(self, book_id: str) -> BookRecord:
         record = self.get(book_id)

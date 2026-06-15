@@ -1,0 +1,15 @@
+\begin{tikzpicture}[>=stealth, node distance=2.2cm,
+  concept/.style={draw, rounded corners, align=center, text width=3.1cm, minimum height=1cm},
+  relation/.style={font=\scriptsize, fill=white, inner sep=1pt}]
+\node[concept] (n1) at (0,0.0) {Source Section};
+\node[concept] (n2) at (0,-1.55) {Dependency Edge};
+\node[concept] (n3) at (0,-3.1) {Target Section};
+\node[concept] (n4) at (0,-4.65) {Narrative Note};
+\node[concept] (n5) at (0,-6.2) {Queued Task};
+\draw[->] (n1) -- node[relation] {requires} (n2);
+\draw[->] (n2) -- node[relation] {constrains} (n3);
+\draw[->] (n3) -- node[relation] {clarifies} (n4);
+\draw[->] (n4) -- node[relation] {informs} (n5);
+\draw[->] (n1) -- node[relation] {informs} (n5);
+\node[align=left, text width=12cm, anchor=north west] at (0,-7.4) {Conceptual diagram for 'The Coordination Problem in Long-Form Writing': Explain why books are difficult to manage when outlines, drafts, citations, diagrams, reviews, and builds drift apart.};
+\end{tikzpicture}

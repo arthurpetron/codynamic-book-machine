@@ -151,6 +151,13 @@ export function getElectronApi(): ElectronApi {
       async createVersionFromOutline() {
         return { message: "Fallback version created.", record: { book_id: "fallback_v0_2_0", title: "Fallback", root: "", status: "active" } };
       },
+      async createBookFromOutlineConversation() {
+        return {
+          message: "Fallback conversation outline created.",
+          record: { book_id: "fallback_conversation_book", title: "Fallback Conversation Book", root: "", status: "active" },
+          outline: { outline_path: "fallback.yaml", provider: "fallback", model: "fallback" }
+        };
+      },
       async library() {
         return { active: "fallback", books: [] };
       },
@@ -160,6 +167,7 @@ export function getElectronApi(): ElectronApi {
       async newBook(title) {
         return { book_id: "fallback", title, root: "", status: "active" };
       },
+      onNewOutlineConversation() {},
       onBookChanged() {},
       onLibraryMessage() {}
     },

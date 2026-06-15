@@ -81,6 +81,10 @@ export interface CompileResult {
   responsible_section_ids?: string[];
   responsible_section_titles?: string[];
   diagnostic_summary?: string;
+  repair_loop?: {
+    status?: string;
+    attempts?: unknown[];
+  };
 }
 
 export interface VerificationEvent {
@@ -125,6 +129,12 @@ export interface UserChatMessage {
   body: string;
   status: "pending" | "answered" | "dismissed" | string;
   answer?: string;
+}
+
+export interface OutlineConversationMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
+  createdAt?: string;
 }
 
 export type HypervisorPhase = "draft" | "revision" | "compile_repair";
@@ -213,9 +223,17 @@ export interface ElectronApi {
       message?: string;
       error?: string;
     }>;
+    createBookFromOutlineConversation(messages: OutlineConversationMessage[], useLlm?: "auto" | "always" | "never"): Promise<{
+      record?: BookRecord;
+      result?: Record<string, string>;
+      outline?: Record<string, string>;
+      message?: string;
+      error?: string;
+    }>;
     library(): Promise<BookLibraryState>;
     openBook(bookId: string): Promise<BookRecord>;
     newBook(title: string): Promise<BookRecord>;
+    onNewOutlineConversation(callback: () => void): void;
     onBookChanged(callback: (payload: { bookId: string }) => void): void;
     onLibraryMessage(callback: (payload: { message: string }) => void): void;
   };

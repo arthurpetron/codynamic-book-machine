@@ -21,9 +21,11 @@ contextBridge.exposeInMainWorld('cbm', {
     reviseProposal: (proposalId, content, note) => ipcRenderer.invoke('app:revise-proposal', { proposalId, content, note }),
     importOutline: (mode) => ipcRenderer.invoke('app:import-outline', { mode }),
     createVersionFromOutline: () => ipcRenderer.invoke('app:create-version-from-outline'),
+    createBookFromOutlineConversation: (messages, useLlm) => ipcRenderer.invoke('app:create-book-from-outline-conversation', { messages, useLlm }),
     library: () => ipcRenderer.invoke('app:library'),
     openBook: (bookId) => ipcRenderer.invoke('app:open-book', { bookId }),
     newBook: (title) => ipcRenderer.invoke('app:new-book', { title }),
+    onNewOutlineConversation: (callback) => ipcRenderer.on('app:outline-conversation:new', () => callback()),
     onBookChanged: (callback) => ipcRenderer.on('app:book:changed', (_event, payload) => callback(payload)),
     onLibraryMessage: (callback) => ipcRenderer.on('app:library:message', (_event, payload) => callback(payload))
   },

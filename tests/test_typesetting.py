@@ -302,6 +302,44 @@ def test_compile_maps_tex_capacity_error_to_responsible_section(tmp_path, monkey
     assert result.responsible_section_titles == ["Introduction"]
 
 
+def test_compile_extracts_wrapped_missing_math_mode_error(tmp_path, monkeypatch):
+    repository = create_book(tmp_path)
+    repository.save_latex_section("intro", "This mentions references_agent directly.\n")
+    assembled = repository.latex_builder().assembler.assemble_book()
+    error_line = next(
+        index
+        for index, line in enumerate(assembled.splitlines(), start=1)
+        if "references_agent" in line
+    )
+
+    def fake_run(command, cwd, env, capture_output, text, timeout, check):
+        return SimpleNamespace(
+            returncode=1,
+            stdout=(
+                f"./build/tex/compiler_test_book.tex:{error_line}: Missing $ ins\n"
+                "erted.\n"
+                "<inserted text>\n"
+                "                $\n"
+                f"l.{error_line} This mentions references_\n"
+                "                             agent directly.\n"
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr(
+        "scripts.book.typesetting.find_latex_compiler",
+        lambda engine=None: LatexCompiler(name="latexmk", path="/usr/bin/latexmk"),
+    )
+    monkeypatch.setattr("scripts.book.typesetting.subprocess.run", fake_run)
+
+    result = repository.latex_builder().compile_book()
+
+    assert result.status == "failed"
+    assert "Missing $ inserted" in result.errors[0]
+    assert result.responsible_section_ids == ["intro"]
+    assert result.responsible_section_titles == ["Introduction"]
+
+
 def test_compile_extracts_wrapped_latexmk_file_line_errors(tmp_path, monkeypatch):
     repository = create_book(tmp_path)
     assembled = repository.latex_builder().assembler.assemble_book()

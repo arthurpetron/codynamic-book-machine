@@ -1,0 +1,15 @@
+\begin{tikzpicture}[>=stealth, node distance=2.2cm,
+  concept/.style={draw, rounded corners, align=center, text width=3.1cm, minimum height=1cm},
+  relation/.style={font=\scriptsize, fill=white, inner sep=1pt}]
+\node[concept] (n1) at (0,0) {Structural and Narrative Dependencies};
+\node[concept] (n2) at (3.4,1.4) {Source Section};
+\node[concept] (n3) at (3.4,-1.4) {Dependency Edge};
+\node[concept] (n4) at (6.8,0) {Target Section};
+\node[concept] (n5) at (10.2,0) {Narrative Note};
+\draw[->] (n1) -- node[relation] {requires} (n2);
+\draw[->] (n2) -- node[relation] {constrains} (n3);
+\draw[->] (n3) -- node[relation] {clarifies} (n4);
+\draw[->] (n4) -- node[relation] {informs} (n5);
+\draw[->] (n1) -- node[relation] {informs} (n5);
+\node[align=left, text width=12cm, anchor=north west] at (0,-2.5999999999999996) {Conceptual diagram for 'Structural and Narrative Dependencies': Describe machine-readable dependency edges and human-readable narrative dependency notes.};
+\end{tikzpicture}

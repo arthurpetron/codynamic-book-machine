@@ -1,0 +1,29 @@
+\documentclass[11pt]{article}
+\title{How the Codynamic Book Machine Works}
+\author{Arthur Petron}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta}
+\usepackage{hyperref}
+\graphicspath{{media/}{media/diagrams/}{images/}{artwork/}}
+
+\begin{document}
+
+\section*{Diagram Requests and Callbacks}
+
+Section agents treat diagram work as a bounded post-revision activity rather than an open-ended design exercise. After a draft has been produced or revised, the agent may propose zero, one, or two diagrams if a visual would materially improve the section's explanation. This limit keeps diagramming focused on the smallest set of figures that clarify the local argument, rather than turning every section into a gallery of illustrations.
+
+The diagram proposal step is also selective about where it applies. Front matter such as the title page, abstract, dedication, foreword, preface, table of contents, and acknowledgements is excluded from diagram requests. Those parts are meant to orient the reader, not to introduce technical workflows that benefit from a figure. Main content and back matter may request diagrams when a visual would help explain a process, relationship, or lifecycle.
+
+When a diagram is warranted, the section agent does not invent a file path or assume that an asset already exists. Instead, it queues a \texttt{create\_diagram\_asset} task, or asks the hypervisor to queue that task on its behalf, with a concrete description of the needed figure. A useful request identifies the section, the requesting agent, the media type, and the purpose of the diagram. When possible, it also includes a diagram specification with three to five node labels, two to five labeled edges, and a suggested layout so the diagram agent can generate an asset that matches the section's argument.
+
+The request is only the first half of the workflow. The section agent must then wait for the diagram agent's callback before inserting any media path into the LaTeX payload. That callback arrives as a \texttt{process\_message} task and includes the generated media path together with a LaTeX inclusion hint. Only after processing that callback should the section agent revise the section to include the figure reference or \texttt{\textbackslash includegraphics} command. This waiting step prevents the manuscript from pointing at missing assets and keeps the section payload synchronized with the durable diagram registry.
+
+A concrete request makes the workflow easier to see. A section on task routing might ask for a compact flow diagram showing the revision pass, the diagram request decision, the queued asset task, and the callback that returns the path. The request would still stop at the handoff stage until the callback arrives, even if the diagram is obviously useful. That discipline keeps the prose, the task queue, and the media registry aligned.
+
+In practice, diagram handling follows a disciplined sequence: revise the prose, decide whether a figure would add real explanatory value, queue at most two diagram requests, and then pause until the callback confirms the asset location. The result is a section that can describe its own visual needs without coupling itself to speculative file paths or premature inclusions. This section also sets up the neighboring discussion of diagram memory, where the returned asset is recorded with its purpose, nodes, edges, layout, and distinctness rationale so later work can tell whether a new request is genuinely new or merely redundant.
+
+
+\end{document}

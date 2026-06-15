@@ -389,6 +389,23 @@ def cmd_app(args):
             print(json.dumps(payload, indent=2, sort_keys=True))
             return 0
 
+        if args.app_command == "create-book-from-outline-conversation":
+            tags = [tag.strip() for tag in (args.tags or "").split(",") if tag.strip()]
+            messages = json.loads(Path(args.messages_file).read_text())
+            record, import_result, outline_result = library.create_book_from_outline_conversation(
+                messages,
+                use_llm=args.use_llm,
+                tags=tags or None,
+            )
+            payload = {
+                "record": record.__dict__,
+                "result": import_result.as_dict(),
+                "outline": outline_result.as_dict(),
+                "message": f"Created {record.book_id} from outline conversation.",
+            }
+            print(json.dumps(payload, indent=2, sort_keys=True))
+            return 0
+
         if args.app_command == "archive-book":
             payload = library.archive_book(args.book_id).__dict__
             print(json.dumps(payload, indent=2, sort_keys=True))
@@ -1089,6 +1106,20 @@ Examples:
     )
     app_create_version.add_argument('--tags', default='versioned')
     app_create_version.set_defaults(func=cmd_app)
+
+    app_conversation_outline = app_subparsers.add_parser(
+        'create-book-from-outline-conversation',
+        help='Create a new book from a free-form outline conversation'
+    )
+    app_conversation_outline.add_argument('--messages-file', required=True)
+    app_conversation_outline.add_argument(
+        '--use-llm',
+        choices=['auto', 'always', 'never'],
+        default='auto',
+        help='Whether to call an LLM to synthesize the outline'
+    )
+    app_conversation_outline.add_argument('--tags', default='conversation-outline')
+    app_conversation_outline.set_defaults(func=cmd_app)
 
     app_archive = app_subparsers.add_parser('archive-book', help='Archive a registered book')
     app_archive.add_argument('book_id')

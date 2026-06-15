@@ -305,6 +305,11 @@ function createAppMenu(win) {
         click: () => newBook(win)
       },
       {
+        label: 'New Book from Outline Conversation',
+        accelerator: 'CmdOrCtrl+Alt+N',
+        click: () => win.webContents.send('app:outline-conversation:new')
+      },
+      {
         label: 'Open Book...',
         accelerator: 'CmdOrCtrl+O',
         click: () => openBook(win)
@@ -580,6 +585,28 @@ app.whenReady().then(() => {
       return {
         error: pythonErrorMessage(error)
       };
+    }
+  });
+  ipcMain.handle('app:create-book-from-outline-conversation', async (_event, { messages, useLlm } = {}) => {
+    const win = BrowserWindow.fromWebContents(_event.sender) || BrowserWindow.getFocusedWindow();
+    const tmpPath = path.join(os.tmpdir(), `cbm-outline-conversation-${Date.now()}.json`);
+    fs.writeFileSync(tmpPath, `${JSON.stringify(Array.isArray(messages) ? messages : [], null, 2)}\n`);
+    try {
+      const result = await runAppJson([
+        'create-book-from-outline-conversation',
+        '--messages-file',
+        tmpPath,
+        '--use-llm',
+        useLlm || 'auto'
+      ]);
+      win?.webContents.send('app:book:changed', { bookId: result.record?.book_id });
+      return result;
+    } catch (error) {
+      return {
+        error: pythonErrorMessage(error)
+      };
+    } finally {
+      fs.rmSync(tmpPath, { force: true });
     }
   });
   ipcMain.handle('app:library', async () => {

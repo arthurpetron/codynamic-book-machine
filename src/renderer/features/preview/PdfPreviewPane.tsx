@@ -28,14 +28,20 @@ export function PdfPreviewPane({ store }: PdfPreviewPaneProps) {
   const errors = result?.errors ?? [];
   const hasCompileErrors = errors.length > 0 || result?.status === "failed";
   const responsibleSections = result?.responsible_section_titles ?? [];
+  const responsibleSectionIds = result?.responsible_section_ids ?? [];
+  const responsiblePairs = responsibleSectionIds.length > 0
+    ? responsibleSectionIds.map((id, index) => `${responsibleSections[index] ?? id} (${id})`)
+    : responsibleSections;
   const fallbackDiagnostic = responsibleSections.length > 0
     ? `Compile failed in ${responsibleSections.join(", ")}. See the compile log for details.`
     : "Compile failed. See the compile log for details.";
-  const diagnostics = result?.diagnostic_summary
-    ? [result.diagnostic_summary, ...errors.slice(1)]
-    : errors.length > 0
-      ? errors
-      : [fallbackDiagnostic];
+  const diagnostics = [
+    result?.diagnostic_summary || fallbackDiagnostic,
+    responsiblePairs.length > 0 ? `Responsible section(s): ${responsiblePairs.join(", ")}` : "",
+    result?.log_path ? `Compile log: ${result.log_path}` : "",
+    result?.repair_loop?.status ? `Immediate repair loop: ${result.repair_loop.status} after ${result.repair_loop.attempts?.length ?? 0} attempt(s)` : "",
+    ...errors,
+  ].filter((line, index, lines) => line && lines.indexOf(line) === index);
   const pdfVersion = result?.log_path ?? `${compileStatus}:${pdfPath}`;
 
   useEffect(() => {

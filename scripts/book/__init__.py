@@ -12,6 +12,7 @@ from .authoring import (
     VerificationHistory,
 )
 from .creative import ArtworkSpec, DiagramArtworkService, DiagramSpec
+from .conversation_outline import ConversationOutlineResult, ConversationOutlineService
 from .importer import BookImporter, ImportResult
 from .intake import BookIntakeService, IntakeQuestion, QUESTION_BANK
 from .knowledge_graph import GraphAnalysis, KnowledgeGraphAnalyzer
@@ -37,6 +38,8 @@ __all__ = [
     "AuthoringAgentWorkflow",
     "BookAppState",
     "CommunicationMemory",
+    "ConversationOutlineResult",
+    "ConversationOutlineService",
     "ChangeSet",
     "ChangeSetManager",
     "BookImporter",

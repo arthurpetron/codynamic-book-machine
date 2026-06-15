@@ -768,6 +768,11 @@ def test_diagram_agent_returns_asset_path_to_requesting_section_queue(tmp_path):
     path = result["result"]["path"]
     assert path.startswith("media/diagrams/")
     assert path.endswith(".tikz")
+    review = result["result"]["render_review"]
+    assert review["status"] == "good enough"
+    assert review["attempts"][0]["verdict"] == "good enough"
+    assert "__review_1" in result["result"]["render_preview_path"]
+    assert (repository.book_root / review["render"]["fallback_preview_path"]).read_text().startswith("<svg")
     section_runtime = workflow.runtime.list()["section_agent__intro"]
     messages = [
         queued
@@ -823,10 +828,59 @@ def test_section_visual_proposal_queues_diagram_and_inserts_asset(tmp_path):
     assert memory[-1]["path"] == path
     assert memory[-1]["nodes"]
     assert memory[-1]["edges"]
+    assert memory[-1]["diagram_kind"]
+    assert memory[-1]["similarity"]["status"] == "pass"
     assert memory[-1]["why_distinct"]
+    assert memory[-1]["render_review"]["status"] == "good enough"
+    assert "__review_1" in memory[-1]["render_preview_path"]
     section_latex = repository.load_latex_section("intro")
     assert f"\\input{{{path}}}" in section_latex
     assert "A two-node flow from context to section argument" in section_latex
+
+
+def test_diagram_agent_rerenders_until_review_is_good_enough(tmp_path):
+    repository = create_book(tmp_path)
+
+    class DiagramReviewProvider:
+        def __init__(self):
+            self.calls = []
+
+        def get_provider_name(self):
+            return "mock"
+
+        def simple_prompt(self, prompt, system_prompt=None, **kwargs):
+            self.calls.append(prompt)
+            verdict = "not good enough: the layout is too generic." if len(self.calls) == 1 else "good enough: the revised preview is legible and specific."
+            return LLMResponse(
+                content=verdict,
+                model="mock-diagram-reviewer",
+                provider="mock",
+                tokens_used=10,
+                latency_ms=1.0,
+                metadata={},
+            )
+
+    provider = DiagramReviewProvider()
+    workflow = AuthoringAgentWorkflow(repository.book_root, llm_mode="always", provider=provider)
+    workflow.supervise_agents(section_ids=["intro"], queue_work=False)
+    workflow.queue_agent_task(
+        "diagram_agent",
+        "create_diagram_asset",
+        {
+            "section_id": "intro",
+            "requesting_agent": "section_agent__intro",
+            "description": "Show a workflow from outline intent through task queue to LaTeX section.",
+            "media_type": "tikz",
+            "insert_into_section": False,
+        },
+    )
+
+    result = workflow.run_agent_task("diagram_agent")["result"]
+
+    assert len(provider.calls) == 2
+    assert result["render_review"]["status"] == "good enough"
+    assert [attempt["verdict"] for attempt in result["render_review"]["attempts"]] == ["not good enough", "good enough"]
+    assert "__review_2" in result["render_preview_path"]
 
 
 def test_diagram_agent_uses_memory_to_vary_generated_diagrams(tmp_path):
@@ -862,10 +916,11 @@ def test_diagram_agent_uses_memory_to_vary_generated_diagrams(tmp_path):
     first_tikz = (repository.book_root / first["path"]).read_text()
     second_tikz = (repository.book_root / second["path"]).read_text()
     assert first_tikz != second_tikz
-    assert "Queued Task" in first_tikz
-    assert "Dependency Edge" in second_tikz
+    assert "Queued Task" not in first_tikz
+    assert "Dependency Edge" not in second_tikz
     memory = json.loads((repository.book_root / "media" / "diagrams" / "diagram_agent_memory.json").read_text())
     assert [entry["path"] for entry in memory[-2:]] == [first["path"], second["path"]]
+    assert memory[-1]["diagram_kind"] != memory[-2]["diagram_kind"] or memory[-1]["similarity"]["score"] < 0.62
 
 
 def test_diagram_task_prompt_includes_memory_and_section_context(tmp_path):
@@ -901,8 +956,94 @@ def test_diagram_task_prompt_includes_memory_and_section_context(tmp_path):
     assert "Prior diagram memory:" in prompt
     assert "section_context:" in prompt
     assert "media/diagrams/" in prompt
-    assert "Queued Task" in prompt
+    assert "diagram_kind" in prompt
+    assert "similarity" in prompt
     assert "Show dependency edges" in prompt
+
+
+def test_diagram_spec_filters_runtime_metadata_labels(tmp_path):
+    repository = create_book(tmp_path)
+    repository.save_latex_section(
+        "intro",
+        """
+        {
+          "latex_body": "Runtime payload that should never become a node",
+          "completeness_percent": 87,
+          "completeness_rationale": "Also not a node",
+          "task_id": "task_123"
+        }
+        The useful argument is that outline state routes through a section queue and returns a callback.
+        """,
+    )
+    workflow = AuthoringAgentWorkflow(repository.book_root)
+    workflow.supervise_agents(section_ids=["intro"], queue_work=False)
+    workflow.queue_agent_task(
+        "diagram_agent",
+        "create_diagram_asset",
+        {
+            "section_id": "intro",
+            "requesting_agent": "section_agent__intro",
+            "description": "Show the queue flow for the section callback and revision.",
+            "media_type": "tikz",
+            "insert_into_section": False,
+        },
+    )
+
+    result = workflow.run_agent_task("diagram_agent")["result"]
+    tikz = (repository.book_root / result["path"]).read_text()
+    memory = json.loads((repository.book_root / "media" / "diagrams" / "diagram_agent_memory.json").read_text())
+    rendered_labels = tikz.lower() + json.dumps(memory[-1]).lower()
+
+    assert "latex_body" not in rendered_labels
+    assert "completeness_percent" not in rendered_labels
+    assert "completeness_rationale" not in rendered_labels
+    assert "task_id" not in rendered_labels
+    assert memory[-1]["diagram_kind"] == "queue_flow"
+
+
+def test_diagram_similarity_gate_rejects_repeated_generic_template(tmp_path):
+    repository = create_book(tmp_path)
+    memory_path = repository.book_root / "media" / "diagrams" / "diagram_agent_memory.json"
+    memory_path.parent.mkdir(parents=True, exist_ok=True)
+    memory_path.write_text(json.dumps([
+        {
+            "section_id": "prior",
+            "path": "media/diagrams/prior.tikz",
+            "diagram_kind": "dependency_graph",
+            "layout": "diamond",
+            "nodes": [
+                {"id": "n1", "label": "Source Section"},
+                {"id": "n2", "label": "Dependency Edge"},
+                {"id": "n3", "label": "Target Section"},
+            ],
+            "edges": [
+                {"from": "n1", "to": "n2", "label": "requires"},
+                {"from": "n2", "to": "n3", "label": "constrains"},
+            ],
+        }
+    ]))
+    workflow = AuthoringAgentWorkflow(repository.book_root)
+    workflow.supervise_agents(section_ids=["intro"], queue_work=False)
+    workflow.queue_agent_task(
+        "diagram_agent",
+        "create_diagram_asset",
+        {
+            "section_id": "intro",
+            "requesting_agent": "section_agent__intro",
+            "description": "Show dependency edges between source section, dependency edge, and target section.",
+            "media_type": "tikz",
+            "insert_into_section": False,
+        },
+    )
+
+    result = workflow.run_agent_task("diagram_agent")["result"]
+    memory = json.loads(memory_path.read_text())
+    final = memory[-1]
+    tikz = (repository.book_root / result["path"]).read_text()
+
+    assert final["similarity"]["status"] == "pass"
+    assert final["diagram_kind"] != "dependency_graph"
+    assert "Dependency Edge" not in tikz
 
 
 def test_section_visual_proposal_can_decide_no_diagrams(tmp_path):

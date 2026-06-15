@@ -55,14 +55,7 @@ class BookImporter:
         if not source.exists():
             raise FileNotFoundError(f"Outline file not found: {source}")
 
-        converter = OutlineConverter()
-        canonical_yaml = converter.convert(
-            str(source),
-            interactive=False,
-            quiet=True,
-            use_llm=use_llm,
-        )
-        canonical: dict[str, Any] = yaml.safe_load(canonical_yaml)
+        canonical = self._load_or_convert_outline(source, use_llm=use_llm)
         work = canonical["work"]
         target_root = Path(book_root) if book_root else self.book_data_dir / work["id"]
         repository = BookRepository(target_root)
@@ -72,7 +65,16 @@ class BookImporter:
         repository.save_book(canonical)
 
         report_path = target_root / "outline" / "reports" / f"{work['id']}_import.md"
-        converter.write_report(report_path)
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(
+            "\n".join([
+                f"# Outline import: {work.get('title', work['id'])}",
+                "",
+                f"- Source outline: `{source}`",
+                f"- Work id: `{work['id']}`",
+                "",
+            ])
+        )
 
         return ImportResult(
             kind="outline",
@@ -160,7 +162,10 @@ class BookImporter:
         )
 
     def _load_or_convert_outline(self, source: Path, use_llm: str | bool = "auto") -> dict[str, Any]:
-        raw = yaml.safe_load(source.read_text())
+        try:
+            raw = yaml.safe_load(source.read_text())
+        except yaml.YAMLError:
+            raw = None
         if isinstance(raw, dict) and isinstance(raw.get("work"), dict):
             return raw
         converter = OutlineConverter()

@@ -88,6 +88,31 @@ def test_library_import_outline_registers_and_opens(tmp_path):
     assert library.active().book_id == "imported_library_book"
 
 
+def test_library_creates_book_from_outline_conversation(tmp_path):
+    library = BookLibrary(tmp_path / "book_data")
+    record, import_result, outline_result = library.create_book_from_outline_conversation(
+        [
+            {
+                "role": "user",
+                "content": (
+                    "I want a practical book about building a book machine from conversation to PDF. "
+                    "It is for technical writers and should cover outlines, agents, diagrams, references, and compilation."
+                ),
+            }
+        ],
+        use_llm="never",
+    )
+
+    assert record.book_id == outline_result.work_id
+    assert record.tags == ["conversation-outline"]
+    assert import_result.outline_path.exists()
+    assert outline_result.outline_path.exists()
+    assert library.active().book_id == record.book_id
+    work = BookRepository(import_result.book_root).load_book()["work"]
+    assert work["structure"]
+    assert work["metadata"]["conversation_outline_provider"] == "deterministic"
+
+
 def test_library_import_outline_can_force_versioned_from_scratch(tmp_path):
     source = tmp_path / "meta_book.yaml"
     source.write_text(

@@ -42,6 +42,45 @@ def test_import_outline_uses_converter_and_saves_canonical_book(tmp_path):
     assert service.get_node("ch01_sec01")["content_file"] == "content/sections/ch01_sec01.md"
 
 
+def test_import_outline_accepts_canonical_outline_without_reconversion(tmp_path):
+    source = tmp_path / "canonical_outline.yaml"
+    source.write_text(yaml.safe_dump({
+        "work": {
+            "id": "canonical_direct",
+            "type": "book",
+            "title": "Canonical Direct",
+            "summary": "Already canonical.",
+            "metadata": {"version": "0.1.0", "updated": "2026-06-15"},
+            "structure": [
+                {
+                    "id": "ch01",
+                    "type": "chapter",
+                    "title": "Opening",
+                    "summary": "Open the book.",
+                    "goal": "Open the book.",
+                    "content": [
+                        {
+                            "id": "intro",
+                            "type": "section",
+                            "title": "Introduction",
+                            "summary": "Introduce the direct import.",
+                            "goal": "Introduce the direct import.",
+                            "content_file": "content/sections/intro.md",
+                        }
+                    ],
+                }
+            ],
+        }
+    }, sort_keys=False))
+
+    result = BookImporter(tmp_path / "book_data").import_outline(source, use_llm="never")
+    book = BookRepository(result.book_root).load_book()
+
+    assert result.work_id == "canonical_direct"
+    assert book["work"]["title"] == "Canonical Direct"
+    assert result.report_path.exists()
+
+
 def test_import_outline_can_target_existing_book_root(tmp_path):
     source = tmp_path / "legacy_outline.yaml"
     target = tmp_path / "custom_book"

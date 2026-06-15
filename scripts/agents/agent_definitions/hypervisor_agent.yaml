@@ -58,8 +58,8 @@ actions:
       If the message reports task completion, update your belief model of agent state and decide
       whether the next queued task, gardener validation, revision pass, or no action is appropriate.
       If the message reports a LaTeX compile failure, extract the relevant section id(s),
-      errors, and log excerpt, then queue revise_section_from_feedback tasks for the responsible
-      section agent(s) with concrete instructions to fix the LaTeX.
+      errors, and log excerpt, then queue fix_latex_compile_error tasks for the responsible
+      section agent(s) with concrete instructions to fix only the compiler error.
 
   - id: detect_agent_drift
     description: Assess whether an agent has deviated from its stated role or active task.

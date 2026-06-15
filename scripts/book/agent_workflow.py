@@ -8,6 +8,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 from pathlib import Path
 import re
+import shutil
+import subprocess
 import threading
 import time
 from typing import Any
@@ -19,6 +21,7 @@ from scripts.book.authoring import AuthoringLoop, EditProposal
 from scripts.book.repository import BookRepository
 from scripts.book.typesetting import CompileResult, LatexBuildService
 from scripts.messaging.message_router import MessageRouter
+from scripts.utils.latex import find_latex_compiler
 
 
 AGENT_IDS = {
@@ -50,6 +53,71 @@ class SectionGraphNode:
     dependencies: list[str] = field(default_factory=list)
     blockers: list[str] = field(default_factory=list)
     status: str = "ready"
+
+
+@dataclass(frozen=True)
+class DiagramBrief:
+    """Typed input boundary for a diagram request."""
+
+    section_id: str
+    title: str
+    summary: str
+    goal: str
+    description: str
+    source_material: str
+    current_latex: str
+    prior_memory: list[dict[str, Any]] = field(default_factory=list)
+
+
+DIAGRAM_KINDS = [
+    "architecture_map",
+    "lifecycle",
+    "dependency_graph",
+    "state_surface_map",
+    "queue_flow",
+    "artifact_pipeline",
+    "comparison_matrix",
+    "feedback_loop",
+]
+
+DIAGRAM_NOISE_TERMS = {
+    "agent_id",
+    "created_at",
+    "current_latex",
+    "finish_reason",
+    "generated_prompt",
+    "latex_body",
+    "latency_ms",
+    "media_type",
+    "metadata",
+    "model",
+    "provider",
+    "request_id",
+    "requesting_agent",
+    "section_id",
+    "source_material",
+    "status",
+    "task_id",
+    "tokens_used",
+    "updated_at",
+    "completeness_percent",
+    "completeness_rationale",
+}
+
+GENERIC_DIAGRAM_LABELS = {
+    "agent",
+    "context",
+    "diagram",
+    "input",
+    "mechanism",
+    "output",
+    "process",
+    "problem",
+    "result",
+    "section",
+    "source",
+    "target",
+}
 
 
 class AgentCommitLog:
@@ -718,19 +786,7 @@ class AuthoringAgentWorkflow:
         ]
 
     def _diagram_memory_context(self, limit: int = 12) -> list[dict[str, Any]]:
-        return [
-            {
-                "section_id": item.get("section_id"),
-                "path": item.get("path"),
-                "description": item.get("description"),
-                "purpose": item.get("purpose"),
-                "layout": item.get("layout"),
-                "nodes": item.get("nodes"),
-                "edges": item.get("edges"),
-                "why_distinct": item.get("why_distinct"),
-            }
-            for item in self._load_diagram_memory()[-limit:]
-        ]
+        return self.list_diagram_memory(limit=limit)
 
     def run_agent_task(self, agent_id: str) -> dict[str, Any]:
         """Execute the next durable task for one running agent."""
@@ -1469,14 +1525,8 @@ class AuthoringAgentWorkflow:
                 continue
             extension = self._media_extension(request.get("media_type", "tikz"))
             diagram_spec = self._diagram_spec_for_request(request)
-            content = self._render_media_content(request, extension, diagram_spec)
-            result = self.loop.media.fulfill_request(
-                request_id=request["request_id"],
-                diagram_agent=AGENT_IDS["diagram"],
-                content=content,
-                extension=extension,
-            )
-            self._record_diagram_memory(request, result, diagram_spec)
+            content, review = self._render_and_review_media_content(request, extension, diagram_spec)
+            result = self.fulfill_diagram_request(request, diagram_spec, content, extension, review)
             self.loop.history.record_event(
                 event_type="media_fulfilled",
                 agent_id=AGENT_IDS["diagram"],
@@ -1512,13 +1562,8 @@ class AuthoringAgentWorkflow:
         )
         extension = self._media_extension(media_type)
         diagram_spec = self._diagram_spec_for_request(request)
-        result = self.loop.media.fulfill_request(
-            request_id=request["request_id"],
-            diagram_agent=AGENT_IDS["diagram"],
-            content=self._render_media_content(request, extension, diagram_spec),
-            extension=extension,
-        )
-        self._record_diagram_memory(request, result, diagram_spec)
+        content, review = self._render_and_review_media_content(request, extension, diagram_spec)
+        result = self.fulfill_diagram_request(request, diagram_spec, content, extension, review)
         self.loop.history.record_event(
             event_type="diagram_asset_created",
             agent_id=AGENT_IDS["diagram"],
@@ -1534,6 +1579,26 @@ class AuthoringAgentWorkflow:
             description,
             {"request_id": result["request_id"], "path": result["path"], "requesting_agent": requesting_agent},
         )
+        return result
+
+    def fulfill_diagram_request(
+        self,
+        request: dict[str, Any],
+        final_spec: dict[str, Any],
+        content: str,
+        extension: str,
+        render_review: dict[str, Any],
+    ) -> dict[str, Any]:
+        result = self.loop.media.fulfill_request(
+            request_id=request["request_id"],
+            diagram_agent=AGENT_IDS["diagram"],
+            content=content,
+            extension=extension,
+        )
+        result = self._attach_diagram_review(result, render_review)
+        result["diagram_kind"] = final_spec.get("diagram_kind")
+        result["similarity"] = final_spec.get("similarity", {})
+        self._record_diagram_memory(request, result, final_spec)
         return result
 
     def _insert_diagram_asset_into_section(self, item: dict[str, Any]) -> dict[str, Any]:
@@ -1572,7 +1637,7 @@ class AuthoringAgentWorkflow:
         else:
             body = f"\\centering\n\\includegraphics[width=0.82\\linewidth]{{{path}}}"
         return (
-            "\\begin{figure}[htbp]\n"
+            "\\begin{figure}[!htbp]\n"
             f"{body}\n"
             f"\\caption{{{caption}.}}\n"
             "\\end{figure}"
@@ -2506,21 +2571,58 @@ class AuthoringAgentWorkflow:
             source,
             existing_latex,
         ]).lower()
-        visual_terms = [
-            "diagram",
-            "figure",
-            "schema",
+        abstract_mentions = [
+            "diagram agent",
+            "diagram memory",
+            "diagram request",
+            "diagram requests",
+            "diagram support",
+            "diagram generation",
+            "generated diagram",
+        ]
+        if any(mention in text for mention in abstract_mentions) and not any(
+            term in text
+            for term in [
+                "architecture",
+                "dependency graph",
+                "feedback loop",
+                "message flow",
+                "pipeline",
+                "queue flow",
+                "state surface",
+            ]
+        ):
+            return False
+        structural_terms = [
             "architecture",
-            "workflow",
-            "message flow",
+            "artifact pipeline",
+            "callback",
+            "dependency",
+            "feedback loop",
             "lifecycle",
-            "runtime",
-            "graph",
-            "coordination",
+            "message flow",
             "pipeline",
             "queue",
+            "runtime state",
+            "state surface",
+            "workflow",
         ]
-        return any(term in text for term in visual_terms)
+        visual_verbs = [
+            "compare",
+            "connect",
+            "coordinate",
+            "depends",
+            "flows",
+            "handoff",
+            "loop",
+            "maps",
+            "passes",
+            "routes",
+            "transitions",
+        ]
+        if "diagram of" in text and any(term in text for term in structural_terms):
+            return True
+        return any(term in text for term in structural_terms) and any(verb in text for verb in visual_verbs)
 
     def _is_front_matter_node(self, section_id: str, node: dict[str, Any]) -> bool:
         matter = str(node.get("matter") or node.get("section_matter") or "").lower()
@@ -2570,7 +2672,7 @@ class AuthoringAgentWorkflow:
         summary = node.get("summary") or node.get("goal") or ""
         source = self.repository.load_section(section_id).strip()
         basis = summary or source[:240] or title
-        return f"Conceptual diagram for '{title}': {basis}"
+        return f"Create one section-specific visual for '{title}' that clarifies the highest-value structure in this section: {basis}"
 
     def _research_references_for_section(self, section_id: str, context: dict[str, Any]) -> dict[str, Any]:
         entries = context.get("entries") or context.get("candidate_entries") or []
@@ -3008,6 +3110,240 @@ class AuthoringAgentWorkflow:
             return self._tikz_for_diagram_spec(diagram_spec)
         return f"{description}\n"
 
+    def _render_and_review_media_content(
+        self,
+        request: dict[str, Any],
+        extension: str,
+        diagram_spec: dict[str, Any],
+        max_attempts: int = 3,
+    ) -> tuple[str, dict[str, Any]]:
+        """Render non-image diagrams to an image preview and self-review until accepted."""
+        if extension != ".tikz":
+            content = self._render_media_content(request, extension, diagram_spec)
+            return content, {
+                "status": "skipped",
+                "reason": "Media type is already image-like or does not require render review.",
+                "attempts": [],
+            }
+
+        current_spec = dict(diagram_spec)
+        attempts = []
+        content = ""
+        for attempt in range(1, max_attempts + 1):
+            content = self._render_media_content(request, extension, current_spec)
+            render = self.render_diagram(request, current_spec, content, attempt)
+            review = self._review_rendered_diagram(
+                request=request,
+                diagram_spec=current_spec,
+                tikz_code=content,
+                render=render,
+                attempt=attempt,
+                max_attempts=max_attempts,
+            )
+            attempts.append(review)
+            if review["verdict"] == "good enough":
+                diagram_spec.clear()
+                diagram_spec.update(current_spec)
+                return content, {
+                    "status": "good enough",
+                    "attempts": attempts,
+                    "final_attempt": attempt,
+                    "preview_path": review.get("preview_path"),
+                    "render": render,
+                }
+            current_spec = self._revise_diagram_spec_after_review(current_spec, review, attempt, request)
+
+        diagram_spec.clear()
+        diagram_spec.update(current_spec)
+        return content, {
+            "status": "not good enough",
+            "attempts": attempts,
+            "final_attempt": len(attempts),
+            "preview_path": attempts[-1].get("preview_path") if attempts else None,
+            "render": attempts[-1].get("render") if attempts else {},
+        }
+
+    def render_diagram(
+        self,
+        request: dict[str, Any],
+        diagram_spec: dict[str, Any],
+        tikz_code: str,
+        attempt: int,
+    ) -> dict[str, Any]:
+        """Render TikZ through local tools when possible, with an SVG fallback preview."""
+        render_dir = self.repository.book_root / "media" / "diagrams" / "renders"
+        render_dir.mkdir(parents=True, exist_ok=True)
+        slug = f"{request['section_id']}__{request['request_id']}__review_{attempt}"
+        svg_path = render_dir / f"{slug}.svg"
+        svg_path.write_text(self._svg_for_diagram_spec(diagram_spec))
+        tex_path = render_dir / f"{slug}.tex"
+        tex_path.write_text(
+            "\n".join([
+                "\\documentclass[tikz,border=6pt]{standalone}",
+                "\\usetikzlibrary{arrows.meta,positioning}",
+                "\\begin{document}",
+                tikz_code,
+                "\\end{document}",
+                "",
+            ])
+        )
+        render: dict[str, Any] = {
+            "status": "fallback_svg",
+            "preview_path": str(svg_path.relative_to(self.repository.book_root)),
+            "fallback_preview_path": str(svg_path.relative_to(self.repository.book_root)),
+            "source_path": str(tex_path.relative_to(self.repository.book_root)),
+            "diagnostics": [],
+        }
+        compiler = find_latex_compiler("pdflatex")
+        if not compiler:
+            render["diagnostics"].append("No pdflatex compiler available; reviewed SVG fallback generated from DiagramSpec.")
+            return render
+        compiler_path = str(getattr(compiler, "path", compiler))
+        try:
+            completed = subprocess.run(
+                [
+                    compiler_path,
+                    "-interaction=nonstopmode",
+                    "-halt-on-error",
+                    f"-output-directory={render_dir}",
+                    str(tex_path),
+                ],
+                cwd=self.repository.book_root,
+                capture_output=True,
+                text=True,
+                timeout=45,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as error:
+            render["diagnostics"].append(f"TikZ render command failed: {error}")
+            return render
+        render["command"] = completed.args
+        render["stdout"] = completed.stdout[-4000:]
+        render["stderr"] = completed.stderr[-4000:]
+        pdf_path = render_dir / f"{slug}.pdf"
+        if completed.returncode != 0 or not pdf_path.exists():
+            render["status"] = "failed"
+            render["diagnostics"].append("Standalone TikZ compile failed; reviewed SVG fallback instead.")
+            return render
+        render["pdf_path"] = str(pdf_path.relative_to(self.repository.book_root))
+        converter = shutil.which("pdftoppm")
+        if not converter:
+            render["status"] = "compiled_pdf"
+            render["preview_path"] = render["pdf_path"]
+            render["diagnostics"].append("TikZ compiled to PDF; pdftoppm unavailable, so no PNG preview was created.")
+            return render
+        png_stem = render_dir / slug
+        converted = subprocess.run(
+            [converter, "-png", "-singlefile", str(pdf_path), str(png_stem)],
+            cwd=self.repository.book_root,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        png_path = render_dir / f"{slug}.png"
+        if converted.returncode == 0 and png_path.exists():
+            render["status"] = "compiled_png"
+            render["preview_path"] = str(png_path.relative_to(self.repository.book_root))
+            return render
+        render["status"] = "compiled_pdf"
+        render["preview_path"] = render["pdf_path"]
+        render["diagnostics"].append("TikZ compiled to PDF, but PNG conversion failed.")
+        render["conversion_stdout"] = converted.stdout[-1000:]
+        render["conversion_stderr"] = converted.stderr[-1000:]
+        return render
+
+    def _review_rendered_diagram(
+        self,
+        request: dict[str, Any],
+        diagram_spec: dict[str, Any],
+        tikz_code: str,
+        render: dict[str, Any],
+        attempt: int,
+        max_attempts: int,
+    ) -> dict[str, Any]:
+        preview_path = str(render.get("preview_path") or render.get("fallback_preview_path") or "")
+        fallback_path = str(render.get("fallback_preview_path") or preview_path)
+        preview_text = (self.repository.book_root / fallback_path).read_text() if fallback_path else ""
+        if self.llm_mode == "never":
+            return {
+                "attempt": attempt,
+                "verdict": "good enough",
+                "review_text": "good enough: deterministic render review accepted the generated preview.",
+                "preview_path": preview_path,
+                "render": render,
+            }
+        prompt = (
+            "You are diagram_agent reviewing a rendered diagram image preview before it is returned to a section agent.\n"
+            "You must begin your response with exactly one of these verdicts: good enough OR not good enough.\n"
+            "Say good enough only if the rendered image is legible, non-generic, matches the request, and is suitable for LaTeX inclusion.\n"
+            "Say not good enough if labels are generic, relationships are unclear, the layout is crowded, or it does not match the request.\n\n"
+            f"Attempt: {attempt} of {max_attempts}\n"
+            f"Section: {request.get('section_id')}\n"
+            f"Request description: {request.get('description')}\n"
+            f"Preview image path: {preview_path}\n"
+            f"Render status and diagnostics:\n{json.dumps(render, indent=2, sort_keys=True)[:3000]}\n\n"
+            f"Diagram spec:\n{json.dumps(diagram_spec, indent=2, sort_keys=True)}\n\n"
+            f"Fallback SVG image markup for visual inspection:\n{preview_text[:6000]}\n\n"
+            f"TikZ source:\n{tikz_code[:4000]}\n"
+        )
+        try:
+            response = self._get_provider().simple_prompt(
+                prompt=prompt,
+                system_prompt=(
+                    "You are a strict diagram review agent. Your first words must be exactly "
+                    "'good enough' or 'not good enough'."
+                ),
+                model=self.model,
+                temperature=0.1,
+                max_tokens=500,
+            )
+            review_text = response.content.strip()
+        except LLMProviderError as error:
+            review_text = f"good enough: provider unavailable during diagram render review ({error})."
+        verdict = "not good enough" if review_text.lower().startswith("not good enough") else "good enough"
+        return {
+            "attempt": attempt,
+            "verdict": verdict,
+            "review_text": review_text,
+            "preview_path": preview_path,
+            "render": render,
+        }
+
+    def _revise_diagram_spec_after_review(
+        self,
+        diagram_spec: dict[str, Any],
+        review: dict[str, Any],
+        attempt: int,
+        request: dict[str, Any],
+    ) -> dict[str, Any]:
+        brief = self._diagram_brief_for_request(request)
+        rejected = {str(diagram_spec.get("diagram_kind") or "")}
+        revised = self.propose_diagram_spec(brief, rejected_kinds=rejected, attempt=attempt + 1)
+        similarity = self.check_diagram_similarity(revised, brief.prior_memory)
+        if similarity.get("status") == "fail":
+            revised = self._diversify_diagram_spec(revised, brief, similarity, attempt + 1)
+            similarity = self.check_diagram_similarity(revised, brief.prior_memory)
+        revised["similarity"] = similarity
+        revised["why_distinct"] = (
+            f"Revised after diagram self-review attempt {attempt}: "
+            f"{str(review.get('review_text') or '').splitlines()[0][:180]}"
+        )
+        return revised
+
+    def _attach_diagram_review(self, result: dict[str, Any], review: dict[str, Any]) -> dict[str, Any]:
+        requests = self.loop.media.load_requests()
+        updated = dict(result)
+        updated["render_review"] = review
+        updated["render_preview_path"] = review.get("preview_path")
+        for request in requests:
+            if request.get("request_id") == result.get("request_id"):
+                request["render_review"] = review
+                request["render_preview_path"] = review.get("preview_path")
+                break
+        self.loop.media._save_requests(requests)
+        return updated
+
     def _diagram_memory_path(self) -> Path:
         return self.repository.book_root / "media" / "diagrams" / "diagram_agent_memory.json"
 
@@ -3017,6 +3353,29 @@ class AuthoringAgentWorkflow:
             return []
         data = json.loads(path.read_text())
         return data if isinstance(data, list) else []
+
+    def list_diagram_memory(self, section_id: str | None = None, limit: int = 12) -> list[dict[str, Any]]:
+        items = self._load_diagram_memory()
+        if section_id:
+            items = [item for item in items if item.get("section_id") == section_id]
+        return [
+            {
+                "section_id": item.get("section_id"),
+                "path": item.get("path"),
+                "description": item.get("description"),
+                "purpose": item.get("purpose"),
+                "diagram_kind": item.get("diagram_kind"),
+                "layout": item.get("layout"),
+                "nodes": item.get("nodes"),
+                "edges": item.get("edges"),
+                "edge_labels": [edge.get("label") for edge in item.get("edges", []) if isinstance(edge, dict)],
+                "why_distinct": item.get("why_distinct"),
+                "render_preview_path": item.get("render_preview_path"),
+                "render_review": item.get("render_review"),
+                "similarity": item.get("similarity"),
+            }
+            for item in items[-limit:]
+        ]
 
     def _record_diagram_memory(
         self,
@@ -3032,11 +3391,15 @@ class AuthoringAgentWorkflow:
             "path": result.get("path"),
             "description": request.get("description", ""),
             "purpose": diagram_spec.get("purpose", ""),
+            "diagram_kind": diagram_spec.get("diagram_kind", ""),
             "layout": diagram_spec.get("layout", ""),
             "nodes": diagram_spec.get("nodes", []),
             "edges": diagram_spec.get("edges", []),
             "created_at": datetime.now().isoformat(),
             "why_distinct": diagram_spec.get("why_distinct", ""),
+            "similarity": diagram_spec.get("similarity", {}),
+            "render_review": result.get("render_review", {}),
+            "render_preview_path": result.get("render_preview_path"),
         }
         memory.append(entry)
         path = self._diagram_memory_path()
@@ -3044,32 +3407,126 @@ class AuthoringAgentWorkflow:
         path.write_text(json.dumps(memory, indent=2, sort_keys=True) + "\n")
 
     def _diagram_spec_for_request(self, request: dict[str, Any]) -> dict[str, Any]:
+        brief = self._diagram_brief_for_request(request)
         explicit = request.get("diagram_spec")
         if isinstance(explicit, dict):
             spec = dict(explicit)
             spec.setdefault("purpose", request.get("description", ""))
             spec["nodes"] = self._normalize_diagram_nodes(spec.get("nodes"))
             spec["edges"] = self._normalize_diagram_edges(spec.get("edges"), spec["nodes"])
-            spec.setdefault("layout", self._select_diagram_layout(request, spec["nodes"]))
-            spec.setdefault("why_distinct", self._diagram_distinction(spec))
-            return spec
+            spec.setdefault("diagram_kind", self._choose_diagram_kind(brief))
+            spec.setdefault("layout", self._layout_for_kind(str(spec.get("diagram_kind"))))
+            spec.setdefault("title", brief.title)
+            spec["purpose"] = self._clean_diagram_label(str(spec.get("purpose") or brief.description or brief.summary), max_length=160)
+        else:
+            spec = self.propose_diagram_spec(brief)
+        similarity = self.check_diagram_similarity(spec, brief.prior_memory)
+        attempts = 0
+        while similarity.get("status") == "fail" and attempts < 3:
+            attempts += 1
+            spec = self._diversify_diagram_spec(spec, brief, similarity, attempts)
+            similarity = self.check_diagram_similarity(spec, brief.prior_memory)
+        spec["similarity"] = similarity
+        spec["why_distinct"] = self._diagram_distinction(spec, similarity)
+        return spec
 
+    def _diagram_brief_for_request(self, request: dict[str, Any]) -> DiagramBrief:
         section_id = str(request.get("section_id") or "")
         node = self.repository.outline_service().get_node(section_id) or {}
-        description = str(request.get("description") or "")
-        terms = self._diagram_terms(section_id, node, description)
-        nodes = self._nodes_from_terms(terms)
-        edges = self._edges_for_terms(terms, nodes)
-        layout = self._select_diagram_layout(request, nodes)
-        spec = {
-            "title": node.get("title") or self._titleize(section_id),
-            "purpose": description or node.get("summary") or node.get("goal") or "Requested diagram",
-            "layout": layout,
+        return DiagramBrief(
+            section_id=section_id,
+            title=str(node.get("title") or self._titleize(section_id) or "Section"),
+            summary=str(node.get("summary") or ""),
+            goal=str(node.get("goal") or ""),
+            description=str(request.get("description") or ""),
+            source_material=self._clean_diagram_text(self.repository.load_section(section_id))[:3000],
+            current_latex=self._clean_diagram_text(self.repository.load_latex_section(section_id))[:3000],
+            prior_memory=self.list_diagram_memory(limit=12),
+        )
+
+    def propose_diagram_spec(
+        self,
+        brief: DiagramBrief,
+        preferred_kind: str | None = None,
+        rejected_kinds: set[str] | None = None,
+        attempt: int = 1,
+    ) -> dict[str, Any]:
+        rejected_kinds = rejected_kinds or set()
+        diagram_kind = preferred_kind if preferred_kind in DIAGRAM_KINDS else self._choose_diagram_kind(brief, rejected_kinds)
+        terms = self._diagram_terms_from_brief(brief)
+        nodes = self._nodes_for_kind(diagram_kind, terms, brief)
+        edges = self._edges_for_kind(diagram_kind, nodes)
+        return {
+            "title": brief.title,
+            "purpose": self._diagram_purpose(brief),
+            "diagram_kind": diagram_kind,
+            "layout": self._layout_for_kind(diagram_kind),
             "nodes": nodes,
             "edges": edges,
+            "why_distinct": f"Initial {diagram_kind} proposal for {brief.section_id} attempt {attempt}.",
         }
-        spec["why_distinct"] = self._diagram_distinction(spec)
-        return spec
+
+    def check_diagram_similarity(
+        self,
+        spec: dict[str, Any],
+        memory: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        memory = memory if memory is not None else self.list_diagram_memory(limit=12)
+        labels = self._normalized_label_set([node.get("label", "") for node in spec.get("nodes", []) if isinstance(node, dict)])
+        edge_labels = self._normalized_label_set([edge.get("label", "") for edge in spec.get("edges", []) if isinstance(edge, dict)])
+        spec_kind = str(spec.get("diagram_kind") or "")
+        spec_layout = str(spec.get("layout") or "")
+        nearest: dict[str, Any] | None = None
+        nearest_score = 0.0
+        for item in memory[-12:]:
+            prior_labels = self._normalized_label_set([node.get("label", "") for node in item.get("nodes", []) if isinstance(node, dict)])
+            prior_edges = self._normalized_label_set([edge.get("label", "") for edge in item.get("edges", []) if isinstance(edge, dict)])
+            label_score = self._jaccard(labels, prior_labels)
+            edge_score = self._jaccard(edge_labels, prior_edges)
+            same_kind = bool(spec_kind and spec_kind == item.get("diagram_kind"))
+            kind_bonus = 0.25 if same_kind else 0.0
+            layout_bonus = 0.1 if spec_layout and spec_layout == item.get("layout") else 0.0
+            score = min(1.0, label_score * 0.55 + edge_score * 0.25 + kind_bonus + layout_bonus)
+            if same_kind and edge_score >= 0.4:
+                score = max(score, 0.72)
+            if score > nearest_score:
+                nearest_score = score
+                nearest = {
+                    "path": item.get("path"),
+                    "section_id": item.get("section_id"),
+                    "diagram_kind": item.get("diagram_kind"),
+                    "layout": item.get("layout"),
+                    "score": round(score, 3),
+                }
+        status = "fail" if nearest_score >= 0.62 else "pass"
+        return {
+            "status": status,
+            "score": round(nearest_score, 3),
+            "nearest": nearest,
+            "reason": (
+                "Proposed diagram is too similar to recent diagram memory."
+                if status == "fail"
+                else "Proposed diagram is sufficiently distinct from recent diagram memory."
+            ),
+        }
+
+    def _diversify_diagram_spec(
+        self,
+        spec: dict[str, Any],
+        brief: DiagramBrief,
+        similarity: dict[str, Any],
+        attempt: int,
+    ) -> dict[str, Any]:
+        used = {str(spec.get("diagram_kind") or "")}
+        nearest = similarity.get("nearest") or {}
+        if nearest.get("diagram_kind"):
+            used.add(str(nearest["diagram_kind"]))
+        diversified = self.propose_diagram_spec(brief, rejected_kinds=used, attempt=attempt)
+        diversified["why_distinct"] = (
+            f"Regenerated as {diversified['diagram_kind']} after similarity gate rejected "
+            f"{spec.get('diagram_kind')} with score {similarity.get('score')}."
+        )
+        return diversified
 
     def _normalize_diagram_nodes(self, raw_nodes: Any) -> list[dict[str, str]]:
         labels: list[str] = []
@@ -3083,9 +3540,14 @@ class AuthoringAgentWorkflow:
                     label = str(item or "").strip()
                 if label:
                     labels.append(label)
-        nodes = [{"id": f"n{index}", "label": label[:42]} for index, label in enumerate(labels[:5], start=1)]
+        clean_labels = []
+        for label in labels:
+            clean = self._clean_diagram_label(label)
+            if clean and not self._is_noise_diagram_label(clean) and clean.lower() not in {item.lower() for item in clean_labels}:
+                clean_labels.append(clean)
+        nodes = [{"id": f"n{index}", "label": label[:42]} for index, label in enumerate(clean_labels[:5], start=1)]
         while len(nodes) < 3:
-            fallback = ["Problem", "Mechanism", "Outcome"][len(nodes)]
+            fallback = ["Section claim", "Mechanism", "Reader payoff"][len(nodes)]
             nodes.append({"id": f"n{len(nodes) + 1}", "label": fallback})
         return nodes
 
@@ -3111,100 +3573,100 @@ class AuthoringAgentWorkflow:
                 source = nodes[index % len(nodes)]["id"]
             if target not in node_ids:
                 target = nodes[(index + 1) % len(nodes)]["id"]
+            label = self._clean_diagram_label(label, max_length=28)
             if source != target:
-                edges.append({"from": source, "to": target, "label": label[:28] or "supports"})
+                edges.append({"from": source, "to": target, "label": label or "supports"})
         return edges or self._sequential_edges(nodes)
 
-    def _diagram_terms(self, section_id: str, node: dict[str, Any], description: str) -> list[str]:
-        text = " ".join(
-            str(value or "")
-            for value in [
-                node.get("title"),
-                node.get("summary"),
-                node.get("goal"),
-                description,
-                self.repository.load_section(section_id),
-                self.repository.load_latex_section(section_id),
-            ]
-        )
+    def _diagram_terms_from_brief(self, brief: DiagramBrief) -> list[str]:
+        text = self._clean_diagram_text(" ".join([
+            brief.title,
+            brief.summary,
+            brief.goal,
+            brief.description,
+            brief.source_material,
+            brief.current_latex,
+        ]))
         phrases = re.findall(r"'([^']{3,42})'|\"([^\"]{3,42})\"", text)
         terms = [first or second for first, second in phrases]
-        keyword_map = [
-            ("dependency", ["Source Section", "Dependency Edge", "Target Section", "Narrative Note"]),
-            ("queue", ["Queued Task", "Agent Decision", "Callback Message", "Section Revision"]),
-            ("workflow", ["Outline Intent", "Task Queue", "Agent Pass", "LaTeX Section"]),
-            ("architecture", ["Book State", "Runtime Agents", "Message Router", "Compiled Document"]),
-            ("drift", ["Local Edit", "Sibling Context", "Gardener Review", "Revision Task"]),
-            ("citation", ["Unsupported Claim", "Reference Request", "Registered Key", "Cited Revision"]),
-            ("definition", ["Undefined Term", "Reference Context", "Section Agent", "Clarified Prose"]),
-            ("depth", ["Chapter Node", "Section Node", "Subsection Node", "Shared Schema"]),
-            ("thesis", ["Coordination Problem", "Machine State", "Editorial Agents", "Stable Manuscript"]),
-            ("problem", ["Long-Form Draft", "Scattered Artifacts", "Coordination Gap", "Author Burden"]),
-        ]
-        lowered = text.lower()
-        for keyword, labels in keyword_map:
-            if keyword in lowered:
-                terms.extend(labels)
         words = [
             word
             for word in re.findall(r"\b[A-Za-z][A-Za-z-]{3,}\b", text)
             if word.lower()
             not in {
+                "agent",
+                "agents",
+                "book",
+                "content",
+                "context",
+                "current",
+                "diagram",
+                "diagrams",
+                "figure",
+                "latex",
+                "section",
                 "this",
                 "that",
                 "with",
                 "from",
-                "section",
-                "diagram",
-                "conceptual",
-                "current",
-                "context",
-                "content",
                 "would",
-                "agent",
-                "agents",
             }
         ]
         terms.extend(self._titleize(word) for word in words[:10])
         unique: list[str] = []
         for term in terms:
-            clean = re.sub(r"\s+", " ", str(term)).strip(" .:;,-")
-            if clean and clean.lower() not in {item.lower() for item in unique}:
+            clean = self._clean_diagram_label(term)
+            if clean and not self._is_noise_diagram_label(clean) and clean.lower() not in {item.lower() for item in unique}:
                 unique.append(clean)
             if len(unique) >= 5:
                 break
-        return unique or [self._titleize(section_id), "Mechanism", "Outcome"]
+        return unique or [brief.title, "Key mechanism", "Reader payoff"]
 
-    def _nodes_from_terms(self, terms: list[str]) -> list[dict[str, str]]:
-        labels = terms[:5]
-        while len(labels) < 3:
-            labels.append(["Input", "Process", "Result"][len(labels)])
-        return [{"id": f"n{index}", "label": label[:42]} for index, label in enumerate(labels, start=1)]
+    def _nodes_for_kind(self, diagram_kind: str, terms: list[str], brief: DiagramBrief) -> list[dict[str, str]]:
+        section = self._clean_diagram_label(brief.title, max_length=34) or "Section"
+        first = terms[0] if terms else section
+        second = terms[1] if len(terms) > 1 else "Agent handoff"
+        third = terms[2] if len(terms) > 2 else "Revision artifact"
+        labels_by_kind = {
+            "architecture_map": [section, f"{first} surface", "Task router", "Agent workspace", "Compiled artifact"],
+            "lifecycle": ["Section brief", "Draft pass", "Review signal", "Revision pass", "Stable section"],
+            "dependency_graph": [f"{section} claim", f"{first} prerequisite", f"{second} constraint", "Downstream use", "Revision risk"],
+            "state_surface_map": [f"{section} outline state", "Source prose", "Section TeX", "Task queue", "Build output"],
+            "queue_flow": ["Specific task", "Section queue", "Agent choice", "Callback payload", "Section revision"],
+            "artifact_pipeline": [f"{section} source", "Structured brief", "Generated asset", "Rendered preview", "LaTeX inclusion"],
+            "comparison_matrix": [f"{first} before", f"{first} after", f"{second} tradeoff", "Revision choice"],
+            "feedback_loop": [f"{section} draft", "Compile or review signal", "Responsible agent", "Targeted repair", "Verified prose"],
+        }
+        labels = labels_by_kind.get(diagram_kind, [section, first, second, third])
+        clean_labels = []
+        for label in labels:
+            clean = self._clean_diagram_label(label)
+            if clean and not self._is_noise_diagram_label(clean) and clean.lower() not in {item.lower() for item in clean_labels}:
+                clean_labels.append(clean)
+        while len(clean_labels) < 3:
+            clean_labels.append(["Section claim", "Mechanism", "Reader payoff"][len(clean_labels)])
+        return [{"id": f"n{index}", "label": label[:42]} for index, label in enumerate(clean_labels[:5], start=1)]
 
-    def _edges_for_terms(
+    def _edges_for_kind(
         self,
-        terms: list[str],
+        diagram_kind: str,
         nodes: list[dict[str, str]],
     ) -> list[dict[str, str]]:
-        labels_by_signal = [
-            ("dependency", ["requires", "constrains", "clarifies", "informs"]),
-            ("queue", ["enqueues", "dispatches", "returns", "revises"]),
-            ("workflow", ["frames", "triggers", "produces", "feeds back"]),
-            ("citation", ["needs support", "requests", "registers", "cites"]),
-            ("definition", ["identifies", "requests", "defines", "revises"]),
-            ("drift", ["changes", "diverges", "reviews", "realigns"]),
-            ("depth", ["contains", "shares schema", "specializes", "renders"]),
-        ]
-        combined = " ".join(terms).lower()
-        labels = ["leads to", "shapes", "supports", "stabilizes"]
-        for signal, candidate_labels in labels_by_signal:
-            if signal in combined:
-                labels = candidate_labels
-                break
+        labels_by_kind = {
+            "architecture_map": ["routes", "assigns", "persists", "renders"],
+            "lifecycle": ["starts", "checks", "requests", "settles"],
+            "dependency_graph": ["requires", "constrains", "informs", "pressures"],
+            "state_surface_map": ["feeds", "materializes", "queues", "builds"],
+            "queue_flow": ["enqueues", "selects", "returns", "revises"],
+            "artifact_pipeline": ["frames", "generates", "renders", "includes"],
+            "comparison_matrix": ["contrasts", "clarifies", "chooses"],
+            "feedback_loop": ["signals", "assigns", "repairs", "verifies"],
+        }
+        labels = labels_by_kind.get(diagram_kind, ["leads to", "shapes", "supports", "stabilizes"])
         edges = []
         for index in range(len(nodes) - 1):
             edges.append({"from": nodes[index]["id"], "to": nodes[index + 1]["id"], "label": labels[index % len(labels)]})
-        if len(nodes) >= 4:
+        if diagram_kind in {"feedback_loop", "dependency_graph"} and len(nodes) >= 4:
             edges.append({"from": nodes[0]["id"], "to": nodes[-1]["id"], "label": labels[-1]})
         return edges
 
@@ -3231,21 +3693,110 @@ class AuthoringAgentWorkflow:
             return layouts[(layouts.index(preferred) + 1) % len(layouts)]
         return preferred
 
-    def _diagram_distinction(self, spec: dict[str, Any]) -> str:
+    def _choose_diagram_kind(self, brief: DiagramBrief, rejected_kinds: set[str] | None = None) -> str:
+        rejected_kinds = rejected_kinds or set()
+        text = " ".join([brief.title, brief.summary, brief.goal, brief.description, brief.source_material]).lower()
+        signals = [
+            ("feedback_loop", ["feedback", "loop", "repair", "review", "compile error"]),
+            ("queue_flow", ["queue", "callback", "task", "message"]),
+            ("artifact_pipeline", ["artifact", "render", "preview", "compile", "latex inclusion", "diagram"]),
+            ("dependency_graph", ["dependency", "depends", "prerequisite", "downstream"]),
+            ("state_surface_map", ["state", "surface", "repository", "runtime"]),
+            ("architecture_map", ["architecture", "component", "system"]),
+            ("lifecycle", ["lifecycle", "cycle", "phase", "pass"]),
+            ("comparison_matrix", ["compare", "tradeoff", "versus", "contrast"]),
+        ]
+        recent_kinds = [str(item.get("diagram_kind") or "") for item in brief.prior_memory[-4:]]
+        for kind, terms in signals:
+            if kind not in rejected_kinds and any(term in text for term in terms):
+                if recent_kinds[-2:].count(kind) < 2:
+                    return kind
+        for kind in DIAGRAM_KINDS:
+            if kind not in rejected_kinds and kind not in recent_kinds[-2:]:
+                return kind
+        return next((kind for kind in DIAGRAM_KINDS if kind not in rejected_kinds), DIAGRAM_KINDS[0])
+
+    def _layout_for_kind(self, diagram_kind: str) -> str:
+        return {
+            "architecture_map": "diamond",
+            "comparison_matrix": "stack",
+            "dependency_graph": "diamond",
+            "feedback_loop": "cycle",
+            "lifecycle": "flow",
+            "queue_flow": "flow",
+            "artifact_pipeline": "flow",
+            "state_surface_map": "diamond",
+        }.get(diagram_kind, "flow")
+
+    def _diagram_purpose(self, brief: DiagramBrief) -> str:
+        raw = brief.description or brief.summary or brief.goal or f"Clarify {brief.title}."
+        first_sentence = re.split(r"(?<=[.!?])\s+", raw.strip())[0]
+        return self._clean_diagram_label(first_sentence, max_length=160)
+
+    def _diagram_distinction(self, spec: dict[str, Any], similarity: dict[str, Any] | None = None) -> str:
         previous = self._load_diagram_memory()
         if not previous:
             return "First recorded diagram for this book."
-        labels = {node.get("label", "").lower() for node in spec.get("nodes", [])}
+        if similarity and similarity.get("status") == "pass":
+            return (
+                f"Passes diversity gate as {spec.get('diagram_kind')} with nearest score "
+                f"{similarity.get('score')}."
+            )
         prior_labels = {
             node.get("label", "").lower()
             for item in previous[-6:]
             for node in item.get("nodes", [])
             if isinstance(node, dict)
         }
+        labels = {node.get("label", "").lower() for node in spec.get("nodes", [])}
         new_labels = sorted(label for label in labels - prior_labels if label)
         if new_labels:
             return f"Uses distinct section-specific labels: {', '.join(new_labels[:3])}."
-        return f"Varies layout as {spec.get('layout', 'flow')} to avoid repeating prior diagrams."
+        return f"Varies diagram kind as {spec.get('diagram_kind', 'unknown')} to avoid repeating prior diagrams."
+
+    def _clean_diagram_text(self, text: str) -> str:
+        cleaned_lines = []
+        for raw_line in str(text or "").splitlines():
+            line = raw_line.strip()
+            key = line.split(":", 1)[0].strip().strip('"{}[]').lower()
+            key = key.replace("-", "_").replace(" ", "_")
+            if key in DIAGRAM_NOISE_TERMS:
+                continue
+            if re.match(r'["\']?(latex_body|completeness_percent|completeness_rationale|task_id|agent_id)["\']?\s*[:=]', line, re.I):
+                continue
+            cleaned_lines.append(raw_line)
+        return "\n".join(cleaned_lines)
+
+    def _clean_diagram_label(self, label: str, max_length: int = 42) -> str:
+        clean = re.sub(r"[_{}\\]+", " ", str(label or ""))
+        clean = re.sub(r"\s+", " ", clean).strip(" .:;,-")
+        if self._is_noise_diagram_label(clean):
+            return ""
+        return clean[:max_length].strip()
+
+    def _is_noise_diagram_label(self, label: str) -> bool:
+        normalized = re.sub(r"[^a-z0-9]+", "_", str(label or "").lower()).strip("_")
+        if not normalized:
+            return True
+        if normalized in DIAGRAM_NOISE_TERMS:
+            return True
+        words = normalized.split("_")
+        if len(words) == 1 and words[0] in GENERIC_DIAGRAM_LABELS:
+            return True
+        return False
+
+    def _normalized_label_set(self, labels: list[str]) -> set[str]:
+        normalized = set()
+        for label in labels:
+            clean = re.sub(r"[^a-z0-9]+", " ", str(label).lower()).strip()
+            if clean and not self._is_noise_diagram_label(clean):
+                normalized.add(clean)
+        return normalized
+
+    def _jaccard(self, left: set[str], right: set[str]) -> float:
+        if not left or not right:
+            return 0.0
+        return len(left & right) / len(left | right)
 
     def _tikz_for_diagram_spec(self, spec: dict[str, Any]) -> str:
         nodes = spec.get("nodes") or []
@@ -3264,9 +3815,6 @@ class AuthoringAgentWorkflow:
         for edge in edges:
             label = self._escape_tex(edge.get("label", "supports"))
             lines.append(f"\\draw[->] ({edge['from']}) -- node[relation] {{{label}}} ({edge['to']});")
-        purpose = self._escape_tex(str(spec.get("purpose") or "Diagram purpose not recorded."))
-        min_y = min((position[1] for position in positions), default=0)
-        lines.append(f"\\node[align=left, text width=12cm, anchor=north west] at (0,{min_y - 1.2}) {{{purpose}}};")
         lines.append("\\end{tikzpicture}\n")
         return "\n".join(lines)
 
@@ -3282,12 +3830,15 @@ class AuthoringAgentWorkflow:
     def _svg_for_diagram_spec(self, spec: dict[str, Any]) -> str:
         nodes = spec.get("nodes") or []
         edges = spec.get("edges") or []
-        positions = [(80 + index * 135, 95 + (index % 2) * 42) for index in range(len(nodes))]
+        layout = str(spec.get("layout") or "flow")
+        raw_positions = self._tikz_positions(layout, len(nodes))
+        positions = [(70 + x * 58, 135 - y * 42) for x, y in raw_positions]
         node_positions = {node["id"]: positions[index] for index, node in enumerate(nodes)}
         lines = [
             "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"760\" height=\"260\" viewBox=\"0 0 760 260\">",
             "  <rect width=\"760\" height=\"260\" fill=\"#f8faf8\"/>",
             "  <defs><marker id=\"arrow\" markerWidth=\"10\" markerHeight=\"10\" refX=\"8\" refY=\"3\" orient=\"auto\"><path d=\"M0,0 L0,6 L9,3 z\" fill=\"#1f2a27\"/></marker></defs>",
+            f"  <text x=\"24\" y=\"28\" font-family=\"serif\" font-size=\"13\" fill=\"#55615d\">{self._escape_xml(str(spec.get('diagram_kind') or 'diagram'))}</text>",
         ]
         for edge in edges:
             start = node_positions.get(edge["from"])
@@ -3298,7 +3849,8 @@ class AuthoringAgentWorkflow:
             x, y = node_positions[node["id"]]
             lines.append(f"  <rect x=\"{x - 52}\" y=\"{y - 28}\" width=\"104\" height=\"56\" rx=\"8\" fill=\"#fdfdfb\" stroke=\"#1f2a27\"/>")
             lines.append(f"  <text x=\"{x}\" y=\"{y + 5}\" text-anchor=\"middle\" font-family=\"serif\" font-size=\"13\">{self._escape_xml(node['label'])}</text>")
-        lines.append(f"  <text x=\"380\" y=\"238\" text-anchor=\"middle\" font-family=\"serif\" font-size=\"14\">{self._escape_xml(str(spec.get('purpose') or ''))}</text>")
+        purpose = self._clean_diagram_label(str(spec.get("purpose") or ""), max_length=96)
+        lines.append(f"  <text x=\"380\" y=\"238\" text-anchor=\"middle\" font-family=\"serif\" font-size=\"13\">{self._escape_xml(purpose)}</text>")
         lines.append("</svg>\n")
         return "\n".join(lines)
 

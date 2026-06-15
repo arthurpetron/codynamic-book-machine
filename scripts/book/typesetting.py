@@ -468,6 +468,7 @@ class LatexBuildService:
         output = re.sub(r"(\.t)\s*\n\s*(ex:\d+:)", r"\1\2", output)
         output = re.sub(r"(TeX capacity)\s*\n\s*(exceeded)", r"\1 \2", output)
         output = re.sub(r"(Fatal er)\s*\n\s*(ror occurred)", r"\1\2", output)
+        output = re.sub(r"(Missing \$ ins)\s*\n\s*(erted)", r"\1\2", output)
         lines = output.splitlines()
         for index, line in enumerate(lines):
             if line.startswith("!"):

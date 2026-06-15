@@ -1,0 +1,29 @@
+\documentclass[11pt]{article}
+\title{How the Codynamic Book Machine Works}
+\author{Arthur Petron}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta}
+\usepackage{hyperref}
+\graphicspath{{media/}{media/diagrams/}{images/}{artwork/}}
+
+\begin{document}
+
+\section*{Global Drift and Hypervisor Escalation}
+
+The gardener does not treat every inconsistency as a local defect. When a change reveals a mismatch that spans multiple sections---for example, a definition that has shifted, a repeated claim that now appears in several places, or a transition that no longer matches the surrounding argument---the issue is escalated as \emph{global drift}. In that case, the gardener assembles a concise list of the affected section agents and forwards it to the hypervisor, rather than sending isolated revision requests one by one.
+
+This escalation step matters because coordinated revision is a different problem from ordinary maintenance. A single section agent can repair a thin transition, add a missing explanation, or tighten a paragraph in place. But when the same conceptual change must be reflected across several sections, the manuscript needs a higher-level decision about ordering, scope, and consistency. The hypervisor is the agent that can see the affected set as a whole and direct the revision sequence so that one section does not silently reintroduce drift into another.
+
+The gardener's report to the hypervisor is therefore structured around impact, not just symptoms. It identifies which section agents are implicated, what kind of mismatch has been detected, and why the issue cannot be resolved safely as a purely local edit. That list becomes the basis for coordinated follow-up: the hypervisor can route revision tasks to the relevant section agents, preserve the intended narrative order, and ensure that shared terminology, dependencies, and downstream references are updated together.
+
+A useful way to think about this handoff is as a compact affected-agent set. The gardener is not merely saying that something is wrong; it is naming the manuscript region that must move together. For example, if a definition introduced in one section has been revised, the gardener may include the defining section, the sections that reuse the term, and the current section in the same escalation. The hypervisor can then decide whether the defining section should be revised first, whether dependent sections should wait for that revision, or whether the whole cluster should be updated in a single coordinated pass.
+
+In practice, this makes global drift a manuscript-level control signal. Local editorial checks keep individual sections clean, but hypervisor escalation keeps the book coherent when the same change must propagate across the outline. The result is a maintenance loop that can distinguish between a paragraph-level repair and a coordinated revision campaign, using the gardener to detect the former and the hypervisor to orchestrate the latter. That distinction is what prevents a local fix from becoming a new source of inconsistency elsewhere in the chapter.
+
+The section therefore closes the chapter's maintenance story by showing where ordinary gardening stops. Section-level revision is enough when the problem is isolated. Once the mismatch crosses section boundaries, the gardener stops patching piecemeal and hands the hypervisor a bounded list of affected agents so the revision can be scheduled as one coherent operation.
+
+
+\end{document}

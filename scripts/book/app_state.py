@@ -47,7 +47,7 @@ class BookAppState:
             "references": self._references(work),
             "knowledgeGraph": self.repository.knowledge_graph().analyze().as_dict(),
             "compile": self._latest_compile(),
-            "verification": VerificationHistory(self.book_root).load()[-20:],
+            "verification": self._verification_events(),
         }
 
     def section_payload(self, section_id: str) -> dict[str, Any]:
@@ -262,7 +262,9 @@ class BookAppState:
                 repair_agent_id = f"{AGENT_IDS['section']}__{repair_section_id}" if repair_section_id else ""
             if not repair_agent_id:
                 continue
-            latest_task = self._runtime_task_by_id(workflow, repair_agent_id, repair_task.get("task_id")) or repair_task
+            latest_task = self._runtime_task_by_id(workflow, repair_agent_id, repair_task.get("task_id"))
+            if not latest_task:
+                continue
             if latest_task.get("status") != "pending":
                 continue
             executed_repairs.append(
@@ -396,9 +398,20 @@ class BookAppState:
         attempts = []
         current_result = initial_result
         for attempt in range(1, max_attempts + 1):
-            self._activate_hypervisor_for_compile_error(current_result, [section_id], "section")
-            repair = self._run_compile_fix_section_agent(section_id, current_result, attempt, max_attempts)
-            retry = LatexBuildService(self.book_root).compile_section(section_id).as_dict()
+            current_result = self._compile_result_with_responsible_sections(current_result, [section_id])
+            self._route_compile_failure_to_hypervisor(
+                current_result,
+                [section_id],
+                "section",
+                queue_repairs=False,
+            )
+            urgent = self._run_urgent_hypervisor_task()
+            repair = (urgent or {}).get("sectionAgent")
+            retry = (urgent or {}).get("retryCompile")
+            if not retry:
+                repair = self._run_compile_fix_section_agent(section_id, current_result, attempt, max_attempts)
+                retry = LatexBuildService(self.book_root).compile_section(section_id).as_dict()
+            retry = self._compile_result_with_responsible_sections(retry, [section_id])
             AuthoringLoop(self.book_root).history.record_event(
                 event_type="section_compile_repair_attempt",
                 agent_id="desktop_app",
@@ -408,11 +421,13 @@ class BookAppState:
                 metadata={
                     "compile": retry,
                     "repair_task_id": (repair.get("task") or {}).get("task_id"),
+                    "hypervisor_urgent_task_id": ((urgent or {}).get("urgent") or {}).get("task", {}).get("task_id"),
                 },
             )
             attempts.append({
                 "attempt": attempt,
                 "repair": repair,
+                "hypervisor": self._urgent_compile_repair_summary(urgent),
                 "compile": retry,
             })
             current_result = retry
@@ -451,13 +466,24 @@ class BookAppState:
         current_result = initial_result
         for attempt in range(1, max_attempts + 1):
             target_ids = self._compile_repair_targets(current_result)
-            self._activate_hypervisor_for_compile_error(current_result, target_ids, "book")
+            current_result = self._compile_result_with_responsible_sections(current_result, target_ids)
             if not target_ids:
                 break
-            repairs = []
-            for section_id in target_ids:
-                repairs.append(self._run_compile_fix_section_agent(section_id, current_result, attempt, max_attempts))
-            retry = LatexBuildService(self.book_root).compile_book().as_dict()
+            self._route_compile_failure_to_hypervisor(
+                current_result,
+                target_ids,
+                "book",
+                queue_repairs=False,
+            )
+            urgent = self._run_urgent_hypervisor_task()
+            repairs = (urgent or {}).get("executedRepairs") or []
+            retry = (urgent or {}).get("retryCompile")
+            if not retry:
+                repairs = []
+                for section_id in target_ids:
+                    repairs.append(self._run_compile_fix_section_agent(section_id, current_result, attempt, max_attempts))
+                retry = LatexBuildService(self.book_root).compile_book().as_dict()
+            retry = self._compile_result_with_responsible_sections(retry, target_ids)
             AuthoringLoop(self.book_root).history.record_event(
                 event_type="book_compile_repair_attempt",
                 agent_id="desktop_app",
@@ -468,12 +494,14 @@ class BookAppState:
                     "compile": retry,
                     "target_section_ids": target_ids,
                     "repair_task_ids": [(repair.get("task") or {}).get("task_id") for repair in repairs],
+                    "hypervisor_urgent_task_id": ((urgent or {}).get("urgent") or {}).get("task", {}).get("task_id"),
                 },
             )
             attempts.append({
                 "attempt": attempt,
                 "target_section_ids": target_ids,
                 "repairs": repairs,
+                "hypervisor": self._urgent_compile_repair_summary(urgent),
                 "compile": retry,
             })
             current_result = retry
@@ -488,6 +516,43 @@ class BookAppState:
         if responsible_ids:
             return list(dict.fromkeys(responsible_ids))
         return []
+
+    def _compile_result_with_responsible_sections(
+        self,
+        compile_result: dict[str, Any],
+        fallback_section_ids: list[str],
+    ) -> dict[str, Any]:
+        result = dict(compile_result or {})
+        ids = list(dict.fromkeys(result.get("responsible_section_ids") or fallback_section_ids or []))
+        if ids:
+            titles = result.get("responsible_section_titles") or []
+            if len(titles) < len(ids):
+                title_map = {
+                    section_id: (self.repository.outline_service().get_node(section_id) or {}).get("title", section_id)
+                    for section_id in ids
+                }
+                titles = [title_map.get(section_id, section_id) for section_id in ids]
+            result["responsible_section_ids"] = ids
+            result["responsible_section_titles"] = titles
+            if result.get("status") == "failed" and not result.get("diagnostic_summary"):
+                first_error = (result.get("errors") or ["See the compile log for details."])[0]
+                result["diagnostic_summary"] = f"Compile failed in {', '.join(titles)}: {first_error}"
+        return result
+
+    def _urgent_compile_repair_summary(self, urgent: dict[str, Any] | None) -> dict[str, Any] | None:
+        if not urgent:
+            return None
+        urgent_task = (urgent.get("urgent") or {}).get("task") or {}
+        retry = urgent.get("retryCompile") or {}
+        return {
+            "phase": urgent.get("phase"),
+            "complete": urgent.get("complete"),
+            "task_id": urgent_task.get("task_id"),
+            "executed_repair_count": len(urgent.get("executedRepairs") or []),
+            "retry_status": retry.get("status"),
+            "responsible_section_ids": retry.get("responsible_section_ids") or [],
+            "responsible_section_titles": retry.get("responsible_section_titles") or [],
+        }
 
     def _run_compile_fix_section_agent(
         self,
@@ -1391,8 +1456,53 @@ Requirements:
         if chat_path.exists():
             lines = [line for line in chat_path.read_text().splitlines() if line.strip()]
             if lines:
-                return lines[-40:]
+                return [self._truncate_display_line(line) for line in lines[-40:]]
         return ["desktop_app --> book: Loaded canonical book state."]
+
+    def _truncate_display_line(self, line: str, max_chars: int = 600) -> str:
+        if len(line) <= max_chars:
+            return line
+        return f"{line[:max_chars].rstrip()} ... [truncated {len(line) - max_chars} chars]"
+
+    def _verification_events(self) -> list[dict[str, Any]]:
+        events = VerificationHistory(self.book_root).load()[-20:]
+        return [self._verification_event_summary(event) for event in events]
+
+    def _verification_event_summary(self, event: dict[str, Any]) -> dict[str, Any]:
+        metadata = event.get("metadata") or {}
+        summary_metadata = {
+            key: metadata[key]
+            for key in (
+                "completeness_percent",
+                "completeness_rationale",
+                "selected_section_ids",
+                "target_section_ids",
+                "repair_task_id",
+                "repair_task_ids",
+                "hypervisor_urgent_task_id",
+            )
+            if key in metadata
+        }
+        compile_result = metadata.get("compile")
+        if isinstance(compile_result, dict):
+            summary_metadata["compile"] = {
+                "status": compile_result.get("status"),
+                "errors": (compile_result.get("errors") or [])[:3],
+                "diagnostic_summary": compile_result.get("diagnostic_summary"),
+                "responsible_section_ids": compile_result.get("responsible_section_ids") or [],
+                "responsible_section_titles": compile_result.get("responsible_section_titles") or [],
+                "log_path": compile_result.get("log_path"),
+            }
+        return {
+            "event_id": event.get("event_id"),
+            "event_type": event.get("event_type"),
+            "agent_id": event.get("agent_id"),
+            "subject": event.get("subject"),
+            "status": event.get("status"),
+            "rationale": event.get("rationale"),
+            "created_at": event.get("created_at"),
+            "metadata": summary_metadata,
+        }
 
     def _agent_status(self) -> dict[str, Any]:
         runtime = self._agent_runtime_state()

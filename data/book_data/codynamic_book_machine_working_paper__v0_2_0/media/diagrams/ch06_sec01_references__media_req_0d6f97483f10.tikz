@@ -1,0 +1,15 @@
+\begin{tikzpicture}[>=stealth, node distance=2.2cm,
+  concept/.style={draw, rounded corners, align=center, text width=3.1cm, minimum height=1cm},
+  relation/.style={font=\scriptsize, fill=white, inner sep=1pt}]
+\node[concept] (n1) at (0,0) {Reference Ownership and Citation Support};
+\node[concept] (n2) at (3.4,1.2) {latex\_body};
+\node[concept] (n3) at (6.8,0) {completeness\_percent};
+\node[concept] (n4) at (3.4,-1.2) {completeness\_rationale};
+\node[concept] (n5) at (10.2,0) {Queued Task};
+\draw[->] (n1) -- node[relation] {enqueues} (n2);
+\draw[->] (n2) -- node[relation] {dispatches} (n3);
+\draw[->] (n3) -- node[relation] {returns} (n4);
+\draw[->] (n4) -- node[relation] {revises} (n5);
+\draw[->] (n1) -- node[relation] {revises} (n5);
+\node[align=left, text width=12cm, anchor=north west] at (0,-2.4) {Conceptual diagram for 'Reference Ownership and Citation Support': Explain why references\_agent owns references/references.bib, how section agents verify registered keys, and how missing support is routed.};
+\end{tikzpicture}

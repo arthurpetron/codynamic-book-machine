@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fallbackState, getElectronApi } from "../api/electronApi";
-import type { BookAppState, CompileResult, DocumentStyle, HypervisorPhase, SectionPayload } from "../api/types";
+import type { BookAppState, CompileResult, DocumentStyle, HypervisorPhase, OutlineConversationMessage, SectionPayload } from "../api/types";
 
 export type WorkspaceTab = "editor" | "agents" | "references";
+export type AppMode = "book" | "outlineConversation";
 export type SectionAgentRunState = "working" | "idle";
 export interface CompileHistoryItem {
   id: string;
@@ -17,6 +18,7 @@ export function useBookStore() {
   const api = useMemo(() => getElectronApi(), []);
   const hasNativeApi = typeof window !== "undefined" && Boolean(window.cbm);
   const [state, setState] = useState<BookAppState>(fallbackState);
+  const [appMode, setAppMode] = useState<AppMode>("book");
   const [selectedId, setSelectedId] = useState<string | null>(hasNativeApi ? null : (fallbackState.selectedId ?? null));
   const [selectedSection, setSelectedSection] = useState<SectionPayload | null>(hasNativeApi ? null : (fallbackState.selectedSection ?? null));
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("editor");
@@ -307,6 +309,32 @@ export function useBookStore() {
     }
   }, [api, loadState, addActivity]);
 
+  const openOutlineConversation = useCallback(() => {
+    setAppMode("outlineConversation");
+    addActivity("File -> Conversation", "Opened outline conversation workspace.");
+  }, [addActivity]);
+
+  const closeOutlineConversation = useCallback(() => {
+    setAppMode("book");
+    addActivity("Conversation -> Book", "Returned to book workspace.");
+  }, [addActivity]);
+
+  const createBookFromOutlineConversation = useCallback(async (
+    messages: OutlineConversationMessage[],
+    useLlm: "auto" | "always" | "never" = "auto"
+  ) => {
+    addActivity("Conversation -> Outline", "Synthesizing outline from conversation.");
+    const result = await api.app.createBookFromOutlineConversation(messages, useLlm);
+    if (result.error) {
+      addActivity("Conversation -> Outline", `Outline creation failed: ${result.error}`);
+      return result;
+    }
+    addActivity("Conversation -> Book", result.message || `Created ${result.record?.book_id ?? "new book"} from conversation.`);
+    setAppMode("book");
+    await loadState(null);
+    return result;
+  }, [api, loadState, addActivity]);
+
   const compileSection = useCallback(async (content: string) => {
     if (!selectedId) {
       return;
@@ -396,6 +424,7 @@ export function useBookStore() {
       loadState(null);
     });
     api.app.onLibraryMessage(({ message }) => addActivity("Library -> Book", message));
+    api.app.onNewOutlineConversation(() => openOutlineConversation());
   }, []);
 
   useEffect(() => {
@@ -410,6 +439,7 @@ export function useBookStore() {
 
   return {
     api,
+    appMode,
     state,
     selectedId,
     selectedSection,
@@ -435,6 +465,9 @@ export function useBookStore() {
     updateOutlineNode,
     importOutline,
     createVersionFromOutline,
+    openOutlineConversation,
+    closeOutlineConversation,
+    createBookFromOutlineConversation,
     compileSection,
     compileBook,
     requestReview,
