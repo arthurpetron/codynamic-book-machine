@@ -538,6 +538,31 @@ def test_section_agent_can_draft_with_provider_and_record_usage(tmp_path):
     assert proposal.metadata["llm"]["tokens_used"] == 123
 
 
+def test_section_agent_provider_calls_reuse_session_context(tmp_path):
+    repository = create_book(tmp_path)
+    provider = RecordingProvider()
+    workflow = AuthoringAgentWorkflow(
+        repository.book_root,
+        llm_mode="always",
+        provider=provider,
+        model="mock-section-model",
+    )
+
+    workflow.draft_section("intro")
+    workflow.draft_section(
+        "intro",
+        action_id="revise_section_from_feedback",
+        task_context={"feedback": "Tighten the opening claim."},
+    )
+
+    assert len(provider.calls) == 2
+    assert provider.calls[0]["prompt"].startswith("Draft a LaTeX section payload")
+    assert "Persistent session context for this agent" in provider.calls[1]["prompt"]
+    session = workflow.session_store.load("section_agent__intro")
+    assert session.token_total == 246
+    assert len(session.messages) == 4
+
+
 def test_queued_revision_uses_specific_feedback_in_provider_prompt(tmp_path):
     repository = create_book(tmp_path)
     repository.save_latex_section("intro", "Existing LaTeX body that should be preserved.\n")

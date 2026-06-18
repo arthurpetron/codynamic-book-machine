@@ -16,7 +16,8 @@ from typing import Any
 
 import yaml
 
-from scripts.api import LLMProvider, LLMProviderError, get_provider
+from scripts.agents.session import AgentSessionStore
+from scripts.api import LLMProvider, LLMProviderError, LLMResponse, get_provider
 from scripts.book.authoring import AuthoringLoop, EditProposal
 from scripts.book.repository import BookRepository
 from scripts.book.typesetting import CompileResult, LatexBuildService
@@ -474,6 +475,7 @@ class AuthoringAgentWorkflow:
         self.model = model
         self.loop = AuthoringLoop(self.book_root, mode=mode)
         self.runtime = AgentRuntimeRegistry(self.repository)
+        self.session_store = AgentSessionStore(self.book_root / "logs" / "agent_sessions")
         self.commit_log = AgentCommitLog(self.book_root)
         self.message_router = MessageRouter(log_dir=self.book_root / "logs" / "message_log")
 
@@ -800,10 +802,24 @@ class AuthoringAgentWorkflow:
             return {"agent_id": agent_id, "status": "idle", "task": None}
 
         self.runtime.mark_task(agent_id, task["task_id"], "running")
+        self.session_store.record_event(
+            agent_id,
+            "task_started",
+            task_id=task["task_id"],
+            action_id=task.get("action_id"),
+            metadata={"context": task.get("context") or {}},
+        )
         try:
             result = self._dispatch_agent_task(agent_id, task)
         except Exception as exc:
             failed = self.runtime.mark_task(agent_id, task["task_id"], "failed", error=str(exc))
+            self.session_store.record_event(
+                agent_id,
+                "task_failed",
+                task_id=task["task_id"],
+                action_id=task.get("action_id"),
+                metadata={"error": str(exc)},
+            )
             self.commit_log.record(
                 AGENT_IDS["hypervisor"],
                 "task_failed",
@@ -814,6 +830,13 @@ class AuthoringAgentWorkflow:
             raise
 
         completed = self.runtime.mark_task(agent_id, task["task_id"], "complete", result=result)
+        self.session_store.record_event(
+            agent_id,
+            "task_completed",
+            task_id=task["task_id"],
+            action_id=task.get("action_id"),
+            metadata={"result": result},
+        )
         self.commit_log.record(
             agent_id,
             "task_complete",
@@ -1793,6 +1816,7 @@ class AuthoringAgentWorkflow:
     def _dispatch_agent_task(self, agent_id: str, task: dict[str, Any]) -> dict[str, Any]:
         action_id = task.get("action_id")
         context = task.get("context") or {}
+        task_context = {**context, "task_id": task.get("task_id")}
         if action_id == "process_message":
             return self._process_agent_message_task(agent_id, task)
         if agent_id == AGENT_IDS["hypervisor"]:
@@ -1808,7 +1832,7 @@ class AuthoringAgentWorkflow:
             if action_id == "plan_section_work":
                 return self._plan_section_work(section_id, agent_id, context)
             if action_id == "draft_initial_section":
-                proposal = self.draft_section(section_id, action_id=action_id, task_context=context)
+                proposal = self.draft_section(section_id, action_id=action_id, task_context=task_context)
                 return {
                     "proposal_id": proposal.proposal_id,
                     "target_path": proposal.target_path,
@@ -1824,7 +1848,7 @@ class AuthoringAgentWorkflow:
             if action_id == "do_research_on_the_web":
                 return self._research_references_for_section(section_id, context)
             if action_id in {"revise_section_from_feedback", "fix_latex_compile_error"}:
-                proposal = self.draft_section(section_id, action_id=action_id, task_context=context)
+                proposal = self.draft_section(section_id, action_id=action_id, task_context=task_context)
                 return {
                     "proposal_id": proposal.proposal_id,
                     "target_path": proposal.target_path,
@@ -2411,7 +2435,6 @@ class AuthoringAgentWorkflow:
                 existing = self.repository.load_latex_section(node.get("id", "")).strip()
                 return (existing + "\n") if existing else self._section_tex(node, graph_node), None
             return self._section_tex(node, graph_node), None
-        provider = self._get_provider()
         prompt = (
             self._section_revision_prompt(node, graph_node, action_id, task_context)
             if action_id in {"revise_section_from_feedback", "fix_latex_compile_error"}
@@ -2429,9 +2452,13 @@ class AuthoringAgentWorkflow:
             "Do not wrap the answer in Markdown fences. Preserve proposal-first discipline: "
             "write draft content for human review, not final claims of completion."
         )
-        response = provider.simple_prompt(
+        section_id = node.get("id", "")
+        response = self._call_agent_provider(
+            f"{AGENT_IDS['section']}__{section_id}",
             prompt=prompt,
             system_prompt=system_prompt,
+            action_id=action_id,
+            task_id=task_context.get("task_id"),
             model=self.model,
             temperature=0.2 if action_id in {"revise_section_from_feedback", "fix_latex_compile_error"} else 0.35,
             max_tokens=2200,
@@ -2900,6 +2927,57 @@ class AuthoringAgentWorkflow:
         if self._provider is None:
             self._provider = get_provider(self.provider_name, default_model=self.model)
         return self._provider
+
+    def _call_agent_provider(
+        self,
+        agent_id: str,
+        *,
+        prompt: str,
+        system_prompt: str,
+        action_id: str | None = None,
+        task_id: str | None = None,
+        **kwargs: Any,
+    ) -> LLMResponse:
+        """Call an LLM provider with durable per-agent session context."""
+        provider = self._get_provider()
+        messages = self.session_store.build_messages(
+            agent_id,
+            system_prompt=system_prompt,
+            user_prompt=prompt,
+        )
+        call = getattr(provider, "call", None)
+        if callable(call):
+            response = call(messages=messages, **kwargs)
+        else:
+            response = provider.simple_prompt(
+                prompt=self._prompt_with_session_context(messages, prompt),
+                system_prompt=system_prompt,
+                **kwargs,
+            )
+        self.session_store.record_exchange(
+            agent_id,
+            user_prompt=prompt,
+            response=response,
+            task_id=task_id,
+            action_id=action_id,
+            metadata={"provider_kwargs": kwargs},
+        )
+        return response
+
+    def _prompt_with_session_context(self, messages: list[Any], prompt: str) -> str:
+        prior = [
+            f"{message.role}: {message.content}"
+            for message in messages[1:-1]
+            if getattr(message, "content", "").strip()
+        ]
+        if not prior:
+            return prompt
+        return (
+            "Persistent session context for this agent:\n"
+            + "\n\n".join(prior)
+            + "\n\nCurrent task:\n"
+            + prompt
+        )
 
     def _section_draft_prompt(self, node: dict[str, Any], graph_node: dict[str, Any]) -> str:
         section_id = node.get("id", "")

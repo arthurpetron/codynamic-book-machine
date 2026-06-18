@@ -1,6 +1,0 @@
-\begin{tikzpicture}[node distance=3cm,>=stealth]
-\node[draw, rounded corners] (a) {Context};
-\node[draw, rounded corners, right of=a] (b) {Section};
-\draw[->] (a) -- node[above] {request} (b);
-\node[below=1cm of a, text width=8cm] {Conceptual diagram for 'Structural and Narrative Dependencies': Describe machine-readable dependency edges and human-readable narrative dependency notes.};
-\end{tikzpicture}

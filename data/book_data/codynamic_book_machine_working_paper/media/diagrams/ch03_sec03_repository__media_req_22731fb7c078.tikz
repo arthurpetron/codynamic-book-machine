@@ -1,6 +1,0 @@
-\begin{tikzpicture}[node distance=3cm,>=stealth]
-\node[draw, rounded corners] (a) {Context};
-\node[draw, rounded corners, right of=a] (b) {Section};
-\draw[->] (a) -- node[above] {request} (b);
-\node[below=1cm of a, text width=8cm] {Conceptual diagram for 'Book Repository Layout': Describe outline files, content sections, TeX payloads, logs, build artifacts, media requests, and artifact registry.};
-\end{tikzpicture}

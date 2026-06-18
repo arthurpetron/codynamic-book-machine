@@ -88,6 +88,42 @@ class ConversationOutlineService:
             model=str(metadata.get("conversation_outline_model") or "fallback"),
         )
 
+    def reply(
+        self,
+        messages: list[dict[str, Any]],
+        use_llm: str | bool = "auto",
+    ) -> str:
+        """Return the next conversational response for outline discovery."""
+        transcript = self._transcript(messages)
+        if use_llm != "never":
+            try:
+                return self._reply_with_llm(transcript)
+            except LLMProviderError:
+                if use_llm == "always":
+                    raise
+            except Exception:
+                if use_llm == "always":
+                    raise
+        return self._reply_deterministically(messages)
+
+    def _reply_with_llm(self, transcript: str) -> str:
+        provider = self.provider or get_provider_with_fallback()
+        response = provider.simple_prompt(
+            prompt=(
+                "Continue this outline-discovery conversation for a new book.\n"
+                "Ask one useful next question or, if enough has been supplied, say that the outline can be created now.\n"
+                "Do not repeat a question already asked. Keep the response under 120 words.\n\n"
+                f"Conversation transcript:\n{transcript[:16000]}"
+            ),
+            system_prompt=(
+                "You are a concise Socratic outlining partner inside the Codynamic Book Machine. "
+                "You help the author clarify title, audience, scope, structure, sources, diagrams, constraints, and desired output."
+            ),
+            temperature=0.35,
+            max_tokens=260,
+        )
+        return response.content.strip()
+
     def _synthesize_with_llm(self, transcript: str) -> dict[str, Any]:
         provider = self.provider or get_provider_with_fallback()
         prompt = (
@@ -176,6 +212,63 @@ class ConversationOutlineService:
         work.setdefault("diagrams", [])
         work.setdefault("media", [])
         return self._normalize(canonical)
+
+    def _reply_deterministically(self, messages: list[dict[str, Any]]) -> str:
+        transcript = self._transcript(messages).lower()
+        asked = "\n".join(
+            str(item.get("content") or "").lower()
+            for item in messages
+            if str(item.get("role") or "").lower() == "assistant"
+        )
+        checks = [
+            (
+                "audience",
+                ["audience", "reader", "readers", "for technical", "for beginners", "for experts"],
+                ["who is the reader", "who is it for", "primary reader", "what level"],
+                "Who is the primary reader, and what level of pool or billiards knowledge should the book assume?",
+            ),
+            (
+                "scope",
+                ["apa", "bca", "english", "snooker", "poker", "games", "rules"],
+                ["which rulesets", "which games", "mandatory", "what book are we making"],
+                "Which rulesets or games are mandatory, and which can be treated as optional variants or appendices?",
+            ),
+            (
+                "structure",
+                ["chapter", "section", "part", "structure", "organize"],
+                ["how should the book be organized", "major parts", "chapters"],
+                "How should the book be organized: by governing body, by game family, by table/equipment type, or by learning path?",
+            ),
+            (
+                "research",
+                ["research", "source", "citation", "official", "reference"],
+                ["source standard", "rules conflict", "official governing"],
+                "What source standard should the book use when rules conflict: official governing-body rules, common house rules, or both with clear labels?",
+            ),
+            (
+                "visuals",
+                ["diagram", "figure", "table", "chart", "visual"],
+                ["visual aids", "rack diagrams", "table layouts"],
+                "What visual aids should be planned: rack diagrams, table layouts, foul/penalty tables, comparison matrices, or shot examples?",
+            ),
+            (
+                "voice",
+                ["voice", "style", "tone", "practical", "reference", "guide"],
+                ["finished book read", "rules reference", "teaching guide"],
+                "Should the finished book read like a rules reference, a teaching guide, a comparative encyclopedia, or a player handbook?",
+            ),
+        ]
+        for key, signals, asked_markers, question in checks:
+            if key in asked or any(marker in asked for marker in asked_markers):
+                continue
+            if not any(signal in transcript for signal in signals):
+                return question
+        if "create" not in asked and "outline" not in asked:
+            return (
+                "I have enough to create a first outline. Before you press the button, add any must-include games, "
+                "official sources, or house-rule boundaries that should not be lost."
+            )
+        return "That gives me enough context. Press Create Outline from Conversation when you want me to turn this transcript into the book outline."
 
     def _normalize(self, outline: dict[str, Any]) -> dict[str, Any]:
         if isinstance(outline.get("work"), dict):

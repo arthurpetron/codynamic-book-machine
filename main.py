@@ -406,6 +406,17 @@ def cmd_app(args):
             print(json.dumps(payload, indent=2, sort_keys=True))
             return 0
 
+        if args.app_command == "outline-conversation-reply":
+            from scripts.book import ConversationOutlineService
+
+            messages = json.loads(Path(args.messages_file).read_text())
+            service = ConversationOutlineService(args.book_data_dir)
+            payload = {
+                "reply": service.reply(messages, use_llm=args.use_llm),
+            }
+            print(json.dumps(payload, indent=2, sort_keys=True))
+            return 0
+
         if args.app_command == "archive-book":
             payload = library.archive_book(args.book_id).__dict__
             print(json.dumps(payload, indent=2, sort_keys=True))
@@ -1120,6 +1131,19 @@ Examples:
     )
     app_conversation_outline.add_argument('--tags', default='conversation-outline')
     app_conversation_outline.set_defaults(func=cmd_app)
+
+    app_conversation_reply = app_subparsers.add_parser(
+        'outline-conversation-reply',
+        help='Return the next assistant reply for an outline conversation'
+    )
+    app_conversation_reply.add_argument('--messages-file', required=True)
+    app_conversation_reply.add_argument(
+        '--use-llm',
+        choices=['auto', 'always', 'never'],
+        default='auto',
+        help='Whether to call an LLM for the conversational reply'
+    )
+    app_conversation_reply.set_defaults(func=cmd_app)
 
     app_archive = app_subparsers.add_parser('archive-book', help='Archive a registered book')
     app_archive.add_argument('book_id')

@@ -177,6 +177,30 @@ class TestAgentController(unittest.TestCase):
         self.assertEqual(messages[0].role, "system")
         self.assertEqual(messages[1].role, "user")
         self.assertIn("test_value", messages[1].content)
+
+    def test_execute_action_reuses_persistent_session_context(self):
+        """Test that a later action receives prior session messages."""
+        controller = AgentController(
+            agent_yaml_path=str(self.agent_yaml_path),
+            agent_id="test_session_001",
+            provider=self.mock_provider,
+            data_root=self.data_root
+        )
+        self.mock_provider.call.side_effect = [
+            LLMResponse(content="First answer", model="test-model", provider="mock", tokens_used=10),
+            LLMResponse(content="Second answer", model="test-model", provider="mock", tokens_used=12),
+        ]
+        controller.activate_pre_operational()
+
+        controller.execute_action("test_action", {"param1": "first"})
+        controller.execute_action("simple_action")
+
+        second_messages = self.mock_provider.call.call_args_list[1][1]["messages"]
+        self.assertGreaterEqual(len(second_messages), 4)
+        self.assertTrue(any(message.role == "assistant" and "First answer" in message.content for message in second_messages))
+        session = controller.session_store.load("test_session_001")
+        self.assertEqual(session.token_total, 22)
+        self.assertEqual(len(session.messages), 4)
     
     def test_execute_invalid_action(self):
         """Test execution of non-existent action"""

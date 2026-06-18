@@ -243,7 +243,8 @@ class LatexAssembler:
         """Return section body without a duplicated leading heading command."""
         content = self.repository.load_latex_section(section_id)
         content = self._unwrap_latex_payload(content)
-        return self._strip_leading_heading(content, title)
+        content = self._strip_leading_heading(content, title)
+        return self._strip_wrapping_environment(content, {"appendices"})
 
     def _unwrap_latex_payload(self, content: str) -> str:
         stripped = content.strip()
@@ -275,13 +276,25 @@ class LatexAssembler:
 
     def _strip_leading_heading(self, content: str, title: str) -> str:
         stripped = content.lstrip()
-        pattern = re.compile(r"^\\(?:section|subsection|subsubsection|paragraph)\*?\{([^{}]*)\}\s*", re.DOTALL)
+        pattern = re.compile(r"^\\(?:part|chapter|section|subsection|subsubsection|paragraph)\*?\{([^{}]*)\}\s*", re.DOTALL)
         match = pattern.match(stripped)
         if not match:
             return content
         heading = match.group(1).strip()
         if not title or heading == title or self._normalize_heading(heading) == self._normalize_heading(title):
             return stripped[match.end():].lstrip()
+        return content
+
+    def _strip_wrapping_environment(self, content: str, environment_names: set[str]) -> str:
+        stripped = content.strip()
+        for name in environment_names:
+            pattern = re.compile(
+                rf"^\\begin\{{{re.escape(name)}\}}\s*(.*?)\s*\\end\{{{re.escape(name)}\}}\s*$",
+                re.DOTALL,
+            )
+            match = pattern.match(stripped)
+            if match:
+                return match.group(1).strip() + "\n"
         return content
 
     def _normalize_heading(self, value: str) -> str:
@@ -467,6 +480,8 @@ class LatexBuildService:
         errors = []
         output = re.sub(r"(\.t)\s*\n\s*(ex:\d+:)", r"\1\2", output)
         output = re.sub(r"(TeX capacity)\s*\n\s*(exceeded)", r"\1 \2", output)
+        output = re.sub(r"(Undefined control seque)\s*\n\s*(nce)", r"\1\2", output)
+        output = re.sub(r"(LaTeX Error: Environmen)\s*\n\s*(t)", r"\1\2", output)
         output = re.sub(r"(Fatal er)\s*\n\s*(ror occurred)", r"\1\2", output)
         output = re.sub(r"(Missing \$ ins)\s*\n\s*(erted)", r"\1\2", output)
         lines = output.splitlines()

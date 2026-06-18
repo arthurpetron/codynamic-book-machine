@@ -22,10 +22,10 @@ from scripts.agents.lifecycle import (
     OUTPUT_MUTATION_STATES,
     AgentLifecycleState,
 )
+from scripts.agents.session import AgentSessionStore
 from scripts.api import (
     get_provider,
     get_provider_with_fallback,
-    Message,
     LLMResponse,
     LLMProvider,
     LLMProviderError
@@ -79,6 +79,7 @@ class AgentController:
         self.data_root = Path(data_root) if data_root else Path("data")
         self.agent_state_dir = self.data_root / "agent_state" / agent_id
         self.agent_state_dir.mkdir(parents=True, exist_ok=True)
+        self.session_store = AgentSessionStore(self.data_root / "agent_sessions")
         
         # Load agent definition
         self.agent_def = self._load_agent_definition()
@@ -283,10 +284,11 @@ class AgentController:
         system_prompt = self._build_system_prompt(action_id=action_id, action_context=context)
         
         # Execute via provider
-        messages = [
-            Message(role="system", content=system_prompt),
-            Message(role="user", content=prompt)
-        ]
+        messages = self.session_store.build_messages(
+            self.agent_id,
+            system_prompt=system_prompt,
+            user_prompt=prompt,
+        )
         
         logger.info(f"[{self.agent_id}] Executing action: {action_id}")
         
@@ -295,6 +297,13 @@ class AgentController:
                 messages=messages,
                 temperature=0.7,
                 max_tokens=2000
+            )
+            self.session_store.record_exchange(
+                self.agent_id,
+                user_prompt=prompt,
+                response=response,
+                action_id=action_id,
+                metadata={"context": context},
             )
             
             logger.info(f"[{self.agent_id}] Action completed: {action_id} ({response.tokens_used} tokens)")

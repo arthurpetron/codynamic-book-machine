@@ -1,6 +1,0 @@
-\begin{tikzpicture}[node distance=3cm,>=stealth]
-\node[draw, rounded corners] (a) {Context};
-\node[draw, rounded corners, right of=a] (b) {Section};
-\draw[->] (a) -- node[above] {request} (b);
-\node[below=1cm of a, text width=8cm] {Conceptual diagram for 'Messaging and Runtime Memory': Explain routed messages, subscriptions, durable logs, task prompts, agent runtime registry, and coordination records.};
-\end{tikzpicture}

@@ -405,13 +405,29 @@ class BookAppState:
                 "section",
                 queue_repairs=False,
             )
-            urgent = self._run_urgent_hypervisor_task()
+            urgent = None
+            urgent_error = ""
+            try:
+                urgent = self._run_urgent_hypervisor_task()
+            except Exception as exc:
+                urgent_error = str(exc)
             repair = (urgent or {}).get("sectionAgent")
             retry = (urgent or {}).get("retryCompile")
             if not retry:
-                repair = self._run_compile_fix_section_agent(section_id, current_result, attempt, max_attempts)
+                try:
+                    repair = self._run_compile_fix_section_agent(section_id, current_result, attempt, max_attempts)
+                except Exception as exc:
+                    repair = {
+                        "section_id": section_id,
+                        "action_id": "fix_latex_compile_error",
+                        "status": "failed",
+                        "error": str(exc),
+                    }
                 retry = LatexBuildService(self.book_root).compile_section(section_id).as_dict()
             retry = self._compile_result_with_responsible_sections(retry, [section_id])
+            if urgent_error:
+                retry.setdefault("errors", [])
+                retry["errors"] = list(dict.fromkeys([*retry["errors"], f"Repair dispatch failed: {urgent_error}"]))
             AuthoringLoop(self.book_root).history.record_event(
                 event_type="section_compile_repair_attempt",
                 agent_id="desktop_app",
@@ -428,7 +444,8 @@ class BookAppState:
                 "attempt": attempt,
                 "repair": repair,
                 "hypervisor": self._urgent_compile_repair_summary(urgent),
-                "compile": retry,
+                "error": urgent_error or (repair.get("error") if isinstance(repair, dict) else ""),
+                "compile": self._compile_attempt_snapshot(retry),
             })
             current_result = retry
             if retry.get("status") == "passed":
@@ -475,15 +492,31 @@ class BookAppState:
                 "book",
                 queue_repairs=False,
             )
-            urgent = self._run_urgent_hypervisor_task()
+            urgent = None
+            urgent_error = ""
+            try:
+                urgent = self._run_urgent_hypervisor_task()
+            except Exception as exc:
+                urgent_error = str(exc)
             repairs = (urgent or {}).get("executedRepairs") or []
             retry = (urgent or {}).get("retryCompile")
             if not retry:
                 repairs = []
                 for section_id in target_ids:
-                    repairs.append(self._run_compile_fix_section_agent(section_id, current_result, attempt, max_attempts))
+                    try:
+                        repairs.append(self._run_compile_fix_section_agent(section_id, current_result, attempt, max_attempts))
+                    except Exception as exc:
+                        repairs.append({
+                            "section_id": section_id,
+                            "action_id": "fix_latex_compile_error",
+                            "status": "failed",
+                            "error": str(exc),
+                        })
                 retry = LatexBuildService(self.book_root).compile_book().as_dict()
             retry = self._compile_result_with_responsible_sections(retry, target_ids)
+            if urgent_error:
+                retry.setdefault("errors", [])
+                retry["errors"] = list(dict.fromkeys([*retry["errors"], f"Repair dispatch failed: {urgent_error}"]))
             AuthoringLoop(self.book_root).history.record_event(
                 event_type="book_compile_repair_attempt",
                 agent_id="desktop_app",
@@ -502,7 +535,8 @@ class BookAppState:
                 "target_section_ids": target_ids,
                 "repairs": repairs,
                 "hypervisor": self._urgent_compile_repair_summary(urgent),
-                "compile": retry,
+                "error": urgent_error,
+                "compile": self._compile_attempt_snapshot(retry),
             })
             current_result = retry
             if retry.get("status") == "passed":
@@ -510,6 +544,13 @@ class BookAppState:
                 return retry
         current_result["repair_loop"] = {"status": "failed", "attempts": attempts}
         return current_result
+
+    def _compile_attempt_snapshot(self, compile_result: dict[str, Any]) -> dict[str, Any]:
+        return {
+            key: value
+            for key, value in dict(compile_result or {}).items()
+            if key != "repair_loop"
+        }
 
     def _compile_repair_targets(self, compile_result: dict[str, Any]) -> list[str]:
         responsible_ids = compile_result.get("responsible_section_ids") or []

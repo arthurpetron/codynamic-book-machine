@@ -82,6 +82,27 @@ def test_assembler_creates_full_book_and_section_tex(tmp_path):
     assert "This is section text with $x$." in section_tex
 
 
+def test_assembler_strips_leading_chapter_heading_from_section_payload(tmp_path):
+    repository = create_book(tmp_path)
+    repository.save_latex_section("intro", "\\chapter{Introduction}\n\nThis body should remain.\n")
+
+    full_tex = repository.latex_builder().assembler.assemble_book()
+
+    assert "\\chapter{Introduction}" not in full_tex
+    assert "This body should remain." in full_tex
+
+
+def test_assembler_strips_wrapping_appendices_environment_from_section_payload(tmp_path):
+    repository = create_book(tmp_path)
+    repository.save_latex_section("intro", "\\begin{appendices}\n\nAppendix body.\n\n\\end{appendices}\n")
+
+    full_tex = repository.latex_builder().assembler.assemble_book()
+
+    assert "\\begin{appendices}" not in full_tex
+    assert "\\end{appendices}" not in full_tex
+    assert "Appendix body." in full_tex
+
+
 def test_front_matter_can_be_enabled_from_design_settings(tmp_path):
     repository = create_book(tmp_path)
     repository.design_settings().update({
@@ -369,6 +390,70 @@ def test_compile_extracts_wrapped_latexmk_file_line_errors(tmp_path, monkeypatch
     result = repository.latex_builder().compile_book()
 
     assert result.errors == [f"typeset_book.tex:{error_line}: Undefined control sequence. l.{error_line} \\\\toprule"]
+    assert result.responsible_section_ids == ["intro"]
+
+
+def test_compile_extracts_wrapped_undefined_control_sequence(tmp_path, monkeypatch):
+    repository = create_book(tmp_path)
+    assembled = repository.latex_builder().assembler.assemble_book()
+    error_line = next(
+        index
+        for index, line in enumerate(assembled.splitlines(), start=1)
+        if "This is section text" in line
+    )
+
+    def fake_run(command, cwd, env, capture_output, text, timeout, check):
+        return SimpleNamespace(
+            returncode=1,
+            stdout=(
+                f"./build/tex/typeset_book.tex:{error_line}: Undefined control seque\n"
+                "nce.\n"
+                f"l.{error_line} \\\\chapter\n"
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr(
+        "scripts.book.typesetting.find_latex_compiler",
+        lambda engine=None: LatexCompiler(name="latexmk", path="/usr/bin/latexmk"),
+    )
+    monkeypatch.setattr("scripts.book.typesetting.subprocess.run", fake_run)
+
+    result = repository.latex_builder().compile_book()
+
+    assert result.errors == [f"typeset_book.tex:{error_line}: Undefined control sequence. l.{error_line} \\\\chapter"]
+    assert result.responsible_section_ids == ["intro"]
+
+
+def test_compile_extracts_wrapped_environment_error(tmp_path, monkeypatch):
+    repository = create_book(tmp_path)
+    assembled = repository.latex_builder().assembler.assemble_book()
+    error_line = next(
+        index
+        for index, line in enumerate(assembled.splitlines(), start=1)
+        if "This is section text" in line
+    )
+
+    def fake_run(command, cwd, env, capture_output, text, timeout, check):
+        return SimpleNamespace(
+            returncode=1,
+            stdout=(
+                f"./build/tex/typeset_book.tex:{error_line}: LaTeX Error: Environmen\n"
+                "t appendices undefined.\n"
+                f"l.{error_line} \\\\begin{{appendices}}\n"
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr(
+        "scripts.book.typesetting.find_latex_compiler",
+        lambda engine=None: LatexCompiler(name="latexmk", path="/usr/bin/latexmk"),
+    )
+    monkeypatch.setattr("scripts.book.typesetting.subprocess.run", fake_run)
+
+    result = repository.latex_builder().compile_book()
+
+    assert result.errors == [f"typeset_book.tex:{error_line}: LaTeX Error: Environment appendices undefined. l.{error_line} \\\\begin{{appendices}}"]
     assert result.responsible_section_ids == ["intro"]
 
 
