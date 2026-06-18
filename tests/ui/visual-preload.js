@@ -70,8 +70,23 @@ window.cbm = {
     async compileBook() {
       return { status: 'passed', pdf_path: '' };
     },
+    async updateDesignSettings(updates) {
+      return { style_id: 'standard_article', page_size: 'letter', margin: '1in', ...updates };
+    },
+    async pdfDataUrl() {
+      return '';
+    },
     async requestReview() {
       return { event_type: 'review_requested', status: 'warn', rationale: 'Visual test review.' };
+    },
+    async startSectionAgent(sectionId) {
+      return { section: { ...fallbackSection, id: sectionId } };
+    },
+    async runHypervisor() {
+      return { targetSectionId: fallbackSection.id, complete: true, phase: 'draft' };
+    },
+    async reviewHypervisorDocument() {
+      return { selectedSectionIds: [fallbackSection.id] };
     },
     async createSection(_parentId, title) {
       return { ...fallbackSection, id: title.toLowerCase().replace(/[^a-z0-9]+/g, '_'), title };
@@ -100,6 +115,15 @@ window.cbm = {
         record: { book_id: 'demo__v0_2_0', title: 'Codynamic Theory', root: '', status: 'active' }
       };
     },
+    async createBookFromOutlineConversation() {
+      return {
+        message: 'Created outline conversation book.',
+        record: { book_id: 'conversation', title: 'Conversation Book', root: '', status: 'active' }
+      };
+    },
+    async outlineConversationReply() {
+      return { reply: 'Visual test conversation reply.' };
+    },
     async library() {
       return { active: 'demo', books: [{ book_id: 'demo', title: 'Codynamic Theory', root: '', status: 'active' }] };
     },
@@ -110,7 +134,8 @@ window.cbm = {
       return { book_id: 'new', title, root: '', status: 'active' };
     },
     onBookChanged() {},
-    onLibraryMessage() {}
+    onLibraryMessage() {},
+    onNewOutlineConversation() {}
   },
   typeset: {
     async styles() {
@@ -123,6 +148,9 @@ window.cbm = {
   userChat: {
     async list() {
       return [];
+    },
+    async addRequest(fromAgent, subject, body, metadata) {
+      return { message_id: 'visual_user_msg', from_agent: fromAgent, subject, body, status: 'pending', metadata };
     },
     async answer(messageId, answer) {
       return { message_id: messageId, subject: '', body: '', status: 'answered', answer };

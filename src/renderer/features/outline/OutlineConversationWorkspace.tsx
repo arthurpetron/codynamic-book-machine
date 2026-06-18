@@ -18,6 +18,7 @@ export function OutlineConversationWorkspace({ store }: OutlineConversationWorks
   const [messages, setMessages] = useState<OutlineConversationMessage[]>(starterMessages);
   const [draft, setDraft] = useState("");
   const [useLlm, setUseLlm] = useState<"auto" | "always" | "never">("auto");
+  const [isThinking, setIsThinking] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [resultText, setResultText] = useState("");
 
@@ -26,21 +27,36 @@ export function OutlineConversationWorkspace({ store }: OutlineConversationWorks
     [messages]
   );
 
-  function sendMessage() {
+  async function sendMessage() {
     const content = draft.trim();
-    if (!content) {
+    if (!content || isThinking) {
       return;
     }
-    setMessages((current) => [
-      ...current,
-      { role: "user", content, createdAt: new Date().toISOString() },
-      {
-        role: "assistant",
-        content: nextPrompt(content),
-        createdAt: new Date().toISOString()
-      }
-    ]);
+    const nextMessages: OutlineConversationMessage[] = [
+      ...messages,
+      { role: "user", content, createdAt: new Date().toISOString() }
+    ];
+    setMessages(nextMessages);
     setDraft("");
+    setIsThinking(true);
+    try {
+      const reply = await store.outlineConversationReply(nextMessages, useLlm);
+      setMessages((current) => [
+        ...current,
+        { role: "assistant", content: reply, createdAt: new Date().toISOString() }
+      ]);
+    } catch (error) {
+      setMessages((current) => [
+        ...current,
+        {
+          role: "assistant",
+          content: `I could not continue the conversation: ${(error as Error).message}`,
+          createdAt: new Date().toISOString()
+        }
+      ]);
+    } finally {
+      setIsThinking(false);
+    }
   }
 
   async function createOutline() {
@@ -91,12 +107,12 @@ export function OutlineConversationWorkspace({ store }: OutlineConversationWorks
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
               if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-                sendMessage();
+                void sendMessage();
               }
             }}
           />
-          <button className="primary-action" type="button" onClick={sendMessage} disabled={!draft.trim()}>
-            Send
+          <button className="primary-action" type="button" onClick={() => void sendMessage()} disabled={!draft.trim() || isThinking}>
+            {isThinking ? "Thinking..." : "Send"}
           </button>
         </div>
       </section>
@@ -118,18 +134,4 @@ export function OutlineConversationWorkspace({ store }: OutlineConversationWorks
       </aside>
     </main>
   );
-}
-
-function nextPrompt(content: string): string {
-  const lower = content.toLowerCase();
-  if (!lower.includes("audience") && !lower.includes("reader")) {
-    return "Who is the reader, and what do they already understand before opening the book?";
-  }
-  if (!lower.includes("chapter") && !lower.includes("structure") && !lower.includes("section")) {
-    return "What major parts or chapters should the book probably contain?";
-  }
-  if (!lower.includes("diagram") && !lower.includes("figure") && !lower.includes("visual")) {
-    return "What visuals, diagrams, citations, or supporting artifacts should the outline reserve space for?";
-  }
-  return "What constraints, open questions, or source materials should the outline preserve?";
 }

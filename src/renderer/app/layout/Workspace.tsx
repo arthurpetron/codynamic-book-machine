@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { AgentSettingsPanel } from "../../features/agents/AgentSettingsPanel";
 import { ProposalReviewPanel } from "../../features/agents/ProposalReviewPanel";
 import { SectionEditor } from "../../features/editor/SectionEditor";
@@ -19,10 +20,11 @@ const tabs: { id: WorkspaceTab; label: string }[] = [
 
 export function Workspace({ store }: WorkspaceProps) {
   const section = store.selectedSection;
+  const [outlineCollapsed, setOutlineCollapsed] = useState(false);
 
   return (
-    <main className="workspace" aria-label="Book authoring workspace">
-      <OutlinePane store={store} />
+    <main className={`workspace ${outlineCollapsed ? "is-outline-collapsed" : ""}`} aria-label="Book authoring workspace">
+      <OutlinePane store={store} collapsed={outlineCollapsed} onToggleCollapsed={() => setOutlineCollapsed((value) => !value)} />
       <section className="editor-pane" aria-label="Section editor">
         <div className="tabs" role="tablist" aria-label="Editor views">
           {tabs.map((tab) => (

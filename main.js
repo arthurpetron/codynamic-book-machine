@@ -50,6 +50,30 @@ function updateUserChatMessage(messageId, updates) {
   return message;
 }
 
+function addUserChatRequest({ fromAgent, subject, body, metadata }) {
+  const normalizedSubject = String(subject || '').trim();
+  const normalizedBody = String(body || '').trim();
+  if (!normalizedSubject) {
+    throw new Error('User chat subject is required');
+  }
+  if (!normalizedBody) {
+    throw new Error('User chat body is required');
+  }
+  const message = {
+    message_id: `user_msg_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`,
+    from_agent: String(fromAgent || 'agent'),
+    subject: normalizedSubject,
+    body: normalizedBody,
+    status: 'pending',
+    created_at: new Date().toISOString(),
+    metadata: metadata && typeof metadata === 'object' ? metadata : {}
+  };
+  const messages = readUserChatQueue();
+  messages.push(message);
+  writeUserChatQueue(messages);
+  return message;
+}
+
 function getPythonExecutable() {
   // Use venv python if available, fallback to system python3
   const venvPython = path.join(__dirname, '.venv', 'bin', 'python3');
@@ -284,6 +308,25 @@ async function newBook(win) {
   win.webContents.send('app:book:changed', { bookId: record.book_id });
 }
 
+async function requestFullReview(win) {
+  try {
+    await runAppJson(['request-review', '--subject', 'book']);
+    win.webContents.send('app:library:message', { message: 'Full review requested.' });
+  } catch (error) {
+    win.webContents.send('app:library:message', { message: `Review request failed: ${pythonErrorMessage(error)}` });
+  }
+}
+
+async function compileBookFromMenu(win) {
+  try {
+    const result = await runAppJson(['compile-book']);
+    win.webContents.send('app:library:message', { message: `Book compile ${result.status || 'finished'}.` });
+    win.webContents.send('app:book:changed', { bookId: 'active' });
+  } catch (error) {
+    win.webContents.send('app:library:message', { message: `Book compile failed: ${pythonErrorMessage(error)}` });
+  }
+}
+
 function parseStyles(stdout) {
   return stdout
     .split('\n')
@@ -354,6 +397,24 @@ function createAppMenu(win) {
       : []),
     fileMenu,
     {
+      label: 'Review',
+      submenu: [
+        {
+          label: 'Request Full Review',
+          click: () => requestFullReview(win)
+        }
+      ]
+    },
+    {
+      label: 'Export',
+      submenu: [
+        {
+          label: 'Compile Book',
+          click: () => compileBookFromMenu(win)
+        }
+      ]
+    },
+    {
       label: 'Edit',
       submenu: [
         { role: 'undo' },
@@ -411,6 +472,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
   ipcMain.handle('user-chat:list', () => readUserChatQueue());
+  ipcMain.handle('user-chat:add-request', (_event, payload = {}) => addUserChatRequest(payload));
   ipcMain.handle('user-chat:answer', (_event, { messageId, answer }) => {
     if (!answer || !answer.trim()) {
       throw new Error('Answer is required');
@@ -601,6 +663,25 @@ app.whenReady().then(() => {
       ]);
       win?.webContents.send('app:book:changed', { bookId: result.record?.book_id });
       return result;
+    } catch (error) {
+      return {
+        error: pythonErrorMessage(error)
+      };
+    } finally {
+      fs.rmSync(tmpPath, { force: true });
+    }
+  });
+  ipcMain.handle('app:outline-conversation-reply', async (_event, { messages, useLlm } = {}) => {
+    const tmpPath = path.join(os.tmpdir(), `cbm-outline-reply-${Date.now()}.json`);
+    fs.writeFileSync(tmpPath, `${JSON.stringify(Array.isArray(messages) ? messages : [], null, 2)}\n`);
+    try {
+      return await runAppJson([
+        'outline-conversation-reply',
+        '--messages-file',
+        tmpPath,
+        '--use-llm',
+        useLlm || 'auto'
+      ]);
     } catch (error) {
       return {
         error: pythonErrorMessage(error)

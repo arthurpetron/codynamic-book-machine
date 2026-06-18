@@ -4,6 +4,7 @@ interface EditorToolbarProps {
   onLiveSyncChange: (enabled: boolean) => void;
   onSave: () => void;
   onCompile: () => void;
+  onInsertCitation: () => void;
 }
 
 export function EditorToolbar({
@@ -11,7 +12,8 @@ export function EditorToolbar({
   liveSync,
   onLiveSyncChange,
   onSave,
-  onCompile
+  onCompile,
+  onInsertCitation
 }: EditorToolbarProps) {
   return (
     <div className="editor-toolbar" aria-label="Editor toolbar">
@@ -19,7 +21,7 @@ export function EditorToolbar({
       <button type="button" title="Compile selected section" onClick={onCompile} disabled={isCompiling}>
         {isCompiling ? "Compiling" : "Compile"}
       </button>
-      <button type="button" title="Insert citation placeholder">Cite</button>
+      <button type="button" title="Insert citation placeholder" onClick={onInsertCitation}>Cite</button>
       <span className="toolbar-spacer" />
       <label className="toggle">
         <input type="checkbox" checked={liveSync} onChange={(event) => onLiveSyncChange(event.target.checked)} />

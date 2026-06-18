@@ -14,15 +14,6 @@
           <span class="light amber"></span>
           <span class="light green"></span>
         </div>
-        <nav class="menu" aria-label="Primary">
-          <button type="button">File</button>
-          <button type="button">Edit</button>
-          <button type="button">Review</button>
-          <button type="button">Agents</button>
-          <button type="button">Export</button>
-          <button type="button">Git</button>
-          <button type="button">Help</button>
-        </nav>
         <div class="user-badge" aria-label="Signed in user">
           <span class="avatar">AP</span>
           <span>Arthur</span>
@@ -40,7 +31,6 @@
               <p class="eyebrow">Outline</p>
               <h1>Codynamic Theory</h1>
             </div>
-            <button class="icon-button" type="button" aria-label="Collapse outline" title="Collapse outline">-</button>
           </div>
 
           <div class="outline-tools">
@@ -74,15 +64,7 @@
 
           <section id="editor-panel" class="tab-panel text-editor is-active" aria-label="LaTeX text editor" data-panel="editor">
             <div class="editor-toolbar" aria-label="Editor toolbar">
-              <button type="button" title="Bold">B</button>
-              <button type="button" title="Italic">I</button>
-              <button type="button" title="Insert citation">Cite</button>
               <button id="compile-section" type="button" title="Compile selected section">Compile</button>
-              <span class="toolbar-spacer"></span>
-              <label class="toggle">
-                <input id="sync-toggle" type="checkbox" checked />
-                <span>Live sync</span>
-              </label>
             </div>
             <textarea id="latex-editor" spellcheck="false" aria-label="LaTeX source"></textarea>
           </section>
@@ -126,11 +108,6 @@
                 The resulting document workflow mirrors the theory: outline, agents, dependencies, and compiled pages remain visible as one coordinated surface.
               </p>
             </article>
-          </div>
-          <div class="page-strip" aria-label="Preview pages">
-            <button class="thumb is-active" type="button" aria-label="Page 1"></button>
-            <button class="thumb" type="button" aria-label="Page 2"></button>
-            <button class="thumb" type="button" aria-label="Page 3"></button>
           </div>
         </aside>
       </main>

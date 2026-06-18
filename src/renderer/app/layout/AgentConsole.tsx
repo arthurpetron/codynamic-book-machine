@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { UserChatMessage } from "../../api/types";
 import type { useBookStore } from "../../state/bookStore";
 
@@ -10,6 +10,7 @@ export function AgentConsole({ store }: AgentConsoleProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [userMessages, setUserMessages] = useState<UserChatMessage[]>([]);
   const [reply, setReply] = useState("");
+  const userChatPanelRef = useRef<HTMLElement | null>(null);
   const status = store.state.agentStatus;
   const hypervisorConfidence = status?.hypervisorConfidence ?? status?.confidence ?? 0;
   const messages = useMemo(() => [...store.activityMessages, ...(store.state.messages ?? [])].slice(0, 40), [store.activityMessages, store.state.messages]);
@@ -19,11 +20,30 @@ export function AgentConsole({ store }: AgentConsoleProps) {
     store.api.userChat?.list().then(setUserMessages).catch(() => setUserMessages([]));
   }, [store.api]);
 
-  async function answer(messageId: string) {
-    if (!reply.trim() || !store.api.userChat) {
+  useEffect(() => {
+    store.updateUserChatPendingCount(pending.length);
+  }, [store, pending.length]);
+
+  useEffect(() => {
+    if (store.userChatOpenRequest === 0) {
       return;
     }
-    await store.api.userChat.answer(messageId, reply.trim());
+    setCollapsed(false);
+    store.api.userChat?.list().then(setUserMessages).catch(() => setUserMessages([]));
+    window.requestAnimationFrame(() => {
+      userChatPanelRef.current?.scrollIntoView({ block: "nearest" });
+    });
+  }, [store.userChatOpenRequest]);
+
+  async function answer(messageId: string) {
+    const answerText = reply.trim();
+    if (!answerText) {
+      return;
+    }
+    if (!store.api.userChat) {
+      return;
+    }
+    await store.api.userChat.answer(messageId, answerText);
     setReply("");
     setUserMessages(await store.api.userChat.list());
   }
@@ -60,7 +80,7 @@ export function AgentConsole({ store }: AgentConsoleProps) {
       </div>
       {!collapsed ? (
         <div className="chat-panels">
-          <section className="user-chat-panel" aria-label="User chat requests">
+          <section className="user-chat-panel" aria-label="User chat requests" ref={userChatPanelRef}>
             <div className="chat-title">User Chat</div>
             <ol className="user-chat-list">
               {pending.length === 0 ? <li className="user-chat-empty">No user questions queued.</li> : null}

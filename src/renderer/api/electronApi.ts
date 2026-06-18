@@ -158,6 +158,16 @@ export function getElectronApi(): ElectronApi {
           outline: { outline_path: "fallback.yaml", provider: "fallback", model: "fallback" }
         };
       },
+      async outlineConversationReply(messages) {
+        const transcript = messages.map((message) => message.content.toLowerCase()).join("\n");
+        if (!transcript.includes("source") && !transcript.includes("official") && !transcript.includes("citation")) {
+          return { reply: "What source standard should the outline preserve when rules conflict: official governing-body rules, house rules, or both with clear labels?" };
+        }
+        if (!transcript.includes("diagram") && !transcript.includes("visual") && !transcript.includes("table")) {
+          return { reply: "What visual aids should the outline reserve space for: rack diagrams, table layouts, foul tables, comparison matrices, or shot examples?" };
+        }
+        return { reply: "That gives me enough context. Press Create Outline from Conversation when you want me to turn this transcript into the book outline." };
+      },
       async library() {
         return { active: "fallback", books: [] };
       },
@@ -182,6 +192,18 @@ export function getElectronApi(): ElectronApi {
     userChat: {
       async list() {
         return fallbackUserChat;
+      },
+      async addRequest(fromAgent, subject, body, metadata) {
+        const message = {
+          message_id: `fallback_user_msg_${Date.now()}`,
+          from_agent: fromAgent,
+          subject,
+          body,
+          status: "pending",
+          metadata
+        };
+        fallbackUserChat.unshift(message);
+        return message;
       },
       async answer(messageId, answer) {
         return { ...fallbackUserChat[0], message_id: messageId, answer, status: "answered" };

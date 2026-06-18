@@ -60,43 +60,28 @@ export function AgentSettingsPanel({ state }: AgentSettingsPanelProps) {
           <h3>Authoring loop</h3>
         </div>
         <div className="settings-grid">
-          <label className="setting-field">
+          <div className="setting-field read-only-setting">
             <span>Execution mode</span>
-            <select defaultValue="proposal">
-              <option value="manual">Manual</option>
-              <option value="proposal">Proposal first</option>
-              <option value="full-auto">Full auto</option>
-            </select>
-          </label>
-          <label className="setting-field">
+            <strong>Proposal first</strong>
+          </div>
+          <div className="setting-field read-only-setting">
             <span>Review depth</span>
-            <select defaultValue="full">
-              <option value="quick">Quick pass</option>
-              <option value="full">Full semantic review</option>
-              <option value="latex">LaTeX only</option>
-              <option value="citation">Citation review</option>
-              <option value="design">Design review</option>
-            </select>
-          </label>
-          <label className="setting-field">
+            <strong>Full semantic review</strong>
+          </div>
+          <div className="setting-field read-only-setting">
             <span>Memory scope</span>
-            <select defaultValue="project">
-              <option value="none">Off</option>
-              <option value="section">Section local</option>
-              <option value="project">Project memory</option>
-              <option value="accepted">Accepted/rejected proposal history</option>
-            </select>
-          </label>
-          <label className="setting-field">
+            <strong>Project memory</strong>
+          </div>
+          <div className="setting-field read-only-setting">
             <span>Max parallel agents</span>
-            <input type="number" min={1} max={12} defaultValue={Math.max(1, status?.active ?? 1)} />
-          </label>
+            <strong>{Math.max(1, status?.active ?? 1)}</strong>
+          </div>
         </div>
         <div className="settings-checks">
-          <label><input type="checkbox" defaultChecked /> Require approval for outline changes</label>
-          <label><input type="checkbox" defaultChecked /> Require approval for global style changes</label>
-          <label><input type="checkbox" defaultChecked /> Stop on unresolved citation errors</label>
-          <label><input type="checkbox" defaultChecked /> Save traces and rationale</label>
+          <span>Require approval for outline changes</span>
+          <span>Require approval for global style changes</span>
+          <span>Stop on unresolved citation errors</span>
+          <span>Save traces and rationale</span>
         </div>
         <div className="runtime-summary">
           <span>{status?.active ?? 0}/{status?.total ?? 1} active</span>
@@ -120,26 +105,15 @@ export function AgentSettingsPanel({ state }: AgentSettingsPanelProps) {
                   <h4>{agent.name}</h4>
                   <p>{agent.purpose}</p>
                 </div>
-                <label className="agent-enabled">
-                  <input type="checkbox" defaultChecked />
-                  <span>On</span>
-                </label>
+                <span className="agent-enabled">On</span>
               </div>
-              <div className="agent-setting-row">
+              <div className="agent-setting-row read-only-setting">
                 <span>Model</span>
-                <select defaultValue={agent.model}>
-                  <option value={agent.model}>{agent.model}</option>
-                  <option value="fast">fast</option>
-                  <option value="deep">deep</option>
-                </select>
+                <strong>{agent.model}</strong>
               </div>
-              <div className="agent-setting-row">
+              <div className="agent-setting-row read-only-setting">
                 <span>Approval</span>
-                <select defaultValue={agent.approval}>
-                  <option value={agent.approval}>{agent.approval}</option>
-                  <option value="Manual only">Manual only</option>
-                  <option value="Can write in full auto">Can write in full auto</option>
-                </select>
+                <strong>{agent.approval}</strong>
               </div>
               <div className="tool-chips" aria-label={`${agent.name} tools`}>
                 {agent.tools.map((tool) => <span key={tool}>{tool}</span>)}

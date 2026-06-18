@@ -28,6 +28,8 @@ export function useBookStore() {
   const [isCompilingSection, setIsCompilingSection] = useState(false);
   const [compileHistory, setCompileHistory] = useState<CompileHistoryItem[]>([]);
   const [activityMessages, setActivityMessages] = useState<string[]>([]);
+  const [userChatPendingCount, setUserChatPendingCount] = useState(0);
+  const [userChatOpenRequest, setUserChatOpenRequest] = useState(0);
   const [sectionAgentRunState, setSectionAgentRunState] = useState<Record<string, SectionAgentRunState>>({});
   const [hypervisorEnabled, setHypervisorEnabled] = useState(false);
   const [isHypervisorWorking, setIsHypervisorWorking] = useState(false);
@@ -314,6 +316,30 @@ export function useBookStore() {
     addActivity("File -> Conversation", "Opened outline conversation workspace.");
   }, [addActivity]);
 
+  const openUserChat = useCallback(() => {
+    setUserChatOpenRequest((value) => value + 1);
+  }, []);
+
+  const updateUserChatPendingCount = useCallback((count: number) => {
+    setUserChatPendingCount(count);
+  }, []);
+
+  const openSectionAgentChat = useCallback(async (sectionId: string, title: string) => {
+    try {
+      await api.userChat?.addRequest(
+        `section_agent__${sectionId}`,
+        `Chat about ${title}`,
+        `I'm the section agent for "${title}". I'm ready to discuss this section.`,
+        { section_id: sectionId, section_title: title, source: "outline_section_menu" }
+      );
+      addActivity("Section Agent -> User", `Opened chat for ${title}.`);
+    } catch (error) {
+      addActivity("Section Agent -> User", `Could not open chat for ${title}: ${(error as Error).message}`);
+    } finally {
+      setUserChatOpenRequest((value) => value + 1);
+    }
+  }, [api, addActivity]);
+
   const closeOutlineConversation = useCallback(() => {
     setAppMode("book");
     addActivity("Conversation -> Book", "Returned to book workspace.");
@@ -334,6 +360,21 @@ export function useBookStore() {
     await loadState(null);
     return result;
   }, [api, loadState, addActivity]);
+
+  const outlineConversationReply = useCallback(async (
+    messages: OutlineConversationMessage[],
+    useLlm: "auto" | "always" | "never" = "auto"
+  ) => {
+    const result = await api.app.outlineConversationReply(messages, useLlm);
+    if (result.error) {
+      addActivity("Conversation -> Outline", `Conversation reply failed: ${result.error}`);
+      return (
+        "I could not reach the conversation model. Add any missing audience, scope, source, structure, " +
+        "or visual requirements, then create the outline when ready."
+      );
+    }
+    return result.reply || "What important constraint should the outline preserve next?";
+  }, [api, addActivity]);
 
   const compileSection = useCallback(async (content: string) => {
     if (!selectedId) {
@@ -450,6 +491,8 @@ export function useBookStore() {
     isCompilingSection,
     compileHistory,
     activityMessages,
+    userChatPendingCount,
+    userChatOpenRequest,
     sectionAgentRunState,
     hypervisorEnabled,
     isHypervisorWorking,
@@ -467,7 +510,11 @@ export function useBookStore() {
     createVersionFromOutline,
     openOutlineConversation,
     closeOutlineConversation,
+    openUserChat,
+    updateUserChatPendingCount,
+    openSectionAgentChat,
     createBookFromOutlineConversation,
+    outlineConversationReply,
     compileSection,
     compileBook,
     requestReview,

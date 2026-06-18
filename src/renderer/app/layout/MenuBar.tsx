@@ -23,9 +23,14 @@ export function MenuBar({ store }: MenuBarProps) {
       <div className="user-badge" aria-label="Signed in user">
         <span className="avatar">AP</span>
         <span>Arthur</span>
-        <button className="user-chat-button" type="button" aria-label="Pending user chat messages">
+        <button
+          className={`user-chat-button ${store.userChatPendingCount > 0 ? "has-pending" : ""}`}
+          type="button"
+          aria-label={`${store.userChatPendingCount} pending user chat message${store.userChatPendingCount === 1 ? "" : "s"}`}
+          onClick={store.openUserChat}
+        >
           User Chat
-          <span className="queue-badge">0</span>
+          <span className="queue-badge">{store.userChatPendingCount}</span>
         </button>
         <button
           className={`hypervisor-toggle ${store.hypervisorEnabled ? "is-enabled" : ""}`}

@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('cbm', {
     importOutline: (mode) => ipcRenderer.invoke('app:import-outline', { mode }),
     createVersionFromOutline: () => ipcRenderer.invoke('app:create-version-from-outline'),
     createBookFromOutlineConversation: (messages, useLlm) => ipcRenderer.invoke('app:create-book-from-outline-conversation', { messages, useLlm }),
+    outlineConversationReply: (messages, useLlm) => ipcRenderer.invoke('app:outline-conversation-reply', { messages, useLlm }),
     library: () => ipcRenderer.invoke('app:library'),
     openBook: (bookId) => ipcRenderer.invoke('app:open-book', { bookId }),
     newBook: (title) => ipcRenderer.invoke('app:new-book', { title }),
@@ -41,6 +42,7 @@ contextBridge.exposeInMainWorld('cbm', {
   },
   userChat: {
     list: () => ipcRenderer.invoke('user-chat:list'),
+    addRequest: (fromAgent, subject, body, metadata) => ipcRenderer.invoke('user-chat:add-request', { fromAgent, subject, body, metadata }),
     answer: (messageId, answer) => ipcRenderer.invoke('user-chat:answer', { messageId, answer }),
     dismiss: (messageId) => ipcRenderer.invoke('user-chat:dismiss', { messageId })
   }

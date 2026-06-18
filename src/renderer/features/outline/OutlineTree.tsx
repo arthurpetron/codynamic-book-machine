@@ -9,12 +9,15 @@ interface OutlineTreeProps {
   agentRunState: Record<string, SectionAgentRunState>;
   onSelect: (sectionId: string) => void;
   onStartAgent: (sectionId: string) => Promise<void>;
+  onOpenChat: (sectionId: string, title: string) => Promise<void>;
   onRename: (nodeId: string, currentTitle: string) => void | Promise<void>;
 }
 
-export function OutlineTree({ chapters, selectedId, filter, agentRunState, onSelect, onStartAgent, onRename }: OutlineTreeProps) {
+export function OutlineTree({ chapters, selectedId, filter, agentRunState, onSelect, onStartAgent, onOpenChat, onRename }: OutlineTreeProps) {
   const normalized = filter.trim().toLowerCase();
   const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
+  const [chapterExpansion, setChapterExpansion] = useState<Record<string, boolean>>({});
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   async function commitEdit() {
     if (!editing) {
@@ -76,6 +79,8 @@ export function OutlineTree({ chapters, selectedId, filter, agentRunState, onSel
   return (
     <div className="outline-tree" role="tree" aria-label="Book outline">
       {chapters.map((chapter) => {
+        const chapterId = chapter.id ?? chapter.title;
+        const isExpanded = Boolean(normalized) || (chapterExpansion[chapterId] ?? chapter.expanded !== false);
         const visibleItems = chapter.items.filter((item) => {
           return !normalized || `${chapter.title} ${item.number ?? ""} ${item.title}`.toLowerCase().includes(normalized);
         });
@@ -84,11 +89,18 @@ export function OutlineTree({ chapters, selectedId, filter, agentRunState, onSel
         }
         return (
           <section className="chapter" key={chapter.id ?? chapter.title}>
-            <button className="chapter-toggle" type="button">
-              <span>{chapter.expanded || normalized ? "v" : ">"}</span>
+            <button
+              className="chapter-toggle"
+              type="button"
+              aria-expanded={isExpanded}
+              onClick={() => {
+                setChapterExpansion((current) => ({ ...current, [chapterId]: !isExpanded }));
+              }}
+            >
+              <span>{isExpanded ? "v" : ">"}</span>
               {chapter.id ? titleEditor(chapter.id, chapter.title, "chapter-title") : <span>{chapter.chapter}: {chapter.title}</span>}
             </button>
-            <ul className="section-list">
+            {isExpanded ? <ul className="section-list">
               {visibleItems.map((item) => (
                 <li key={item.id}>
                   {(() => {
@@ -114,15 +126,37 @@ export function OutlineTree({ chapters, selectedId, filter, agentRunState, onSel
                     {scoreLabel}
                   </span>
                   <div className="outline-row-menu">
-                    <button type="button" className="outline-menu-button" aria-label={`Actions for ${item.title}`} title="Section actions">...</button>
-                    <div className="outline-row-menu-panel" role="menu">
+                    <button
+                      type="button"
+                      className="outline-menu-button"
+                      aria-label={`Actions for ${item.title}`}
+                      aria-expanded={openMenuId === item.id}
+                      title="Section actions"
+                      onClick={() => setOpenMenuId((current) => current === item.id ? null : item.id)}
+                    >
+                      ...
+                    </button>
+                    <div className={`outline-row-menu-panel ${openMenuId === item.id ? "is-open" : ""}`} role="menu">
                       <button
                         type="button"
                         role="menuitem"
                         disabled={agentRunState[item.id] === "working"}
-                        onClick={() => onStartAgent(item.id)}
+                        onClick={() => {
+                          setOpenMenuId(null);
+                          onStartAgent(item.id);
+                        }}
                       >
                         {runState === "working" ? "Working" : "Start Agent"}
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setOpenMenuId(null);
+                          onOpenChat(item.id, item.title);
+                        }}
+                      >
+                        Chat
                       </button>
                     </div>
                   </div>
@@ -131,7 +165,7 @@ export function OutlineTree({ chapters, selectedId, filter, agentRunState, onSel
                   })()}
                 </li>
               ))}
-            </ul>
+            </ul> : null}
           </section>
         );
       })}

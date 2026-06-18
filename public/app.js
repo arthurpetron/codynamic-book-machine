@@ -701,13 +701,6 @@ document.querySelectorAll(".tab").forEach((tab) => {
   });
 });
 
-document.querySelectorAll(".thumb").forEach((thumb) => {
-  thumb.addEventListener("click", () => {
-    document.querySelectorAll(".thumb").forEach((candidate) => candidate.classList.remove("is-active"));
-    thumb.classList.add("is-active");
-  });
-});
-
 search.addEventListener("input", () => renderOutline(search.value));
 
 newSectionButton.addEventListener("click", () => {
@@ -721,11 +714,19 @@ toggleChat.addEventListener("click", () => {
   toggleChat.textContent = next ? "v" : "^";
 });
 
-pauseSwarm.addEventListener("click", () => {
-  const paused = pauseSwarm.dataset.paused === "true";
-  pauseSwarm.dataset.paused = String(!paused);
-  pauseSwarm.textContent = paused ? "Pause Swarm" : "Resume Swarm";
-  renderMessages(`operator --> hypervisor_agent: ${paused ? "Swarm resumed." : "Swarm paused. Agents will finish current local actions only."}`);
+pauseSwarm.addEventListener("click", async () => {
+  const enabled = pauseSwarm.dataset.enabled === "true";
+  pauseSwarm.dataset.enabled = String(!enabled);
+  pauseSwarm.textContent = enabled ? "Start Swarm" : "Pause Swarm";
+  if (!enabled && window.cbm && window.cbm.app) {
+    try {
+      await window.cbm.app.runHypervisor({});
+      await loadAppState();
+    } catch (error) {
+      appendActivityMessage("Hypervisor -> Book", `Swarm start failed: ${error.message}`);
+    }
+  }
+  renderMessages(`operator --> hypervisor_agent: ${enabled ? "Swarm paused." : "Swarm started."}`);
 });
 
 requestReview.addEventListener("click", () => {

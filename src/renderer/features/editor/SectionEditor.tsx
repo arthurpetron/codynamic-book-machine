@@ -12,6 +12,7 @@ export function SectionEditor({ store }: SectionEditorProps) {
   const [isDirty, setIsDirty] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
   const gutterRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const lastSavedSourceRef = useRef(store.selectedSection?.source ?? "");
   const lastCompiledSourceRef = useRef(store.selectedSection?.source ?? "");
   const lineNumbers = useMemo(() => {
@@ -60,6 +61,20 @@ export function SectionEditor({ store }: SectionEditorProps) {
     }
   }
 
+  function insertCitationPlaceholder() {
+    const citation = "\\cite{todo-citation}";
+    const textarea = textareaRef.current;
+    const start = textarea?.selectionStart ?? source.length;
+    const end = textarea?.selectionEnd ?? source.length;
+    const nextSource = `${source.slice(0, start)}${citation}${source.slice(end)}`;
+    setSource(nextSource);
+    setIsDirty(true);
+    window.requestAnimationFrame(() => {
+      textarea?.focus();
+      textarea?.setSelectionRange(start + citation.length, start + citation.length);
+    });
+  }
+
   return (
     <section className="tab-panel text-editor is-active" aria-label="LaTeX text editor">
       <EditorToolbar
@@ -73,12 +88,14 @@ export function SectionEditor({ store }: SectionEditorProps) {
           setIsDirty(false);
         }}
         onCompile={compile}
+        onInsertCitation={insertCitationPlaceholder}
       />
       <div className="source-editor">
         <div className="line-gutter" ref={gutterRef} aria-hidden="true">
           {lineNumbers.map((line) => <span key={line}>{line}</span>)}
         </div>
         <textarea
+          ref={textareaRef}
           value={source}
           onChange={(event) => {
             setSource(event.target.value);

@@ -230,6 +230,10 @@ export interface ElectronApi {
       message?: string;
       error?: string;
     }>;
+    outlineConversationReply(messages: OutlineConversationMessage[], useLlm?: "auto" | "always" | "never"): Promise<{
+      reply?: string;
+      error?: string;
+    }>;
     library(): Promise<BookLibraryState>;
     openBook(bookId: string): Promise<BookRecord>;
     newBook(title: string): Promise<BookRecord>;
@@ -243,6 +247,7 @@ export interface ElectronApi {
   };
   userChat?: {
     list(): Promise<UserChatMessage[]>;
+    addRequest(fromAgent: string, subject: string, body: string, metadata?: Record<string, unknown>): Promise<UserChatMessage>;
     answer(messageId: string, answer: string): Promise<UserChatMessage>;
     dismiss(messageId: string): Promise<UserChatMessage>;
   };
