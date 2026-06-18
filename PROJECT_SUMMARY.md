@@ -7,7 +7,7 @@ A complete, professional-grade system for defining and converting written work o
 ## Deliverables
 
 ### 1. Schema Definition (v2.0)
-📁 Location: `data/schemas/`
+📁 Location: `schemas/`
 
 **Core Files:**
 - `work_outline_schema_v2.yaml` - Complete schema with extensive documentation
@@ -141,7 +141,7 @@ python3 converter.py your_outline.txt output.yaml --interactive
 
 ```bash
 # Copy the blank template
-cp data/schemas/template_blank.yaml \
+cp schemas/template_blank.yaml \
    data/book_data/my_new_book/outline.yaml
 
 # Edit and fill in your content

@@ -337,7 +337,7 @@ Compiler :: TeXDocument → (Settings → PDF)
 
 - **Main README**: `/codynamic-book-machine/README.md`
 - **Progress Log**: `/codynamic-book-machine/PROGRESS.md`
-- **Schema Docs**: `/data/schemas/SCHEMA_DOCUMENTATION.md`
+- **Schema Docs**: `/schemas/SCHEMA_DOCUMENTATION.md`
 - **Test Suite**: `/tests/`
 - **Examples**: `/examples/simple_agent_demo.py`
 

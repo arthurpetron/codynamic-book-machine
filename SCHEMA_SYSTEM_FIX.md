@@ -40,7 +40,7 @@ Created a **dynamic registry** that:
 - Documents compatibility between versions
 - Enables automatic discovery from filesystem as fallback
 
-**File**: `data/schemas/schema_registry.json`
+**File**: `schemas/schema_registry.json`
 
 ### 2. Registry API
 
@@ -131,10 +131,10 @@ This aligns perfectly with the intuitionist principle that structures should be 
 ## Files Modified
 
 - ✅ `requirements.txt` - Added jsonschema
-- ✅ `data/schemas/schema_registry.json` - NEW: Version registry
-- ✅ `data/schemas/work_outline_schema_2.1.0.json` - RENAMED from v2.json
-- ✅ `data/schemas/work_outline_schema_2.1.0.yaml` - RENAMED from v2.yaml
-- ✅ `data/schemas/REGISTRY.md` - NEW: Registry documentation
+- ✅ `schemas/schema_registry.json` - NEW: Version registry
+- ✅ `schemas/work_outline_schema_2.1.0.json` - RENAMED from v2.json
+- ✅ `schemas/work_outline_schema_2.1.0.yaml` - RENAMED from v2.yaml
+- ✅ `schemas/REGISTRY.md` - NEW: Registry documentation
 - ✅ `scripts/utils/` - NEW: Utils directory
 - ✅ `scripts/utils/__init__.py` - NEW: Utils package
 - ✅ `scripts/utils/schema_registry.py` - NEW: Registry implementation

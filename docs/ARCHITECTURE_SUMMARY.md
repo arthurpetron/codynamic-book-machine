@@ -31,7 +31,7 @@ The system treats document creation as an **operadic composition** where:
 - **Agent State Storage**: Persistent task queues and execution logs
 
 **Key Files**:
-- `data/schemas/work_outline_schema_2.1.0.yaml`
+- `schemas/work_outline_schema_2.1.0.yaml`
 - `data/book_data/*/outline/*.yaml`
 - `data/agent_state/*/`
 

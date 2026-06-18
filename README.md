@@ -84,7 +84,7 @@ Copy `.env.example` to `.env` if you need non-default configuration.
 Supported environment variables:
 
 - `ENVIRONMENT` or `ENV`: runtime environment name; defaults to `development`
-- `SCHEMA_DIR`: overrides the schema directory; defaults to `data/schemas`
+- `SCHEMA_DIR`: overrides the schema directory; defaults to `schemas`
 - `SCHEMA_REGISTRY_FILE`: registry filename inside `SCHEMA_DIR`
 - `SCHEMA_REGISTRY_PATH`: full path to a registry file; overrides the two schema settings above
 - `LATEX_ENGINE`: optional compiler override; otherwise the app discovers `latexmk`, `pdflatex`, `xelatex`, `lualatex`, or `tectonic`

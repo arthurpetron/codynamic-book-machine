@@ -33,7 +33,7 @@ class ProjectStructure:
     @property
     def schema_dir(self) -> Path:
         """The schema directory - semantic location for schema definitions."""
-        return self.data_dir / "schemas"
+        return self.root / "schemas"
     
     @property
     def logs_dir(self) -> Path:
@@ -189,7 +189,6 @@ def verify_project_structure(structure: ProjectStructure) -> Tuple[bool, List[st
     
     # Critical directories that should exist
     critical_paths = [
-        ("data directory", structure.data_dir),
         ("schema directory", structure.schema_dir),
         ("scripts directory", structure.scripts_dir),
     ]

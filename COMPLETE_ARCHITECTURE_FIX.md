@@ -52,7 +52,7 @@ ENV_REGISTRY_FILE = "SCHEMA_REGISTRY_FILE"  # Discoverable ✅
 - ✅ Directory configurable via `SCHEMA_DIR`
 - ✅ Can use system-wide location: `/etc/codynamic/schemas`
 - ✅ Can use user-specific: `~/.codynamic/schemas`
-- ✅ Can use project-specific: `./data/schemas`
+- ✅ Can use project-specific: `./schemas`
 
 ### 3. Registry Location
 - ✅ Filename configurable via `SCHEMA_REGISTRY_FILE`
@@ -86,7 +86,7 @@ export SCHEMA_REGISTRY_PATH="/etc/codynamic/production.json"
 1. **Code** - Constructor parameters
 2. **Environment** - `SCHEMA_REGISTRY_PATH`
 3. **Environment** - `SCHEMA_REGISTRY_FILE` + `SCHEMA_DIR`
-4. **Convention** - Default: `./data/schemas/schema_registry.json`
+4. **Convention** - Default: `./schemas/schema_registry.json`
 
 ## Files Created
 
@@ -94,16 +94,16 @@ export SCHEMA_REGISTRY_PATH="/etc/codynamic/production.json"
 - ✅ `scripts/utils/schema_registry.py` - Dynamic schema discovery
 - ✅ `scripts/utils/schema_validator.py` - Schema-based validation
 - ✅ `scripts/utils/__init__.py` - Utils package
-- ✅ `data/schemas/schema_registry.json` - Version tracking database
+- ✅ `schemas/schema_registry.json` - Version tracking database
 
 ### Configuration
 - ✅ `.env.example` - Environment configuration template
-- ✅ `data/schemas/dev_registry.json` - Development registry
-- ✅ `data/schemas/test_registry.json` - Testing registry
+- ✅ `schemas/dev_registry.json` - Development registry
+- ✅ `schemas/test_registry.json` - Testing registry
 
 ### Documentation
-- ✅ `data/schemas/REGISTRY.md` - Registry system guide
-- ✅ `data/schemas/ENVIRONMENT_CONFIG.md` - Environment variable guide
+- ✅ `schemas/REGISTRY.md` - Registry system guide
+- ✅ `schemas/ENVIRONMENT_CONFIG.md` - Environment variable guide
 - ✅ `SCHEMA_SYSTEM_FIX.md` - Initial architecture fix
 - ✅ `ENV_VAR_IMPLEMENTATION.md` - Environment variable implementation
 - ✅ `COMPLETE_ARCHITECTURE_FIX.md` - This document

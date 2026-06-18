@@ -121,7 +121,7 @@ class BootstrapSystem:
         needed for the system to discover configuration.
         
         Creates:
-            - data/schemas/
+            - schemas/
             - data/logs/
             - scripts/utils/
             
@@ -133,10 +133,10 @@ class BootstrapSystem:
         # Create minimal configuration
         config = BootstrapConfig(
             project_root=self.project_root,
-            schema_dir=self.project_root / "data" / "schemas",
+            schema_dir=self.project_root / "schemas",
             data_dir=self.project_root / "data",
             logs_dir=self.project_root / "data" / "logs",
-            registry_path=self.project_root / "data" / "schemas" / "schema_registry.json",
+            registry_path=self.project_root / "schemas" / "schema_registry.json",
             current_phase=BootPhase.SEED
         )
         

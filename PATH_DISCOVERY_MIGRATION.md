@@ -69,7 +69,7 @@ structure = get_cached_project_structure()
 ```python
 structure.root            # Project root
 structure.data_dir        # data/
-structure.schema_dir      # data/schemas/
+structure.schema_dir      # schemas/
 structure.logs_dir        # data/logs/
 structure.agent_state_dir # data/agent_state/
 structure.book_data_dir   # data/book_data/
@@ -95,7 +95,7 @@ if not valid:
 **Before:**
 ```python
 project_root = Path(__file__).parent.parent.parent
-schema_dir = project_root / "data" / "schemas"
+schema_dir = project_root / "schemas"
 ```
 
 **After:**
@@ -129,7 +129,7 @@ sys.path.insert(0, str(get_project_root()))
 ```python
 if schema_dir is None:
     project_root = Path(__file__).parent.parent
-    schema_dir = project_root / "data" / "schemas"
+    schema_dir = project_root / "schemas"
 ```
 
 **After:**

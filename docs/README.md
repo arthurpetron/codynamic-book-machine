@@ -89,11 +89,11 @@ Welcome to the Codynamic Book Machine documentation. This system transforms stru
 - **[PROGRESS.md](../PROGRESS.md)**: Development progress and current status
 - **[PROJECT_SUMMARY.md](../PROJECT_SUMMARY.md)**: Schema system overview
 
-### In Data Directory (`../data/schemas/`)
-- **[SCHEMA_DOCUMENTATION.md](../data/schemas/SCHEMA_DOCUMENTATION.md)**: Work Outline Schema v2.1 guide
-- **[work_outline_schema_2.1.0.yaml](../data/schemas/work_outline_schema_2.1.0.yaml)**: Complete schema definition
-- **[template_blank.yaml](../data/schemas/template_blank.yaml)**: Starter template
-- **[example_paper.yaml](../data/schemas/example_paper.yaml)**: Working example
+### In Schemas Directory (`../schemas/`)
+- **[SCHEMA_DOCUMENTATION.md](../schemas/SCHEMA_DOCUMENTATION.md)**: Work Outline Schema v2.1 guide
+- **[work_outline_schema_2.1.0.yaml](../schemas/work_outline_schema_2.1.0.yaml)**: Complete schema definition
+- **[template_blank.yaml](../schemas/template_blank.yaml)**: Starter template
+- **[example_paper.yaml](../schemas/example_paper.yaml)**: Working example
 
 ### In Scripts Directory (`../scripts/`)
 - **[agents/agent_controller.py](../scripts/agents/agent_controller.py)**: Core agent implementation
@@ -209,12 +209,12 @@ compose :: Agent₁ → Agent₂ → ComposedAgent
 
 1. **Study**: [operadic_architecture.html](./operadic_architecture.html)
 2. **Analyze**: [MERMAID_DIAGRAMS.md](./MERMAID_DIAGRAMS.md) diagram 8 (Laws)
-3. **Explore**: `../data/schemas/work_outline_schema_2.1.0.yaml`
+3. **Explore**: `../schemas/work_outline_schema_2.1.0.yaml`
 4. **Experiment**: Modify agents and observe emergent behavior
 
 ### For Writers/Users
 
-1. **Start**: Copy `../data/schemas/template_blank.yaml`
+1. **Start**: Copy `../schemas/template_blank.yaml`
 2. **Fill**: Add your content structure
 3. **Convert**: Use `../scripts/outline_converter/converter.py`
 4. **Generate**: Run the system (when complete)

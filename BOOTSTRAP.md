@@ -83,7 +83,7 @@ print(f"LLM providers: {system.config.llm_providers}")
 ### Phase 0: SEED
 **Purpose**: Create minimal filesystem structure  
 **Creates**:
-- `data/schemas/` directory
+- `schemas/` directory
 - `data/logs/` directory
 - `scripts/utils/` directory
 
@@ -322,7 +322,7 @@ system.print_status()
 # Phase: READY (4)
 # Environment: development
 # Project Root: /path/to/codynamic-book-machine
-# Schema Dir: /path/to/data/schemas
+# Schema Dir: /path/to/schemas
 # Registry: /path/to/schema_registry.json
 # LLM Providers: openai, anthropic
 # 

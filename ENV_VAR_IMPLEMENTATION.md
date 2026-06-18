@@ -30,7 +30,7 @@ Configuration is discovered in priority order:
 1. Constructor parameters (code)
 2. `SCHEMA_REGISTRY_PATH` environment variable
 3. `SCHEMA_REGISTRY_FILE` + `SCHEMA_DIR` environment variables
-4. Default convention: `./data/schemas/schema_registry.json`
+4. Default convention: `./schemas/schema_registry.json`
 
 ### 3. Multiple Use Cases Enabled
 
@@ -71,16 +71,16 @@ This hierarchy of discovery matches how configuration **should** work: from most
 
 ### Created
 - ✅ `.env.example` - Template for environment configuration
-- ✅ `data/schemas/ENVIRONMENT_CONFIG.md` - Complete guide on using env vars
-- ✅ `data/schemas/dev_registry.json` - Example development registry
-- ✅ `data/schemas/test_registry.json` - Example testing registry
+- ✅ `schemas/ENVIRONMENT_CONFIG.md` - Complete guide on using env vars
+- ✅ `schemas/dev_registry.json` - Example development registry
+- ✅ `schemas/test_registry.json` - Example testing registry
 
 ## Usage Examples
 
 ### Default (No Configuration)
 ```python
 registry = SchemaRegistry()
-# Uses: ./data/schemas/schema_registry.json
+# Uses: ./schemas/schema_registry.json
 ```
 
 ### Development
@@ -89,7 +89,7 @@ export SCHEMA_REGISTRY_FILE=dev_registry.json
 ```
 ```python
 registry = SchemaRegistry()
-# Uses: ./data/schemas/dev_registry.json
+# Uses: ./schemas/dev_registry.json
 ```
 
 ### Testing

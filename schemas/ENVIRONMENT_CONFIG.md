@@ -8,7 +8,7 @@ The schema system now supports full configuration via environment variables, ena
 
 ### 1. `SCHEMA_DIR`
 **Purpose**: Override the schema directory location  
-**Default**: `{project_root}/data/schemas`  
+**Default**: `{project_root}/schemas`  
 **Example**:
 ```bash
 export SCHEMA_DIR="/opt/codynamic/schemas"
@@ -58,11 +58,11 @@ When multiple configuration methods are used, priority is:
 4. **SCHEMA_REGISTRY_FILE** + default schema_dir
    ```bash
    export SCHEMA_REGISTRY_FILE="test_registry.json"
-   # Results in: {project}/data/schemas/test_registry.json
+   # Results in: {project}/schemas/test_registry.json
    ```
 
 5. **Default convention** (lowest priority)
-   - Location: `{project}/data/schemas/schema_registry.json`
+   - Location: `{project}/schemas/schema_registry.json`
 
 ## Use Cases
 
@@ -124,13 +124,13 @@ export SCHEMA_REGISTRY_FILE="my_registry.json"
 
 ### 1. Default Configuration
 ```python
-# Uses {project}/data/schemas/schema_registry.json
+# Uses {project}/schemas/schema_registry.json
 registry = SchemaRegistry()
 ```
 
 ### 2. Custom Registry File
 ```python
-# Uses {project}/data/schemas/experimental_registry.json
+# Uses {project}/schemas/experimental_registry.json
 registry = SchemaRegistry(registry_file="experimental_registry.json")
 ```
 
@@ -163,7 +163,7 @@ Create different .env files for different environments:
 
 **`.env.development`**:
 ```bash
-SCHEMA_DIR=./data/schemas
+SCHEMA_DIR=./schemas
 SCHEMA_REGISTRY_FILE=dev_registry.json
 ```
 

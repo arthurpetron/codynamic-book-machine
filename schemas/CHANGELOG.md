@@ -40,7 +40,7 @@ From an **intuitionist perspective** (capturing intent over structure):
 ### Technical Details
 
 **Files Modified**:
-- `data/schemas/work_outline_schema_v2.yaml`: Expanded metadata section
+- `schemas/work_outline_schema_v2.yaml`: Expanded metadata section
 - `scripts/outline_converter/converter.py`: Updated `_create_metadata()` to generate comprehensive structure
 - All version strings updated from "2.0" to "2.1"
 

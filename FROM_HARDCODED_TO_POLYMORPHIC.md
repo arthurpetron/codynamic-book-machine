@@ -43,7 +43,7 @@ is_valid, errors = validator.validate(outline)
 **Files Created**:
 - `scripts/utils/schema_registry.py` - Dynamic version discovery
 - `scripts/utils/schema_validator.py` - Schema-based validation
-- `data/schemas/schema_registry.json` - Version tracking database
+- `schemas/schema_registry.json` - Version tracking database
 
 **Principle**: *The schema IS the definition, not documentation OF the definition*
 
@@ -77,9 +77,9 @@ class SchemaRegistry:
 
 **Files Created**:
 - `.env.example` - Configuration template
-- `data/schemas/dev_registry.json` - Development registry
-- `data/schemas/test_registry.json` - Testing registry
-- `data/schemas/ENVIRONMENT_CONFIG.md` - Complete guide
+- `schemas/dev_registry.json` - Development registry
+- `schemas/test_registry.json` - Testing registry
+- `schemas/ENVIRONMENT_CONFIG.md` - Complete guide
 
 **Principle**: *Nothing should be hardcoded that could reasonably vary between contexts*
 
@@ -243,9 +243,9 @@ agent = bootstrap_agent(config)     # Guaranteed to work
 - ✅ `main.py` - Entry point with bootstrap CLI
 
 ### Configuration
-- ✅ `data/schemas/schema_registry.json` - Production registry
-- ✅ `data/schemas/dev_registry.json` - Development registry
-- ✅ `data/schemas/test_registry.json` - Testing registry
+- ✅ `schemas/schema_registry.json` - Production registry
+- ✅ `schemas/dev_registry.json` - Development registry
+- ✅ `schemas/test_registry.json` - Testing registry
 - ✅ `.env.example` - Environment template
 
 ### Documentation

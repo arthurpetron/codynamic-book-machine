@@ -33,7 +33,7 @@ This enhancement embodies the **intuitionist principle** that structure should e
 ### Examples and Templates
 - **`template_blank.yaml`** - Empty template to start new works (copy this!)
 - **`example_paper.yaml`** - Complete example of a short academic paper
-- **`../outline_template.yaml`** - Original template (v1.0, kept for reference)
+- **`outline_template.yaml`** - Original template (v1.0, kept for reference)
 
 ## Quick Start
 
@@ -41,7 +41,7 @@ This enhancement embodies the **intuitionist principle** that structure should e
 
 1. Copy the blank template:
    ```bash
-   cp template_blank.yaml ../book_data/my_new_book/outline.yaml
+   cp schemas/template_blank.yaml data/book_data/my_new_book/outline.yaml
    ```
 
 2. Fill in the basic information:
